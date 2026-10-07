@@ -5,11 +5,6 @@ import scene from "./scene";
 
 const DURATION_IN_FRAMES = 150;
 
-/**
- * The project's video: camera, timing, audio and keyframes on top of the
- * scene. `animate` targets scene objects by id; `extraObjects` exist only in
- * the video (e.g. titles).
- */
 export default defineClip(scene, {
   schemaVersion: 1,
   id: "_template",

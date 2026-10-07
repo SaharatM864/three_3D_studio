@@ -1,7 +1,6 @@
 import { notImplemented } from "@/lib/not-implemented";
 import type { AssetPath } from "@/model/types";
 
-/** Fetch a same-origin audio asset and decode it. Results should be cached per path. */
 export type LoadAudio = (
   context: BaseAudioContext,
   path: AssetPath

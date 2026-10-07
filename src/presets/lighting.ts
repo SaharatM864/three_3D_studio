@@ -5,7 +5,6 @@ export interface LightingPreset {
   lights: readonly LightSpec[];
 }
 
-/** Light rigs shared by clips (`lights: lightingPresets[id].lights`) and the playground. */
 export const lightingPresets = {
   "studio-3-point": {
     label: "Studio 3-point",

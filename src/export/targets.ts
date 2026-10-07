@@ -6,7 +6,6 @@ export type OutputTargetChoice =
   | {
       kind: "file-stream";
       target: StreamTarget;
-      /** Close the FileSystemWritableFileStream after finalize. */
       close(): Promise<void>;
     }
   | { kind: "memory"; target: BufferTarget };

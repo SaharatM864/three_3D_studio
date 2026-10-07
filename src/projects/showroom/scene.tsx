@@ -3,16 +3,13 @@ import { defineScene } from "@/projects/define";
 import { lightingPresets } from "@/presets/lighting";
 import { materialPresets, type MaterialPresetId } from "@/presets/materials";
 
-/** Distance between plinths along the x axis, in meters. */
 export const PLINTH_SPACING = 2.5;
 
 const materialIds = Object.keys(materialPresets) as MaterialPresetId[];
 
-/** x of the first and last plinth, so the clip camera can travel past them. */
 export const PLINTH_ROW_HALF_WIDTH =
   ((materialIds.length - 1) * PLINTH_SPACING) / 2;
 
-/** One plinth with a sphere on top per material preset, in a row along x. */
 function materialSwatches(): SceneObjectSpec[] {
   return materialIds.flatMap((id, index): SceneObjectSpec[] => {
     const x = index * PLINTH_SPACING - PLINTH_ROW_HALF_WIDTH;

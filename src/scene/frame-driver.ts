@@ -19,9 +19,7 @@ export interface FrameDriver {
   play(): void;
   pause(): void;
   seek(frame: number): void;
-  /** Evaluate, apply and render one frame synchronously (export path). */
   renderFrame(frame: number): void;
-  /** Notified on frame changes; UI should throttle what it displays. */
   subscribe(listener: (frame: number) => void): () => void;
   dispose(): void;
 }
@@ -29,7 +27,6 @@ export interface FrameDriver {
 export interface FrameDriverOptions {
   clip: ClipSpec;
   bridge: RenderBridge;
-  /** R3F `advance` bound to the clip canvas. */
   advance: (timestampMs: number) => void;
 }
 

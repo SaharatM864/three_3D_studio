@@ -14,10 +14,8 @@ export type JsonValue =
 
 export type Vec3 = readonly [x: number, y: number, z: number];
 
-/** CSS color string, e.g. "#ffffff". */
 export type ColorValue = string;
 
-/** Path under `public/assets/`, e.g. "models/chair.glb". */
 export type AssetPath = string;
 
 export type EasingName =
@@ -31,10 +29,8 @@ export type EasingName =
   | "easeInOutCubic";
 
 export interface Keyframe<T> {
-  /** Integer frame index. */
   frame: number;
   value: T;
-  /** Easing from this keyframe to the next one. Defaults to "linear". */
   easing?: EasingName;
 }
 
@@ -43,13 +39,11 @@ export interface Track<T> {
   keyframes: readonly Keyframe<T>[];
 }
 
-/** A static value, or a keyframed track evaluated per frame. */
 export type Animatable<T> = T | Track<T>;
 
 export interface VideoSettings {
   width: number;
   height: number;
-  /** Constant frame rate. */
   fps: number;
   durationInFrames: number;
 }
@@ -111,9 +105,7 @@ export interface MaterialMaps {
   emissive?: AssetPath;
 }
 
-/** PBR material. Fields override the preset named by `presetId`. */
 export interface MaterialSpec {
-  /** Key of `materialPresets` in src/presets/materials.ts. */
   presetId?: string;
   color?: Animatable<ColorValue>;
   metalness?: Animatable<number>;
@@ -137,120 +129,86 @@ export type SceneObjectSpec =
   | (SceneObjectBase & {
       kind: "primitive";
       shape: PrimitiveShape;
-      /** Shape dimensions before `transform.scale`. Defaults to [1, 1, 1]. */
       size?: Vec3;
       material?: MaterialSpec;
     })
   | (SceneObjectBase & {
       kind: "model";
       src: AssetPath;
-      /** GLB animation clip, driven with AnimationMixer.setTime(). */
       animation?: string;
     })
   | (SceneObjectBase & {
       kind: "text";
       text: string;
-      /** Font file; Thai text needs a font that contains Thai glyphs. */
       font?: AssetPath;
       fontSize?: number;
       material?: MaterialSpec;
     })
   | (SceneObjectBase & {
       kind: "custom";
-      /** Key into the clip module's `components`. */
       componentKey: string;
       props?: Readonly<Record<string, JsonValue>>;
     });
 
-/** Fields override the preset named by `presetId`. */
 export interface EnvironmentSpec {
-  /** Key of `environmentPresets` in src/presets/environments.ts. */
   presetId?: string;
-  /** Opaque background color; exports are SDR with no alpha. */
   background?: ColorValue;
   hdri?: AssetPath;
-  /** Show the HDRI as the background instead of `background`. */
   hdriAsBackground?: boolean;
   environmentIntensity?: number;
   fog?: { color: ColorValue; near: number; far: number };
-  /** Renderer tone mapping exposure. */
   exposure?: number;
 }
 
 export interface AudioClipSpec {
   id: string;
   src: AssetPath;
-  /** Timeline frame at which this clip starts playing. */
   startFrame: number;
-  /** Seconds skipped from the start of the source file. */
   trimStartSeconds?: number;
-  /** Length on the timeline. Defaults to the rest of the source. */
   durationInFrames?: number;
   volume?: Animatable<number>;
 }
 
-/** The world of a project, shared by its playground and its clip. */
 export interface SceneSpec {
   environment: EnvironmentSpec;
   lights: readonly LightSpec[];
   objects: readonly SceneObjectSpec[];
 }
 
-/**
- * A fully resolved clip: the project's scene merged with its ClipDefinition
- * by composeClip(). This is what the timeline evaluates and export renders.
- */
 export interface ClipSpec extends SceneSpec {
   schemaVersion: 1;
   id: string;
   title: string;
   video: VideoSettings;
-  /** Seed for createSeededRandom() so procedural content repeats exactly. */
   seed: number;
   camera: CameraSpec;
   audio: readonly AudioClipSpec[];
 }
 
-/** Keyframes a clip adds to one scene object. Fields replace the scene's. */
 export interface ObjectAnimation {
   transform?: Transform;
-  /** Only for objects that have a material (`primitive`, `text`). */
   material?: MaterialSpec;
 }
 
-/** What a project's `clip.tsx` writes on top of its scene. */
 export interface ClipDefinition {
   schemaVersion: 1;
-  /** Equals the project id. */
   id: string;
   title: string;
   video: VideoSettings;
-  /** Seed for createSeededRandom() so procedural content repeats exactly. */
   seed: number;
   camera: CameraSpec;
   audio: readonly AudioClipSpec[];
-  /** Merged field by field over the scene's environment. */
   environment?: EnvironmentSpec;
-  /** Replaces the scene's lights when set. */
   lights?: readonly LightSpec[];
-  /** Keyed by scene object id. */
   animate?: Readonly<Record<string, ObjectAnimation>>;
-  /** Objects that exist only in the video, e.g. titles. */
   extraObjects?: readonly SceneObjectSpec[];
 }
 
 export type ColliderShape = "cuboid" | "ball" | "trimesh" | "none";
 
-/** What a project's `playground.tsx` adds to its scene. */
 export interface PlaygroundSpec {
-  /** Player spawn position in world units. */
   spawn: Vec3;
-  /**
-   * Fixed collider per scene object id. Defaults to "cuboid" for
-   * `primitive` and `model` objects and "none" for the rest.
-   */
   colliders?: Readonly<Record<string, ColliderShape>>;
-  /** Objects that exist only in the playground, e.g. walls or props. */
   extraObjects?: readonly SceneObjectSpec[];
 }
 

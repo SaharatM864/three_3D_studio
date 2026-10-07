@@ -1,16 +1,10 @@
 import type { ColorValue, Vec3 } from "@/model/types";
 
-/**
- * Animated light and object values resolved at one frame. Static structure
- * (object kinds, shapes, asset paths) stays in the SceneSpec; renderers match
- * entries by `id`.
- */
 export interface EvaluatedSceneContent {
   lights: readonly EvaluatedLight[];
   objects: readonly EvaluatedObject[];
 }
 
-/** One frame of a clip: the scene content plus the clip camera and time. */
 export interface EvaluatedScene extends EvaluatedSceneContent {
   frame: number;
   timeSeconds: number;
@@ -49,6 +43,5 @@ export interface EvaluatedObject {
   id: string;
   transform: EvaluatedTransform;
   material?: EvaluatedMaterial;
-  /** Seconds into the GLB animation, for AnimationMixer.setTime(). */
   animationTime?: number;
 }

@@ -5,7 +5,6 @@ export interface MaterialPreset {
   material: Omit<MaterialSpec, "presetId">;
 }
 
-/** Base PBR materials referenced by `MaterialSpec.presetId`. */
 export const materialPresets = {
   "matte-plastic": {
     label: "Matte plastic",

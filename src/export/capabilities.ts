@@ -9,10 +9,6 @@ export interface CapabilityCheckInput {
   hasAudio: boolean;
 }
 
-/**
- * Runtime preflight with the exact settings to be used. `ok` is not a
- * guarantee that a long export succeeds (context loss, memory, encode errors).
- */
 export type CheckExportCapabilities = (
   input: CapabilityCheckInput
 ) => Promise<CapabilityReport>;

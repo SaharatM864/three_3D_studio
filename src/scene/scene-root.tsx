@@ -9,7 +9,6 @@ export interface SceneRootProps {
   components?: SceneComponents;
 }
 
-/** Everything inside the clip canvas: the clip camera plus the scene content. */
 // TODO(M1): <ClipCamera spec={spec.camera} video={spec.video}/> and
 // <SceneContent spec={spec} components={components}/>.
 export const SceneRoot: FC<SceneRootProps> = () => null;

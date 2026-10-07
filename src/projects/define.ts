@@ -21,22 +21,18 @@ export interface SceneModule {
   components?: SceneComponents;
 }
 
-/** What `clip.tsx` default-exports: the scene merged with the clip. */
 export interface ClipModule {
   spec: ClipSpec;
   components?: SceneComponents;
 }
 
-/** What `playground.tsx` default-exports. */
 export interface PlaygroundModule {
-  /** The scene plus the playground's extra objects. */
   scene: SceneSpec;
   playground: PlaygroundSpec;
   components?: SceneComponents;
 }
 
 export interface DefineOptions {
-  /** Custom components that exist only in this clip or playground. */
   components?: SceneComponents;
 }
 

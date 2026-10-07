@@ -9,7 +9,6 @@ export interface ClipCanvasProps {
   children?: ReactNode;
 }
 
-/** The canvas that preview renders into and export captures from. */
 export function ClipCanvas({ video, className, children }: ClipCanvasProps) {
   // TODO(M1): frameloop="never" driven by frame-driver; while exporting pin
   // dpr to 1 and the drawing buffer to video.width × video.height.

@@ -6,7 +6,6 @@ import type { SceneComponents } from "../custom-components";
 
 export interface SceneObjectProps {
   spec: SceneObjectSpec;
-  /** Custom components of the scene or clip, for `kind: "custom"`. */
   components?: SceneComponents;
 }
 

@@ -8,7 +8,6 @@ import {
   projectManifest,
 } from "@/projects/manifest";
 
-// Only projects listed in the manifest exist; anything else is a 404.
 export const dynamicParams = false;
 
 export function generateStaticParams() {

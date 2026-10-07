@@ -1,7 +1,6 @@
 import { notImplemented } from "@/lib/not-implemented";
 import type { EasingName } from "@/model/types";
 
-/** Maps progress `t` in [0, 1] to eased progress. */
 export type EasingFn = (t: number) => number;
 
 export type GetEasing = (name: EasingName) => EasingFn;

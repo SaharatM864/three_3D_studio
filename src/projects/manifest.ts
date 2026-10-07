@@ -4,10 +4,10 @@
  */
 
 export interface ProjectMeta {
-  /** Folder name under src/projects and the URL segment of /projects/<id>/…. */
   id: string;
   title: string;
   description: string;
+  thumbnail?: string;
 }
 
 export const projectManifest = [

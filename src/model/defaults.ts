@@ -7,7 +7,6 @@ export const VIDEO_FORMATS = {
 
 export type VideoFormatId = keyof typeof VIDEO_FORMATS;
 
-/** 10 seconds of 1080p30, the first export milestone (M1). */
 export const DEFAULT_VIDEO: VideoSettings = {
   ...VIDEO_FORMATS["landscape-1080p30"],
   durationInFrames: 300,

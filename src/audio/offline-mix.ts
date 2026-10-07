@@ -6,11 +6,6 @@ export interface AudioMixOptions {
   numberOfChannels: number;
 }
 
-/**
- * Render the clip's audio clips (start, trim, volume) into one buffer the
- * length of the video, using OfflineAudioContext. Resolves null when the
- * clip has no audio, so no audio track is created.
- */
 export type RenderAudioMix = (
   clip: ClipSpec,
   options: AudioMixOptions

@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 export interface PlayerControllerProps {
-  /** Spawn position in world units. */
   spawn?: [number, number, number];
 }
 

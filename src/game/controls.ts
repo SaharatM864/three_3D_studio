@@ -3,7 +3,6 @@ import type { KeyboardControlsEntry } from "@react-three/drei";
 export type ControlName =
   "forward" | "backward" | "left" | "right" | "jump" | "run" | "interact";
 
-/** Key map for drei <KeyboardControls>; read with useKeyboardControls<ControlName>(). */
 export const controlsMap: KeyboardControlsEntry<ControlName>[] = [
   { name: "forward", keys: ["ArrowUp", "KeyW"] },
   { name: "backward", keys: ["ArrowDown", "KeyS"] },

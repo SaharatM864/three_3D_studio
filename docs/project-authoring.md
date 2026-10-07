@@ -25,7 +25,7 @@ Build the scene once, inspect it in the playground, then edit the video in the c
 1. Pick a kebab-case id, e.g. `product-spin`.
 2. Copy `src/projects/_template/` to `src/projects/product-spin/`.
 3. In `clip.tsx`, set `id` to the project id and `title` to the clip title.
-4. Add `{ id, title, description }` to `projectManifest` in `src/projects/manifest.ts`.
+4. Add `{ id, title, description }` to `projectManifest` in `src/projects/manifest.ts`. Optionally add `thumbnail`, a path under `public/assets/` (e.g. `"projects/<id>/thumbnail.webp"`, 16:9), shown on the home page card.
 5. Add an entry to `src/projects/loaders.ts`. Typecheck fails if the manifest and loaders disagree.
 
    ```ts

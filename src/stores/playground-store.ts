@@ -4,15 +4,12 @@ import type { EnvironmentPresetId } from "@/presets/environments";
 import type { LightingPresetId } from "@/presets/lighting";
 
 interface PlaygroundState {
-  /** Preview override; null shows the project's own lights. */
   lightingPresetId: LightingPresetId | null;
-  /** Preview override; null shows the project's own environment. */
   environmentPresetId: EnvironmentPresetId | null;
   isPointerLocked: boolean;
   setLightingPreset: (id: LightingPresetId | null) => void;
   setEnvironmentPreset: (id: EnvironmentPresetId | null) => void;
   setPointerLocked: (locked: boolean) => void;
-  /** Called when a project's playground mounts; the store is global. */
   reset: () => void;
 }
 

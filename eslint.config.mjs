@@ -68,8 +68,6 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Each project folder is self-contained so agents can work on one
-    // without breaking another. Use "./" imports inside a project.
     files: ["src/projects/*/**"],
     rules: {
       "no-restricted-imports": [
@@ -93,14 +91,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": "off",
     },
   },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);
 
 export default eslintConfig;

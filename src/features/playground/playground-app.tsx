@@ -2,6 +2,7 @@ import { KeyboardControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useEffect } from "react";
 
+import { ErrorScreen, LoadingScreen } from "@/components/status-screen";
 import { controlsMap } from "@/game/controls";
 import { PlaygroundScene } from "@/game/playground-scene";
 import { projectLoaders } from "@/projects/loaders";
@@ -19,8 +20,8 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
   useEffect(() => resetStore(), [resetStore]);
 
   return (
-    <div className="relative h-dvh w-full bg-black">
-      {state.status === "ready" ? (
+    <div className="relative h-dvh w-full overflow-hidden bg-black">
+      {state.status === "ready" && (
         <KeyboardControls map={controlsMap}>
           <Canvas shadows>
             <PlaygroundScene
@@ -30,15 +31,22 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
             />
           </Canvas>
         </KeyboardControls>
-      ) : (
-        <p className="p-4 pt-16 text-sm text-muted-foreground">
-          {state.status === "loading"
-            ? "กำลังโหลดฉาก…"
-            : `โหลดฉากไม่สำเร็จ: ${String(state.error)}`}
-        </p>
       )}
-      <Hud projectId={projectId} />
-      <EnvironmentPanel />
+      {state.status === "loading" && (
+        <LoadingScreen label="กำลังโหลดฉาก…" className="h-full" />
+      )}
+      {state.status === "error" && (
+        <ErrorScreen
+          title="โหลดฉากไม่สำเร็จ"
+          error={state.error}
+          onRetry={() => window.location.reload()}
+          className="h-full"
+        />
+      )}
+      <Hud projectId={projectId} sceneReady={state.status === "ready"} />
+      {state.status === "ready" && (
+        <EnvironmentPanel scene={state.module.scene} />
+      )}
     </div>
   );
 }

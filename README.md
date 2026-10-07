@@ -47,7 +47,7 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 
 ```text
 src/
-├── app/           routing เท่านั้น: /, /projects/[projectId]/studio, /projects/[projectId]/play
+├── app/           routing เท่านั้น: /, /projects/[projectId]/studio, /projects/[projectId]/play, /dev/ui
 ├── features/      UI ของ studio และ playground (*-loader.tsx เป็น client boundary)
 ├── projects/      project ที่ AI เขียน (<id>/scene.tsx, playground.tsx, clip.tsx) + define.ts, manifest.ts, loaders.ts (_template สำหรับคัดลอก)
 ├── model/         type ของ scene/clip/playground และ composeClip (pure TS)
@@ -59,7 +59,7 @@ src/
 ├── export/        capability check, AAC fallback, output target, export loop
 ├── compositing/   overlay 2D ที่ต้องติดไปในวิดีโอ
 ├── stores/        zustand store สำหรับ state ของ UI
-├── components/    shadcn ui + placeholder
+├── components/    shadcn ui + status-screen (loading/error)
 └── lib/           utils, notImplemented
 public/assets/     ใช้ร่วมกัน: models, textures, hdri, audio, fonts · เฉพาะ project: projects/<id>/
 docs/              architecture.md, project-authoring.md
@@ -88,7 +88,8 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
 - **เบราว์เซอร์เป้าหมาย** คือ Chrome และ Edge บน desktop ก่อน export ต้องตรวจ codec จริงด้วย `canEncodeVideo('avc')` และ `canEncodeAudio('aac')`
 - **Deploy บน Vercel**: Vercel อ่าน `bun.lock` แล้วรัน `bun install` ให้เอง ไม่ต้องตั้ง COOP/COEP header แต่ script `build` เรียก `bun --bun next build` และ Vercel ต้อง opt-in ถึงจะใช้ Bun 1.4 ได้ ให้ตรวจการตั้งค่านี้ตอน deploy ครั้งแรก
 - **`.env` กับ `bun --bun`**: Next.js โหลด `.env*` เอง แต่ Bun 1.4 ไม่โหลด `.env` ให้เมื่อรันแบบ `--bun` ดังนั้น script แยก เช่น seed หรือ migration ต้องใส่ `--env-file=.env.local` เอง
-- **Dark mode**: shadcn ใช้ class `.dark` (`@custom-variant dark`) ไม่ใช่ `prefers-color-scheme` ต้องใส่ class `dark` ที่ `<html>` เองถ้าต้องการโหมดมืด
+- **ธีม**: แอปใช้ธีมมืดถาวร (class `dark` ที่ `<html>` ใน `src/app/layout.tsx`) เพราะ shadcn ใช้ class `.dark` (`@custom-variant dark`) ไม่ใช่ `prefers-color-scheme` ฟอนต์ไทยใช้ Noto Sans Thai เป็น fallback ของ Geist
+- **UI gallery**: เปิด `/dev/ui` ตอน `bun dev` เพื่อดูทุก state ของ UI ที่ยังต่อ function ไม่ครบ (production build ขึ้น 404)
 - **ข้อจำกัดเรื่องเวอร์ชัน**:
   - `three` ให้อยู่ที่ 0.186.x เพราะ `postprocessing` รองรับแค่ `<0.187`
   - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha

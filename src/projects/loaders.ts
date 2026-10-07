@@ -8,11 +8,6 @@ export interface ProjectLoaders {
   playground: Loader<PlaygroundModule>;
 }
 
-/**
- * Lazy project code, client-side only. Typed by ProjectId so a missing entry
- * fails typecheck. Clip and playground load separately so each page only
- * pulls in its own code.
- */
 export const projectLoaders: Record<ProjectId, ProjectLoaders> = {
   "example-turntable": {
     clip: () => import("./example-turntable/clip"),

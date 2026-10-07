@@ -5,12 +5,10 @@ import scene, { PLINTH_ROW_HALF_WIDTH } from "./scene";
 
 const DURATION_IN_FRAMES = 300;
 const LAST_FRAME = DURATION_IN_FRAMES - 1;
-/** How far past the first and last plinth the camera starts and ends. */
 const OVERSHOOT = 1.5;
 const START_X = -PLINTH_ROW_HALF_WIDTH - OVERSHOOT;
 const END_X = PLINTH_ROW_HALF_WIDTH + OVERSHOOT;
 
-/** A slow dolly along the row of material swatches. */
 export default defineClip(scene, {
   schemaVersion: 1,
   id: "showroom",

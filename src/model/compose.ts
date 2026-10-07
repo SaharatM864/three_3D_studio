@@ -40,7 +40,6 @@ function animateObject(
   };
 }
 
-/** Merge a project's scene with its clip definition into one ClipSpec. */
 export function composeClip(scene: SceneSpec, def: ClipDefinition): ClipSpec {
   const { animate = {}, extraObjects = [], ...clip } = def;
   const context = `Clip "${def.id}"`;
@@ -69,7 +68,6 @@ export function composeClip(scene: SceneSpec, def: ClipDefinition): ClipSpec {
   };
 }
 
-/** The scene a playground renders: the project's scene plus its extra objects. */
 export function composePlaygroundScene(
   scene: SceneSpec,
   playground: PlaygroundSpec

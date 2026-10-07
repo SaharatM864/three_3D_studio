@@ -5,10 +5,6 @@ export interface EnvironmentPreset {
   environment: Omit<EnvironmentSpec, "presetId">;
 }
 
-/**
- * Backgrounds, fog and exposure referenced by `EnvironmentSpec.presetId`.
- * Add `hdri: "hdri/<file>.hdr"` once files exist in public/assets/hdri.
- */
 export const environmentPresets = {
   "studio-gray": {
     label: "Studio gray",

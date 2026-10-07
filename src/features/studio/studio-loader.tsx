@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 
+import { LoadingScreen } from "@/components/status-screen";
 import type { ProjectId } from "@/projects/manifest";
 
 // R3F, three.js and WebCodecs only run in the browser.
@@ -10,7 +11,7 @@ const StudioApp = dynamic(
   {
     ssr: false,
     loading: () => (
-      <p className="p-4 text-sm text-muted-foreground">กำลังโหลด Studio…</p>
+      <LoadingScreen label="กำลังโหลด Studio…" className="h-dvh" />
     ),
   }
 );

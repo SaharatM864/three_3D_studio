@@ -1,14 +1,63 @@
+import { Box } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import type { ClipModule } from "@/projects/define";
 import { ClipCanvas } from "@/scene/clip-canvas";
 import { SceneRoot } from "@/scene/scene-root";
 
 export function Viewport({ clip }: { clip: ClipModule }) {
+  const { width, height } = clip.spec.video;
+
   return (
-    <ClipCanvas
-      video={clip.spec.video}
-      className="w-full overflow-hidden rounded-lg bg-black"
-    >
-      <SceneRoot spec={clip.spec} components={clip.components} />
-    </ClipCanvas>
+    <div className="relative min-h-0 min-w-0 bg-muted/20 p-6">
+      <div className="grid size-full place-items-center [container-type:size]">
+        <div
+          className="relative overflow-hidden rounded-md bg-black shadow-2xl ring-1 ring-border"
+          style={{
+            width: `min(100cqw, calc(100cqh * ${width} / ${height}))`,
+            aspectRatio: `${width} / ${height}`,
+          }}
+        >
+          <ClipCanvas video={clip.spec.video} className="size-full">
+            <SceneRoot spec={clip.spec} components={clip.components} />
+          </ClipCanvas>
+          <ScenePendingOverlay />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute top-2 left-2 flex gap-1.5">
+        <Badge variant="secondary" className="font-normal">
+          Preview
+          <span className="font-mono text-muted-foreground tabular-nums">
+            {width}×{height}
+          </span>
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+// TODO(M1): remove once SceneRoot renders the scene.
+function ScenePendingOverlay() {
+  return (
+    <div className="pointer-events-none absolute inset-0 grid place-items-center">
+      <Empty className="text-white/70">
+        <EmptyHeader>
+          <EmptyMedia variant="icon" className="bg-white/10 text-white/80">
+            <Box />
+          </EmptyMedia>
+          <EmptyTitle className="text-white/80">ยังไม่ได้ render ฉาก</EmptyTitle>
+          <EmptyDescription className="text-white/50">
+            ภาพจะแสดงที่นี่เมื่อเชื่อม SceneRoot กับ frame driver
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    </div>
   );
 }

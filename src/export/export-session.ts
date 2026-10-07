@@ -9,7 +9,6 @@ export interface RunExportOptions {
   /** Snapshot taken when export starts; edits during export must not leak in. */
   clip: ClipSpec;
   preset: ExportPreset;
-  /** The canvas CanvasSource captures from (after any compositing). */
   canvas: HTMLCanvasElement;
   driver: FrameDriver;
   target: OutputTargetChoice;

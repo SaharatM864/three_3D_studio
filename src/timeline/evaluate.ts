@@ -10,7 +10,6 @@ import type { EvaluatedScene, EvaluatedSceneContent } from "./types";
  */
 export type EvaluateClip = (clip: ClipSpec, frame: number) => EvaluatedScene;
 
-/** Lights and objects at frame N; shared by evaluateClip and the playground. */
 export type EvaluateScene = (
   scene: SceneSpec,
   frame: number

@@ -1,9 +1,3 @@
-/**
- * Copy this folder to src/projects/<project-id>/ to start a new project, then
- * register it in ../manifest.ts and ../loaders.ts. See docs/project-authoring.md.
- *
- * Not listed in the manifest, so it is never loaded; it only has to typecheck.
- */
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Mesh } from "three";
