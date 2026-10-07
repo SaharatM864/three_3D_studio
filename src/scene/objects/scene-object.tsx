@@ -1,12 +1,13 @@
-import type { ComponentType, FC } from "react";
+import type { FC } from "react";
 
-import type { ClipComponentProps } from "@/clips/define-clip";
-import type { SceneObjectSpec } from "@/project/types";
+import type { SceneObjectSpec } from "@/model/types";
+
+import type { SceneComponents } from "../custom-components";
 
 export interface SceneObjectProps {
   spec: SceneObjectSpec;
-  /** The clip's custom components, for `kind: "custom"`. */
-  components?: Readonly<Record<string, ComponentType<ClipComponentProps>>>;
+  /** Custom components of the scene or clip, for `kind: "custom"`. */
+  components?: SceneComponents;
 }
 
 // TODO(M1): "primitive" (geometry by shape + createMaterial), registered by id.

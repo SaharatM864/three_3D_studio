@@ -1,4 +1,4 @@
-import type { MaterialSpec } from "@/project/types";
+import type { MaterialSpec } from "@/model/types";
 
 export interface MaterialPreset {
   label: string;

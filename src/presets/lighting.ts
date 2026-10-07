@@ -1,4 +1,4 @@
-import type { LightSpec } from "@/project/types";
+import type { LightSpec } from "@/model/types";
 
 export interface LightingPreset {
   label: string;

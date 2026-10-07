@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 
-import type { VideoSettings } from "@/project/types";
+import type { VideoSettings } from "@/model/types";
 
 export interface ClipCanvasProps {
   video: VideoSettings;

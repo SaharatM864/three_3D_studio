@@ -1,4 +1,4 @@
-import type { EnvironmentSpec } from "@/project/types";
+import type { EnvironmentSpec } from "@/model/types";
 
 export interface EnvironmentPreset {
   label: string;

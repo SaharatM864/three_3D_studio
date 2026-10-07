@@ -1,11 +1,11 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { ClipProject } from "@/project/types";
+import type { ClipSpec } from "@/model/types";
 
 import type { RenderBridge } from "./render-bridge";
 
 /**
  * The one clock for a clip canvas. The canvas runs with frameloop="never";
- * this driver evaluates the project, applies it through the render bridge and
+ * this driver evaluates the clip, applies it through the render bridge and
  * calls R3F advance() itself.
  *
  * - preview: requestAnimationFrame picks the frame from elapsed time
@@ -27,7 +27,7 @@ export interface FrameDriver {
 }
 
 export interface FrameDriverOptions {
-  project: ClipProject;
+  clip: ClipSpec;
   bridge: RenderBridge;
   /** R3F `advance` bound to the clip canvas. */
   advance: (timestampMs: number) => void;

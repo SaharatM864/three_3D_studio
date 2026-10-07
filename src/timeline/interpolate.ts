@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { ColorValue, Vec3 } from "@/project/types";
+import type { ColorValue, Vec3 } from "@/model/types";
 
 export type Lerp<T> = (from: T, to: T, t: number) => T;
 

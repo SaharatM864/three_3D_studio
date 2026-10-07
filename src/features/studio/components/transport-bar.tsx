@@ -1,5 +1,5 @@
 import { Placeholder } from "@/components/placeholder";
-import type { VideoSettings } from "@/project/types";
+import type { VideoSettings } from "@/model/types";
 import { useStudioStore } from "@/stores/studio-store";
 
 // TODO(M2): play/pause, frame stepping and a scrubber wired to the frame driver.

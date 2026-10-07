@@ -14,13 +14,20 @@ interface StudioState {
   setPlaying: (isPlaying: boolean) => void;
   setDisplayFrame: (frame: number) => void;
   setExportStatus: (status: ExportStatus) => void;
+  /** Called when a project's studio mounts; the store is global. */
+  reset: () => void;
 }
 
-export const useStudioStore = create<StudioState>()((set) => ({
+const initialState = {
   isPlaying: false,
   displayFrame: 0,
   exportStatus: "idle",
+} satisfies Partial<StudioState>;
+
+export const useStudioStore = create<StudioState>()((set) => ({
+  ...initialState,
   setPlaying: (isPlaying) => set({ isPlaying }),
   setDisplayFrame: (displayFrame) => set({ displayFrame }),
   setExportStatus: (exportStatus) => set({ exportStatus }),
+  reset: () => set(initialState),
 }));

@@ -26,6 +26,13 @@ export function EnvironmentPanel() {
       className="absolute top-4 right-4 w-72 bg-background/90"
     >
       <div className="flex flex-wrap gap-1">
+        <Button
+          size="sm"
+          variant={lightingPresetId === null ? "default" : "outline"}
+          onClick={() => setLightingPreset(null)}
+        >
+          ของ project
+        </Button>
         {lightingIds.map((id) => (
           <Button
             key={id}
@@ -38,6 +45,13 @@ export function EnvironmentPanel() {
         ))}
       </div>
       <div className="flex flex-wrap gap-1">
+        <Button
+          size="sm"
+          variant={environmentPresetId === null ? "default" : "outline"}
+          onClick={() => setEnvironmentPreset(null)}
+        >
+          ของ project
+        </Button>
         {environmentIds.map((id) => (
           <Button
             key={id}

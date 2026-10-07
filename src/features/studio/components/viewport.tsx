@@ -1,14 +1,14 @@
-import type { ClipModule } from "@/clips/define-clip";
+import type { ClipModule } from "@/projects/define";
 import { ClipCanvas } from "@/scene/clip-canvas";
 import { SceneRoot } from "@/scene/scene-root";
 
 export function Viewport({ clip }: { clip: ClipModule }) {
   return (
     <ClipCanvas
-      video={clip.project.video}
+      video={clip.spec.video}
       className="w-full overflow-hidden rounded-lg bg-black"
     >
-      <SceneRoot clip={clip} />
+      <SceneRoot spec={clip.spec} components={clip.components} />
     </ClipCanvas>
   );
 }

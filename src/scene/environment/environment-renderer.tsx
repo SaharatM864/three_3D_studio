@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import type { EnvironmentSpec } from "@/project/types";
+import type { EnvironmentSpec } from "@/model/types";
 
 export interface EnvironmentRendererProps {
   spec: EnvironmentSpec;

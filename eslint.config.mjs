@@ -16,10 +16,10 @@ const mediabunnyImports = [
   },
 ];
 
-// project/, timeline/ and presets/ stay pure TypeScript so preview and export
+// model/, timeline/ and presets/ stay pure TypeScript so preview and export
 // share one deterministic evaluator.
 const pureModuleMessage =
-  "src/project, src/timeline and src/presets must stay framework-free (see docs/architecture.md).";
+  "src/model, src/timeline and src/presets must stay framework-free (see docs/architecture.md).";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -31,7 +31,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["src/project/**", "src/timeline/**", "src/presets/**"],
+    files: ["src/model/**", "src/timeline/**", "src/presets/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -51,16 +51,36 @@ const eslintConfig = defineConfig([
                 "@react-three/**",
                 "@/app/**",
                 "@/audio/**",
-                "@/clips/**",
                 "@/compositing/**",
                 "@/components/**",
                 "@/export/**",
                 "@/features/**",
                 "@/game/**",
+                "@/projects/**",
                 "@/scene/**",
                 "@/stores/**",
               ],
               message: pureModuleMessage,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Each project folder is self-contained so agents can work on one
+    // without breaking another. Use "./" imports inside a project.
+    files: ["src/projects/*/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: mediabunnyImports,
+          patterns: [
+            {
+              group: ["@/projects/*/**"],
+              message:
+                'Projects must not import other projects; use "./" inside your own project (see docs/project-authoring.md).',
             },
           ],
         },

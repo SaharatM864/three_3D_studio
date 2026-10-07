@@ -2,6 +2,11 @@
 
 WebApp สำหรับทำคลิป 3D, เล่นเกม 3D และ export เป็น `.mp4` ได้บนเบราว์เซอร์ การ render, encode และรวมไฟล์ทำบนเครื่องผู้ใช้ทั้งหมด ไม่มี render server
 
+งานแบ่งเป็น **project** (`src/projects/<id>/`) แต่ละ project มีฉากเดียว (`scene.tsx`) ที่ใช้ร่วมกันใน 2 หน้า
+
+- `/projects/<id>/play`: Playground สำหรับเดินดูฉาก (`playground.tsx`)
+- `/projects/<id>/studio`: Studio สำหรับตัดต่อและ export คลิป (`clip.tsx`)
+
 สถานะ: **Phase 1** วางโครงสร้างโฟลเดอร์ type contracts และ stub แล้ว แต่ส่วน render และ export ยังไม่ได้ implement (ดู roadmap ใน [`docs/architecture.md`](docs/architecture.md))
 
 ## Tech stack
@@ -42,26 +47,26 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 
 ```text
 src/
-├── app/           routing เท่านั้น: /, /studio, /studio/[clipId], /play
+├── app/           routing เท่านั้น: /, /projects/[projectId]/studio, /projects/[projectId]/play
 ├── features/      UI ของ studio และ playground (*-loader.tsx เป็น client boundary)
-├── clips/         คลิปที่ AI เขียน + manifest.ts + loaders.ts (_template สำหรับคัดลอก)
-├── project/       type ของข้อมูลคลิป (pure TS)
-├── timeline/      evaluateProject(project, frame), easing, interpolation, seeded random (pure TS)
+├── projects/      project ที่ AI เขียน (<id>/scene.tsx, playground.tsx, clip.tsx) + define.ts, manifest.ts, loaders.ts (_template สำหรับคัดลอก)
+├── model/         type ของ scene/clip/playground และ composeClip (pure TS)
+├── timeline/      evaluateClip(clip, frame), evaluateScene, easing, interpolation, seeded random (pure TS)
 ├── presets/       preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน (pure data)
-├── scene/         ชั้น render ด้วย R3F: canvas, render bridge, frame driver, camera/lights/objects
-├── game/          playground: controls, physics, player, levels
+├── scene/         ชั้น render ด้วย R3F: canvas, scene content, render bridge, frame driver, camera/lights/objects
+├── game/          playground: controls, physics, player, playground scene
 ├── audio/         โหลดเสียง, เล่นตอน preview, offline mix
 ├── export/        capability check, AAC fallback, output target, export loop
 ├── compositing/   overlay 2D ที่ต้องติดไปในวิดีโอ
 ├── stores/        zustand store สำหรับ state ของ UI
 ├── components/    shadcn ui + placeholder
 └── lib/           utils, notImplemented
-public/assets/     models, textures, hdri, audio, fonts
-docs/              architecture.md, clip-authoring.md
+public/assets/     ใช้ร่วมกัน: models, textures, hdri, audio, fonts · เฉพาะ project: projects/<id>/
+docs/              architecture.md, project-authoring.md
 ```
 
 - หน้าที่และข้อจำกัดของแต่ละโมดูลอยู่ใน [`docs/architecture.md`](docs/architecture.md)
-- วิธีเพิ่มคลิปอยู่ใน [`docs/clip-authoring.md`](docs/clip-authoring.md)
+- วิธีเพิ่มหรือแก้ project อยู่ใน [`docs/project-authoring.md`](docs/project-authoring.md)
 - ฟังก์ชันที่ยังไม่ทำมี `TODO(<milestone>)` กำกับ ค้นได้ด้วย `grep -rn "TODO(M1)" src`
 
 ## คำสั่ง

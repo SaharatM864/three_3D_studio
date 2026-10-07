@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import type { LightSpec } from "@/project/types";
+import type { LightSpec } from "@/model/types";
 
 export interface LightRigProps {
   lights: readonly LightSpec[];

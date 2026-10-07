@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-import type { ClipId } from "@/clips/manifest";
+import type { ProjectId } from "@/projects/manifest";
 
 // R3F, three.js and WebCodecs only run in the browser.
 const StudioApp = dynamic(
@@ -15,6 +15,6 @@ const StudioApp = dynamic(
   }
 );
 
-export function StudioLoader({ clipId }: { clipId: ClipId }) {
-  return <StudioApp key={clipId} clipId={clipId} />;
+export function StudioLoader({ projectId }: { projectId: ProjectId }) {
+  return <StudioApp key={projectId} projectId={projectId} />;
 }

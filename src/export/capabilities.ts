@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { VideoSettings } from "@/project/types";
+import type { VideoSettings } from "@/model/types";
 
 import type { CapabilityReport, ExportPreset } from "./types";
 

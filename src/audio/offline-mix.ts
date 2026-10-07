@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { ClipProject } from "@/project/types";
+import type { ClipSpec } from "@/model/types";
 
 export interface AudioMixOptions {
   sampleRate: number;
@@ -7,12 +7,12 @@ export interface AudioMixOptions {
 }
 
 /**
- * Render the project's audio clips (start, trim, volume) into one buffer the
+ * Render the clip's audio clips (start, trim, volume) into one buffer the
  * length of the video, using OfflineAudioContext. Resolves null when the
- * project has no audio, so no audio track is created.
+ * clip has no audio, so no audio track is created.
  */
 export type RenderAudioMix = (
-  project: ClipProject,
+  clip: ClipSpec,
   options: AudioMixOptions
 ) => Promise<AudioBuffer | null>;
 

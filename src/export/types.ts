@@ -1,5 +1,5 @@
 /**
- * Encoding settings. Resolution and fps come from the project's VideoSettings.
+ * Encoding settings. Resolution and fps come from the clip's VideoSettings.
  * These are starting points to test, not library defaults.
  */
 export interface ExportPreset {

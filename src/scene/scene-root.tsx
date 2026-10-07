@@ -1,15 +1,15 @@
 import type { FC } from "react";
 
-import type { ClipModule } from "@/clips/define-clip";
+import type { ClipSpec } from "@/model/types";
+
+import type { SceneComponents } from "./custom-components";
 
 export interface SceneRootProps {
-  clip: ClipModule;
+  spec: ClipSpec;
+  components?: SceneComponents;
 }
 
-/**
- * Mounts a clip's structure: environment, camera, lights and objects. Values
- * that change per frame are written later through the render bridge.
- */
-// TODO(M1): <EnvironmentRenderer/>, <ClipCamera/>, <LightRig/> and one
-// <SceneObject/> per spec, all registered with the render bridge.
+/** Everything inside the clip canvas: the clip camera plus the scene content. */
+// TODO(M1): <ClipCamera spec={spec.camera} video={spec.video}/> and
+// <SceneContent spec={spec} components={components}/>.
 export const SceneRoot: FC<SceneRootProps> = () => null;

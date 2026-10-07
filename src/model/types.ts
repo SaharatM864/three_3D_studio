@@ -1,5 +1,8 @@
 /**
- * Clip project data model.
+ * Scene, clip and playground data model.
+ *
+ * A project (`src/projects/<id>/`) defines one SceneSpec, shared by its
+ * playground (PlaygroundSpec) and its clip (ClipDefinition → ClipSpec).
  *
  * Everything here must stay JSON-serializable and free of React/three.js
  * imports: preview, seek and export all evaluate the same data through
@@ -186,18 +189,69 @@ export interface AudioClipSpec {
   volume?: Animatable<number>;
 }
 
-export interface ClipProject {
+/** The world of a project, shared by its playground and its clip. */
+export interface SceneSpec {
+  environment: EnvironmentSpec;
+  lights: readonly LightSpec[];
+  objects: readonly SceneObjectSpec[];
+}
+
+/**
+ * A fully resolved clip: the project's scene merged with its ClipDefinition
+ * by composeClip(). This is what the timeline evaluates and export renders.
+ */
+export interface ClipSpec extends SceneSpec {
   schemaVersion: 1;
   id: string;
   title: string;
   video: VideoSettings;
   /** Seed for createSeededRandom() so procedural content repeats exactly. */
   seed: number;
-  environment: EnvironmentSpec;
   camera: CameraSpec;
-  lights: readonly LightSpec[];
-  objects: readonly SceneObjectSpec[];
   audio: readonly AudioClipSpec[];
+}
+
+/** Keyframes a clip adds to one scene object. Fields replace the scene's. */
+export interface ObjectAnimation {
+  transform?: Transform;
+  /** Only for objects that have a material (`primitive`, `text`). */
+  material?: MaterialSpec;
+}
+
+/** What a project's `clip.tsx` writes on top of its scene. */
+export interface ClipDefinition {
+  schemaVersion: 1;
+  /** Equals the project id. */
+  id: string;
+  title: string;
+  video: VideoSettings;
+  /** Seed for createSeededRandom() so procedural content repeats exactly. */
+  seed: number;
+  camera: CameraSpec;
+  audio: readonly AudioClipSpec[];
+  /** Merged field by field over the scene's environment. */
+  environment?: EnvironmentSpec;
+  /** Replaces the scene's lights when set. */
+  lights?: readonly LightSpec[];
+  /** Keyed by scene object id. */
+  animate?: Readonly<Record<string, ObjectAnimation>>;
+  /** Objects that exist only in the video, e.g. titles. */
+  extraObjects?: readonly SceneObjectSpec[];
+}
+
+export type ColliderShape = "cuboid" | "ball" | "trimesh" | "none";
+
+/** What a project's `playground.tsx` adds to its scene. */
+export interface PlaygroundSpec {
+  /** Player spawn position in world units. */
+  spawn: Vec3;
+  /**
+   * Fixed collider per scene object id. Defaults to "cuboid" for
+   * `primitive` and `model` objects and "none" for the rest.
+   */
+  colliders?: Readonly<Record<string, ColliderShape>>;
+  /** Objects that exist only in the playground, e.g. walls or props. */
+  extraObjects?: readonly SceneObjectSpec[];
 }
 
 export type AssetKind = "model" | "texture" | "hdri" | "audio" | "font";

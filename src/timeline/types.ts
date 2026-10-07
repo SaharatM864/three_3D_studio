@@ -1,15 +1,20 @@
-import type { ColorValue, Vec3 } from "@/project/types";
+import type { ColorValue, Vec3 } from "@/model/types";
 
 /**
- * Animated values resolved at one frame. Static structure (object kinds,
- * shapes, asset paths) stays in ClipProject; renderers match entries by `id`.
+ * Animated light and object values resolved at one frame. Static structure
+ * (object kinds, shapes, asset paths) stays in the SceneSpec; renderers match
+ * entries by `id`.
  */
-export interface EvaluatedScene {
+export interface EvaluatedSceneContent {
+  lights: readonly EvaluatedLight[];
+  objects: readonly EvaluatedObject[];
+}
+
+/** One frame of a clip: the scene content plus the clip camera and time. */
+export interface EvaluatedScene extends EvaluatedSceneContent {
   frame: number;
   timeSeconds: number;
   camera: EvaluatedCamera;
-  lights: readonly EvaluatedLight[];
-  objects: readonly EvaluatedObject[];
 }
 
 export interface EvaluatedCamera {

@@ -1,7 +1,7 @@
 import type { Object3D } from "three";
 
 import { notImplemented } from "@/lib/not-implemented";
-import type { EvaluatedScene } from "@/timeline/types";
+import type { EvaluatedCamera, EvaluatedSceneContent } from "@/timeline/types";
 
 /**
  * Imperative link between evaluated values and three.js objects. Scene
@@ -11,7 +11,8 @@ import type { EvaluatedScene } from "@/timeline/types";
 export interface RenderBridge {
   /** Returns an unregister function. */
   register(id: string, object: Object3D): () => void;
-  apply(scene: EvaluatedScene): void;
+  /** The playground passes no camera; the player controls it. */
+  apply(values: EvaluatedSceneContent & { camera?: EvaluatedCamera }): void;
 }
 
 export type CreateRenderBridge = () => RenderBridge;

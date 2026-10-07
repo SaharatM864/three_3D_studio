@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { ClipProject } from "@/project/types";
+import type { ClipSpec } from "@/model/types";
 
 /** Live AudioContext playback that follows the frame driver during preview. */
 export interface AudioPreviewPlayer {
@@ -9,9 +9,7 @@ export interface AudioPreviewPlayer {
   dispose(): void;
 }
 
-export type CreateAudioPreviewPlayer = (
-  project: ClipProject
-) => AudioPreviewPlayer;
+export type CreateAudioPreviewPlayer = (clip: ClipSpec) => AudioPreviewPlayer;
 
 // TODO(M3): restart scheduling on play/seek; AudioContext must be resumed from a user gesture.
 export const createAudioPreviewPlayer: CreateAudioPreviewPlayer = () =>

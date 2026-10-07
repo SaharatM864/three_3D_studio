@@ -1,6 +1,6 @@
 /**
- * Copy this folder to src/clips/<clip-id>/ to start a new clip, then register
- * it in ../manifest.ts and ../loaders.ts. See docs/clip-authoring.md.
+ * Copy this folder to src/projects/<project-id>/ to start a new project, then
+ * register it in ../manifest.ts and ../loaders.ts. See docs/project-authoring.md.
  *
  * Not listed in the manifest, so it is never loaded; it only has to typecheck.
  */
@@ -8,19 +8,17 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Mesh } from "three";
 
-import { defineClip, type ClipComponentProps } from "@/clips/define-clip";
-import { DEFAULT_SEED, VIDEO_FORMATS } from "@/project/defaults";
+import { defineScene, type SceneComponentProps } from "@/projects/define";
 import { lightingPresets } from "@/presets/lighting";
 import { useClipFrame } from "@/scene/clip-clock";
 
-const DURATION_IN_FRAMES = 150;
-
 /**
- * Optional custom component, for motion keyframes cannot express. Derive
- * every value from `clock.current` — never from useFrame's delta,
- * Date.now() or Math.random() (use createSeededRandom(project.seed)).
+ * Optional custom component, for motion the data cannot express. It runs in
+ * the clip and the playground, so derive every value from `clock.current` —
+ * never from useFrame's delta, Date.now() or Math.random() (use
+ * createSeededRandom(seed)).
  */
-function PulsingSphere({ props }: ClipComponentProps) {
+function PulsingSphere({ props }: SceneComponentProps) {
   const clock = useClipFrame();
   const mesh = useRef<Mesh>(null);
   const speed = typeof props.speed === "number" ? props.speed : 1;
@@ -40,18 +38,9 @@ function PulsingSphere({ props }: ClipComponentProps) {
   );
 }
 
-export default defineClip({
-  project: {
-    schemaVersion: 1,
-    id: "_template",
-    title: "Template",
-    video: {
-      ...VIDEO_FORMATS["landscape-1080p30"],
-      durationInFrames: DURATION_IN_FRAMES,
-    },
-    seed: DEFAULT_SEED,
+export default defineScene({
+  spec: {
     environment: { presetId: "studio-gray" },
-    camera: { position: [0, 1.5, 5], target: [0, 0.5, 0], fov: 40 },
     lights: lightingPresets["studio-3-point"].lights,
     objects: [
       {
@@ -67,14 +56,7 @@ export default defineClip({
         id: "box",
         kind: "primitive",
         shape: "box",
-        transform: {
-          position: {
-            keyframes: [
-              { frame: 0, value: [-1.5, 0.5, 0], easing: "easeInOutCubic" },
-              { frame: DURATION_IN_FRAMES - 1, value: [1.5, 0.5, 0] },
-            ],
-          },
-        },
+        transform: { position: [-1.5, 0.5, 0] },
         material: { presetId: "glossy-paint" },
         castShadow: true,
       },
@@ -86,7 +68,6 @@ export default defineClip({
         transform: { position: [0, 1.8, -1] },
       },
     ],
-    audio: [],
   },
   components: {
     "pulsing-sphere": PulsingSphere,

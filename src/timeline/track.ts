@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { Animatable, Track } from "@/project/types";
+import type { Animatable, Track } from "@/model/types";
 
 import type { Lerp } from "./interpolate";
 

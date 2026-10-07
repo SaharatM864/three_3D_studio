@@ -1,5 +1,5 @@
 import { notImplemented } from "@/lib/not-implemented";
-import type { ClipProject } from "@/project/types";
+import type { ClipSpec } from "@/model/types";
 import type { FrameDriver } from "@/scene/frame-driver";
 
 import type { OutputTargetChoice } from "./targets";
@@ -7,7 +7,7 @@ import type { ExportPreset, ExportProgress, ExportResult } from "./types";
 
 export interface RunExportOptions {
   /** Snapshot taken when export starts; edits during export must not leak in. */
-  project: ClipProject;
+  clip: ClipSpec;
   preset: ExportPreset;
   /** The canvas CanvasSource captures from (after any compositing). */
   canvas: HTMLCanvasElement;

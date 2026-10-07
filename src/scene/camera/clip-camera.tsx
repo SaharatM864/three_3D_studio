@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import type { CameraSpec, VideoSettings } from "@/project/types";
+import type { CameraSpec, VideoSettings } from "@/model/types";
 
 export interface ClipCameraProps {
   spec: CameraSpec;
