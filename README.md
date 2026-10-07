@@ -1,0 +1,65 @@
+# 3D Clip Studio
+
+WebApp สำหรับทำคลิป 3D, เล่นเกม 3D และ export เป็น `.mp4` ได้บนเบราว์เซอร์ การ render, encode และรวมไฟล์ทำบนเครื่องผู้ใช้ทั้งหมด ไม่มี render server
+
+สถานะ: **Phase 1** ติดตั้ง package แล้ว แต่ยังไม่ได้ implement
+
+## Tech stack
+
+| ชั้น          | Package                                          | ใช้ทำอะไร                                                                                                |
+| ------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Framework     | `next` 16 (App Router + Turbopack)               | ตัวแอป, routing และ build สำหรับ deploy บน Vercel (ใช้แทน React + Vite ในเอกสารต้นทาง)                   |
+| UI            | `react` / `react-dom` 19                         | สร้าง UI ของ editor, preview controls และหน้าเกม                                                         |
+| ภาษา          | TypeScript 5.9                                   | กำหนด type ของ project, scene, timeline และ export config                                                |
+| Styling       | Tailwind CSS 4                                   | จัดหน้าตา UI                                                                                             |
+| 3D engine     | `three`                                          | render โมเดล, วัสดุ, แสง, กล้อง และ shader ผ่าน WebGL2                                                   |
+| React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                    |
+| 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                        |
+| Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม               |
+| State         | `zustand`                                        | เก็บ state ของเกมและ editor                                                                              |
+| Export วิดีโอ | `mediabunny`                                     | encode H.264 และ AAC ผ่าน WebCodecs แล้วรวมเป็นไฟล์ MP4 (`CanvasSource`, `StreamTarget`, `BufferTarget`) |
+| AAC fallback  | `@mediabunny/aac-encoder`                        | AAC encoder แบบ WASM สำหรับเบราว์เซอร์ที่ไม่มี AAC ในตัว ใช้ dynamic import เฉพาะตอนจำเป็น               |
+| Types         | `@types/three`, `@types/wicg-file-system-access` | type ของ three.js และ `showSaveFilePicker()` ที่ TypeScript ยังไม่มีในตัว                                |
+| Tooling       | ESLint, Prettier (+ tailwind plugin)             | ตรวจโค้ดและจัดรูปแบบ                                                                                     |
+
+### Browser API ที่ใช้ (ไม่ต้องติดตั้ง)
+
+- **WebCodecs**: encoder ของวิดีโอและเสียงในเบราว์เซอร์ ซึ่ง Mediabunny เรียกใช้ให้
+- **Web Audio API / OfflineAudioContext**: เล่นเสียงตอน preview และเกม และ mix เสียงตาม timeline ตอน export
+- **File System Access API**: เขียนไฟล์ MP4 ลงเครื่องโดยตรงแบบ stream ไม่ต้องเก็บทั้งไฟล์ไว้ใน RAM
+
+### ส่วนที่จะเพิ่มเมื่อจำเป็น (ยังไม่ติดตั้ง)
+
+- `@react-three/postprocessing` + `postprocessing`: ใช้ทำ effect เช่น bloom หรือ DOF
+- `ecctrl`: character controller สำเร็จรูป
+- IndexedDB: autosave
+- Web Worker / OffscreenCanvas: เพิ่มเมื่อ profiling เจอว่า main thread เป็นคอขวด
+
+ส่วนนี้ตั้งใจไม่ใช้: ffmpeg.wasm, `mp4-muxer` (deprecated), Remotion, MediaRecorder เป็น exporter หลัก
+
+## คำสั่ง
+
+```bash
+bun install          # ติดตั้ง dependencies
+bun dev              # dev server ที่ http://localhost:3000
+bun run build        # production build
+bun run check        # lint + typecheck
+bun run format       # จัดรูปแบบโค้ดด้วย Prettier
+```
+
+## หมายเหตุ
+
+- **เบราว์เซอร์เป้าหมาย** คือ Chrome และ Edge บน desktop ก่อน export ต้องตรวจ codec จริงด้วย `canEncodeVideo('avc')` และ `canEncodeAudio('aac')`
+- **Deploy บน Vercel**: Vercel อ่าน `bun.lock` แล้วรัน `bun install` ให้เอง และ build ด้วย Node ไม่ต้องมี `vercel.json` และไม่ต้องตั้ง COOP/COEP header
+- **ข้อจำกัดเรื่องเวอร์ชัน**:
+  - `three` ให้อยู่ที่ 0.186.x เพราะ `postprocessing` รองรับแค่ `<0.187`
+  - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha
+  - ห้ามอัป TypeScript เป็น 7 เพราะ typescript-eslint ยังไม่รองรับ
+  - `mediabunny` กับ `@mediabunny/aac-encoder` ต้องเป็นเวอร์ชันเดียวกัน
+  - ห้ามติดตั้ง `@dimforge/rapier3d-compat` เอง เพราะ rapier ดึงมาให้แล้ว
+- **Client-only**: โค้ดของ R3F, Rapier และ Mediabunny ต้องอยู่ในไฟล์ที่มี `'use client'` และ `<Canvas>` ควรโหลดผ่าน `next/dynamic({ ssr: false })` จาก client component
+- **เรื่องที่ต้องทดสอบตอน implement**:
+  - ตรวจว่า Turbopack resolve `worker_threads` ใน aac-encoder ได้
+  - ตรวจว่า mediabunny ไม่ถูก bundle ซ้ำใน production build (ถ้าซ้ำจะเกิด error `instanceof OutputFormat`) วิธีเลี่ยงคือ import ผ่าน entry เดียว
+- **License**: Mediabunny และ AAC encoder เป็น MPL-2.0 และ AAC encoder มีส่วนของ FFmpeg ที่ compile เป็น WASM อยู่ด้วย
+- เอกสารออกแบบต้นทาง: `final-front-end-3d-video-stack.th.md`
