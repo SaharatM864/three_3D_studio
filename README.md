@@ -11,7 +11,8 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 | Framework     | `next` 16 (App Router + Turbopack)               | ตัวแอป, routing และ build สำหรับ deploy บน Vercel (ใช้แทน React + Vite ในเอกสารต้นทาง)                   |
 | UI            | `react` / `react-dom` 19                         | สร้าง UI ของ editor, preview controls และหน้าเกม                                                         |
 | ภาษา          | TypeScript 5.9                                   | กำหนด type ของ project, scene, timeline และ export config                                                |
-| Styling       | Tailwind CSS 4                                   | จัดหน้าตา UI                                                                                             |
+| Styling       | Tailwind CSS 4 (`@tailwindcss/postcss`)          | จัดหน้าตา UI                                                                                             |
+| UI components | shadcn/ui (Base UI, style `base-nova`)           | component สำเร็จรูปใน `src/components/ui` ใช้ `cn` จาก package `cn` และไอคอน `lucide-react`              |
 | 3D engine     | `three`                                          | render โมเดล, วัสดุ, แสง, กล้อง และ shader ผ่าน WebGL2                                                   |
 | React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                    |
 | 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                        |
@@ -44,13 +45,19 @@ bun install          # ติดตั้ง dependencies
 bun dev              # dev server ที่ http://localhost:3000
 bun run build        # production build
 bun run check        # lint + typecheck
+bun run lint:fix     # แก้ปัญหา lint ที่แก้อัตโนมัติได้
 bun run format       # จัดรูปแบบโค้ดด้วย Prettier
+bunx --bun shadcn@latest add <component>   # เพิ่ม shadcn component
 ```
+
+script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ่าน `bun --bun` (ต้องใช้ Bun 1.4 ขึ้นไป)
 
 ## หมายเหตุ
 
 - **เบราว์เซอร์เป้าหมาย** คือ Chrome และ Edge บน desktop ก่อน export ต้องตรวจ codec จริงด้วย `canEncodeVideo('avc')` และ `canEncodeAudio('aac')`
-- **Deploy บน Vercel**: Vercel อ่าน `bun.lock` แล้วรัน `bun install` ให้เอง และ build ด้วย Node ไม่ต้องมี `vercel.json` และไม่ต้องตั้ง COOP/COEP header
+- **Deploy บน Vercel**: Vercel อ่าน `bun.lock` แล้วรัน `bun install` ให้เอง ไม่ต้องตั้ง COOP/COEP header แต่ script `build` เรียก `bun --bun next build` และ Vercel ต้อง opt-in ถึงจะใช้ Bun 1.4 ได้ ให้ตรวจการตั้งค่านี้ตอน deploy ครั้งแรก
+- **`.env` กับ `bun --bun`**: Next.js โหลด `.env*` เอง แต่ Bun 1.4 ไม่โหลด `.env` ให้เมื่อรันแบบ `--bun` ดังนั้น script แยก เช่น seed หรือ migration ต้องใส่ `--env-file=.env.local` เอง
+- **Dark mode**: shadcn ใช้ class `.dark` (`@custom-variant dark`) ไม่ใช่ `prefers-color-scheme` ต้องใส่ class `dark` ที่ `<html>` เองถ้าต้องการโหมดมืด
 - **ข้อจำกัดเรื่องเวอร์ชัน**:
   - `three` ให้อยู่ที่ 0.186.x เพราะ `postprocessing` รองรับแค่ `<0.187`
   - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha
