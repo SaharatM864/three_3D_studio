@@ -2,7 +2,7 @@
 
 WebApp สำหรับทำคลิป 3D, เล่นเกม 3D และ export เป็น `.mp4` ได้บนเบราว์เซอร์ การ render, encode และรวมไฟล์ทำบนเครื่องผู้ใช้ทั้งหมด ไม่มี render server
 
-สถานะ: **Phase 1** ติดตั้ง package แล้ว แต่ยังไม่ได้ implement
+สถานะ: **Phase 1** วางโครงสร้างโฟลเดอร์ type contracts และ stub แล้ว แต่ส่วน render และ export ยังไม่ได้ implement (ดู roadmap ใน [`docs/architecture.md`](docs/architecture.md))
 
 ## Tech stack
 
@@ -38,6 +38,32 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 
 ส่วนนี้ตั้งใจไม่ใช้: ffmpeg.wasm, `mp4-muxer` (deprecated), Remotion, MediaRecorder เป็น exporter หลัก
 
+## โครงสร้างโฟลเดอร์
+
+```text
+src/
+├── app/           routing เท่านั้น: /, /studio, /studio/[clipId], /play
+├── features/      UI ของ studio และ playground (*-loader.tsx เป็น client boundary)
+├── clips/         คลิปที่ AI เขียน + manifest.ts + loaders.ts (_template สำหรับคัดลอก)
+├── project/       type ของข้อมูลคลิป (pure TS)
+├── timeline/      evaluateProject(project, frame), easing, interpolation, seeded random (pure TS)
+├── presets/       preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน (pure data)
+├── scene/         ชั้น render ด้วย R3F: canvas, render bridge, frame driver, camera/lights/objects
+├── game/          playground: controls, physics, player, levels
+├── audio/         โหลดเสียง, เล่นตอน preview, offline mix
+├── export/        capability check, AAC fallback, output target, export loop
+├── compositing/   overlay 2D ที่ต้องติดไปในวิดีโอ
+├── stores/        zustand store สำหรับ state ของ UI
+├── components/    shadcn ui + placeholder
+└── lib/           utils, notImplemented
+public/assets/     models, textures, hdri, audio, fonts
+docs/              architecture.md, clip-authoring.md
+```
+
+- หน้าที่และข้อจำกัดของแต่ละโมดูลอยู่ใน [`docs/architecture.md`](docs/architecture.md)
+- วิธีเพิ่มคลิปอยู่ใน [`docs/clip-authoring.md`](docs/clip-authoring.md)
+- ฟังก์ชันที่ยังไม่ทำมี `TODO(<milestone>)` กำกับ ค้นได้ด้วย `grep -rn "TODO(M1)" src`
+
 ## คำสั่ง
 
 ```bash
@@ -64,9 +90,9 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
   - ห้ามอัป TypeScript เป็น 7 เพราะ typescript-eslint ยังไม่รองรับ
   - `mediabunny` กับ `@mediabunny/aac-encoder` ต้องเป็นเวอร์ชันเดียวกัน
   - ห้ามติดตั้ง `@dimforge/rapier3d-compat` เอง เพราะ rapier ดึงมาให้แล้ว
-- **Client-only**: โค้ดของ R3F, Rapier และ Mediabunny ต้องอยู่ในไฟล์ที่มี `'use client'` และ `<Canvas>` ควรโหลดผ่าน `next/dynamic({ ssr: false })` จาก client component
+- **Client-only**: โค้ดของ R3F, Rapier และ Mediabunny ต้องอยู่ในไฟล์ที่มี `'use client'` และ `<Canvas>` ควรโหลดผ่าน `next/dynamic({ ssr: false })` จาก client component ในโปรเจกต์นี้ทำไว้ที่ `src/features/*/*-loader.tsx`
 - **เรื่องที่ต้องทดสอบตอน implement**:
   - ตรวจว่า Turbopack resolve `worker_threads` ใน aac-encoder ได้
-  - ตรวจว่า mediabunny ไม่ถูก bundle ซ้ำใน production build (ถ้าซ้ำจะเกิด error `instanceof OutputFormat`) วิธีเลี่ยงคือ import ผ่าน entry เดียว
+  - ตรวจว่า mediabunny ไม่ถูก bundle ซ้ำใน production build (ถ้าซ้ำจะเกิด error `instanceof OutputFormat`) วิธีเลี่ยงคือ import ผ่าน entry เดียว คือ `src/export/mediabunny.ts` ซึ่ง ESLint บังคับไว้แล้ว
 - **License**: Mediabunny และ AAC encoder เป็น MPL-2.0 และ AAC encoder มีส่วนของ FFmpeg ที่ compile เป็น WASM อยู่ด้วย
-- เอกสารออกแบบต้นทาง: `final-front-end-3d-video-stack.th.md`
+- เอกสารออกแบบต้นทาง: `final-front-end-3d-video-stack.th.md` ฉบับที่ปรับให้ตรงกับโค้ดจริงอยู่ที่ [`docs/architecture.md`](docs/architecture.md)

@@ -1,0 +1,19 @@
+import { notImplemented } from "@/lib/not-implemented";
+
+import type { AssetPath, AssetRef, ClipProject } from "./types";
+
+/** Resolve an asset path to a same-origin URL under /assets. */
+export type AssetUrl = (path: AssetPath) => string;
+
+// TODO(M4): return `/assets/${path}`, rejecting absolute and cross-origin URLs.
+export const assetUrl: AssetUrl = () => notImplemented("project/assetUrl");
+
+/**
+ * Every asset a project references (models, textures, HDRIs, fonts, audio),
+ * so they can be loaded before the first exported frame.
+ */
+export type CollectAssets = (project: ClipProject) => AssetRef[];
+
+// TODO(M4): walk environment, objects, materials and audio; dedupe by path.
+export const collectAssets: CollectAssets = () =>
+  notImplemented("project/collectAssets");
