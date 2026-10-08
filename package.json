@@ -20,6 +20,7 @@
     "@react-three/fiber": "9.8.1",
     "@react-three/rapier": "2.2.0",
     "@takram/three-atmosphere": "0.19.1",
+    "@takram/three-clouds": "0.7.6",
     "@takram/three-geospatial": "0.9.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
