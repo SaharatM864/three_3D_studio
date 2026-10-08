@@ -67,13 +67,13 @@ flowchart TD
 ## Render layer (WebGPU)
 
 ```text
-SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", dpr [1, 2]
+SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", dpr [1, 2], frameloop
 └─ SceneContent                     resolveEnvironment(spec.environment)
-   ├─ EnvironmentRenderer
-   │  └─ Atmosphere (atmosphere/)   AtmosphereContext → renderer.contextNode, พิกัดโลก, วันเวลา, กล้อง
-   │     ├─ Sky                     scene.backgroundNode = skyBackground(), scene.environmentNode = skyEnvironment()
+   ├─ EnvironmentRenderer           environmentEpochMs(dateTime)
+   │  └─ Atmosphere (atmosphere/)   AtmosphereContext → renderer.contextNode, พิกัดโลก (geo-frame.ts), วันเวลา, กล้อง
+   │     ├─ Sky                     scene.backgroundNode = skyBackground() (ปิดดาว), scene.environmentNode = skyEnvironment()
    │     └─ SunLight                AtmosphereLight (เงา, ปิด indirect เพราะใช้ IBL จาก skyEnvironment)
-   ├─ ScenePipeline (pipeline/)     pass(MRT output + velocity) → lensFlare → toneMapping(AgX, exposure) → TAA → dithering
+   ├─ ScenePipeline (pipeline/)     pass(MRT output + highpVelocity) → lensFlare → toneMapping(AgX, exposure) → TAA → dithering
    ├─ LightRig                      แสงเสริมจาก spec.lights
    └─ SceneObject × n               primitive + MeshStandardNodeMaterial
 ```
@@ -84,23 +84,45 @@ SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", 
   - แยกแบบนี้เพื่อให้ export (M1) เรียกฟังก์ชันชุดเดียวกันได้โดยไม่ผ่าน React และผ่านกฎ `react-hooks/immutability`
 - **ค่าที่จูนได้** (dpr, กล้อง, tone mapping, เงาดวงอาทิตย์) อยู่ใน `scene/render-config.ts` ที่เดียว
 - **พิกัด**: world origin วางที่ `environment.location` ด้วย `Ellipsoid.WGS84.getNorthUpEastFrame` แกนเป็น +X เหนือ, +Y ขึ้น, +Z ตะวันออก และ 1 หน่วยเท่ากับ 1 เมตร
+  - การแปลง geodetic → ECEF และ local frame → ECEF อยู่ใน `atmosphere/geo-frame.ts` ที่เดียว
   - ไม่เปิด `highPrecision` และ `reversedDepthBuffer` เพราะใช้เมื่อวาง object ในพิกัด ECEF เท่านั้น
   - `highPrecision` ใช้กับ `SkinnedMesh`/`InstancedMesh` ไม่ได้
-- **เวลา**: ทิศดวงอาทิตย์และดวงจันทร์คำนวณจาก `environment.dateTime` (ISO-8601 ที่มี offset) ห้ามใช้ `new Date()` ตอน runtime
+- **เวลา**: ทิศดวงอาทิตย์และดวงจันทร์คำนวณจาก `environment.dateTime` โดยใช้ origin เป็นตำแหน่งผู้สังเกต (observer)
+  - `environmentEpochMs` บังคับให้ `dateTime` เป็น ISO-8601 ที่ลงท้ายด้วย `Z` หรือ `±hh:mm` เพราะถ้าไม่มี offset จะถูกตีเป็นเวลาของเครื่อง
+  - ห้ามใช้ `new Date()` ตอน runtime
 - **Tone mapping** ทำใน pipeline ที่เดียว `SceneCanvas` จึงตั้ง `flat` ถ้าไม่ตั้ง R3F จะใส่ ACES ให้ แล้ว `RenderPipeline` จะ tone map ซ้ำ
+- **Velocity สำหรับ TAA** ใช้ `highpVelocity` ของ takram ห้ามใช้ `velocity` ของ three
+  - TAA ของ takram ยกเลิก jitter ผ่าน `highpVelocity.setProjectionMatrix()` เท่านั้น และใช้ค่า `.z` ตรวจ depth แต่ `velocity` ของ three เป็น `vec2`
+  - `highpVelocity` ใช้กับ `SkinnedMesh`/`InstancedMesh` ได้ เพราะ MRT มี key `velocity` และ three จะคำนวณ `positionPrevious` ให้
+- **กล้อง**: canvas หนึ่งตัวมีกล้องตัวเดียวตลอดอายุ และห้าม `makeDefault` กล้องใหม่
+  - node ของ takram (sky, environment, TAA) จับกล้องไว้ตอน setup ส่วน `ScenePipeline` จะ rebuild ทุกครั้งที่กล้องเปลี่ยน
+  - โหมดต่าง ๆ (inspect, player, clip) เขียนค่าลงกล้อง default ของ R3F เอง
+- **ลำดับ `useFrame`**: controls (-1) → update (0) → render (`RENDER_PRIORITY` = 1)
+  - priority ที่มากกว่า 0 ทำให้ R3F เลิกเรียก `gl.render` เอง
+- **WebGPU เท่านั้น**: `createRenderer` ตรวจ `renderer.backend` หลัง `init()`
+  - ถ้าไม่ใช่ WebGPU backend หรือ init ล้มเหลว จะ throw `WebGPUUnavailableError`
+  - `CanvasErrorBoundary` แปลง error นี้เป็น `fallback` ส่วน error อื่นส่งต่อให้ `error.tsx`
+- **Dispose**: `RTTNode` ไม่คืน render target เอง `createScenePipeline` จึง dispose `renderTarget` ของ tone-mapped RTT และ `lensFlare.featuresNode` เอง
 - **Exposure** ของ takram เป็นหน่วย luminance ค่าที่ใช้ได้จริงอยู่ราว 3–10
 - **`@takram/*`** import ได้เฉพาะ `atmosphere/takram.ts` และ `pipeline/takram.ts`
   - สองไฟล์นี้ cast type ให้เข้ากับ `@types/three` 0.184 เพราะ d.ts ของ takram build กับ 0.182
   - เมื่ออัปเกรด takram ให้ตรวจสองไฟล์นี้ก่อน
-- **WebGPU เท่านั้น**: `SceneCanvas` ตรวจ `navigator.gpu` แล้วแสดง `fallback` ถ้าไม่รองรับ ไม่ใช้ WebGL2 fallback ของ `WebGPURenderer` เพราะ node ของ takram ยังพังบน fallback (issue #108, #114–#116)
+- **ไม่ใช้ WebGL2 fallback**: `SceneCanvas` ตรวจ `navigator.gpu` แล้วแสดง `fallback` ถ้าไม่รองรับ ไม่ใช้ WebGL2 fallback ของ `WebGPURenderer` เพราะ node ของ takram ยังพังบน fallback (issue #108, #114–#116)
+- **`@takram/three-atmosphere` root entry**: ฟังก์ชันคำนวณทิศดวงอาทิตย์และดวงจันทร์มีแค่ใน root entry ซึ่ง `build/shared.js` import `postprocessing` (WebGL)
+  - ตรวจ production build (Turbopack) แล้วพบว่า `postprocessing` ถูกตัดทิ้ง แต่ GLSL ของ `AerialPerspectiveEffect` (WebGL) ยังติดมา ถือเป็น known cost ไว้ก่อน
+  - เมื่ออัปเกรด takram หรือ Next.js ให้ตรวจซ้ำ
 - **หนึ่ง `Atmosphere` ต่อ canvas** และอยู่ตลอดอายุ canvas เพราะ node ที่ compile แล้วจับ `AtmosphereContext` ไว้ตอน setup
 - **ยังไม่ได้ทำ**:
   - aerial perspective: แทรก `aerialPerspective(color, depth)` ระหว่าง scene pass กับ `lensFlare` ใน `createScenePipeline` เมื่อมีฉากกลางแจ้งระยะไกล
-    - ตัวนี้โหลด `stbn.bin` จาก media.githubusercontent.com ตอน runtime
-    - ต้อง self-host ผ่าน `stbnTexture.url` และตรวจ license ตาม issue #117 ก่อน
-  - clouds (takram ยังไม่มี WebGPU entry) และ stars (โหลด `stars.bin` จาก GitHub)
+    - ตัวนี้โหลด `stbn.bin` จาก media.githubusercontent.com ตอน runtime และต้องตรวจ license ตาม issue #117
+    - ใน `@takram/three-geospatial` 0.9.1 ตั้ง `stbnTexture.url` เพื่อ self-host ไม่ได้ เพราะ `STBNTextureNode.clone()` ไม่ copy `url` และ `stbn` clone ทุกครั้ง
+    - `AerialPerspectiveNode` วาด sky เองที่ depth = 1 ต้องตั้ง `skyNode = null` หรือเอา `scene.backgroundNode` ออก ไม่อย่างนั้น sky จะถูกคำนวณซ้ำ
+  - clouds (takram ยังไม่มี WebGPU entry)
+  - stars: `Sky` ตั้ง `showStars = false` เพราะค่า default จะโหลด `stars.bin` จาก GitHub ต้อง self-host ก่อนเปิดใช้กับฉากกลางคืน
   - animate เวลาของวันในคลิป ต้องเพิ่ม environment เข้า `EvaluatedScene` และ render bridge
   - TAA สะสม history ข้ามเฟรม ตอน M1 ต้องตัดสินว่าจะ warm-up หลัง seek หรือปิด TAA ตอน export
+  - export ต้อง render warm-up หลายเฟรมก่อนเริ่ม: รอ LUT และ `AtmosphereLight` จะอัปเดตตำแหน่งช้าไปหนึ่ง render ในเฟรมแรก ๆ
+  - `FrameDriverOptions.advance` รับเวลาเป็นวินาที เพราะ R3F ในโหมด `frameloop="never"` เอาค่านี้ไปใส่ `clock.elapsedTime` ตรง ๆ
 
 ## กฎหลัก
 

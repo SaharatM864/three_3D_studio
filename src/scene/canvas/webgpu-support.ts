@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 
 export type WebGPUSupport = "checking" | "supported" | "unsupported";
 
+export class WebGPUUnavailableError extends Error {
+  constructor(options?: ErrorOptions) {
+    super(
+      "WebGPU is unavailable; the WebGL 2 fallback is not supported",
+      options
+    );
+    this.name = "WebGPUUnavailableError";
+  }
+}
+
 interface GPUNavigator {
   gpu?: { requestAdapter(): Promise<unknown> };
 }

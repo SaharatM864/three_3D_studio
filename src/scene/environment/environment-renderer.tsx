@@ -1,4 +1,7 @@
-import type { ResolvedEnvironment } from "@/presets/environments";
+import {
+  environmentEpochMs,
+  type ResolvedEnvironment,
+} from "@/presets/environments";
 
 import { Atmosphere } from "../atmosphere/atmosphere";
 import { Sky } from "../atmosphere/sky";
@@ -9,13 +12,11 @@ export interface EnvironmentRendererProps {
 }
 
 export function EnvironmentRenderer({ environment }: EnvironmentRendererProps) {
-  const epochMs = Date.parse(environment.dateTime);
-  if (Number.isNaN(epochMs)) {
-    throw new Error(`Invalid environment dateTime "${environment.dateTime}"`);
-  }
-
   return (
-    <Atmosphere location={environment.location} epochMs={epochMs}>
+    <Atmosphere
+      location={environment.location}
+      epochMs={environmentEpochMs(environment.dateTime)}
+    >
       <Sky />
       <SunLight />
     </Atmosphere>

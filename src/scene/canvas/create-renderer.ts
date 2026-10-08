@@ -1,6 +1,7 @@
 import { WebGPURenderer } from "three/webgpu";
 
 import { registerAtmosphere } from "../atmosphere/create-atmosphere";
+import { WebGPUUnavailableError } from "./webgpu-support";
 
 export async function createRenderer({
   canvas,
@@ -16,7 +17,19 @@ export async function createRenderer({
     antialias: false,
     powerPreference: "high-performance",
   });
-  await renderer.init();
+
+  try {
+    await renderer.init();
+  } catch (cause) {
+    renderer.dispose();
+    throw new WebGPUUnavailableError({ cause });
+  }
+
+  if (!("isWebGPUBackend" in renderer.backend)) {
+    renderer.dispose();
+    throw new WebGPUUnavailableError();
+  }
+
   registerAtmosphere(renderer);
   return renderer;
 }

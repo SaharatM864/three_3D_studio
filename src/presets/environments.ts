@@ -57,6 +57,20 @@ export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
   };
 }
 
+const DATE_TIME_OFFSET = /(?:Z|[+-]\d{2}:\d{2})$/;
+
+export function environmentEpochMs(dateTime: string): number {
+  const epochMs = DATE_TIME_OFFSET.test(dateTime)
+    ? Date.parse(dateTime)
+    : Number.NaN;
+  if (Number.isNaN(epochMs)) {
+    throw new Error(
+      `Invalid environment dateTime "${dateTime}": use ISO-8601 with a Z or ±hh:mm offset`
+    );
+  }
+  return epochMs;
+}
+
 function presetEnvironment(id: string): Omit<EnvironmentSpec, "presetId"> {
   if (!isEnvironmentPresetId(id)) {
     throw new Error(`Unknown environment preset "${id}"`);

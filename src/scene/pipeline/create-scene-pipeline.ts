@@ -1,10 +1,22 @@
 import type { Camera, Scene } from "three";
-import { mrt, output, pass, toneMapping, uniform, velocity } from "three/tsl";
+import {
+  convertToTexture,
+  mrt,
+  output,
+  pass,
+  toneMapping,
+  uniform,
+} from "three/tsl";
 import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
 
 import { TONE_MAPPING } from "../render-config";
 import type { Disposable } from "../use-disposable";
-import { dithering, lensFlare, temporalAntialias } from "./takram";
+import {
+  dithering,
+  highpVelocity,
+  lensFlare,
+  temporalAntialias,
+} from "./takram";
 
 export interface ScenePipelineHandle extends Disposable {
   render(): void;
@@ -18,11 +30,14 @@ export function createScenePipeline(
 ): ScenePipelineHandle {
   const exposureNode = uniform(1);
   const passNode = pass(scene, camera, { samples: 0 }).setMRT(
-    mrt({ output, velocity })
+    mrt({ output, velocity: highpVelocity })
   );
   const lensFlareNode = lensFlare(passNode.getTextureNode("output"));
+  const toneMappedNode = convertToTexture(
+    toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)
+  );
   const taaNode = temporalAntialias(
-    toneMapping(TONE_MAPPING, exposureNode, lensFlareNode),
+    toneMappedNode,
     passNode.getTextureNode("depth"),
     passNode.getTextureNode("velocity"),
     camera
@@ -41,6 +56,9 @@ export function createScenePipeline(
     dispose() {
       pipeline.dispose();
       taaNode.dispose();
+      toneMappedNode.renderTarget?.dispose();
+      toneMappedNode.dispose();
+      lensFlareNode.featuresNode.renderTarget?.dispose();
       lensFlareNode.dispose();
       passNode.dispose();
     },

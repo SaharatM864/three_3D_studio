@@ -4,6 +4,7 @@ import { SUN_SHADOW } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { AtmosphereLight } from "./takram";
 
+// TODO(G1): move light.target with the player; the shadow box stays at the origin ± SUN_SHADOW.extent.
 export function SunLight() {
   const light = useMemo(() => createSunLight(), []);
   useDisposable(light);

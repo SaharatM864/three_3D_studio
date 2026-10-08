@@ -24,7 +24,7 @@ export const AtmosphereLightNode = TakramAtmosphereLightNode as unknown as new (
 ) => AnalyticLightNode<AtmosphereLight>;
 
 export const skyBackground = takramSkyBackground as unknown as () => Node &
-  Disposable;
+  Disposable & { showStars: boolean; starsNode: Disposable };
 
 export const skyEnvironment =
   takramSkyEnvironment as unknown as () => Node<"vec3"> & Disposable;

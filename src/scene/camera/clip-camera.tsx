@@ -4,10 +4,12 @@ import type { CameraSpec, VideoSettings } from "@/model/types";
 
 export interface ClipCameraProps {
   spec: CameraSpec;
-  /** Aspect ratio comes from the video size, not the on-screen canvas. */
   video: VideoSettings;
 }
 
-// TODO(M1): default PerspectiveCamera with aspect = video.width / video.height,
-// registered with the render bridge (position, lookAt target, fov).
+// TODO(M1): write into the canvas's default camera (never makeDefault a new
+// one: atmosphere and pipeline nodes capture the camera at setup). Set
+// camera.manual = true and aspect = video.width / video.height, not the
+// on-screen size, and register it with the render bridge (position, lookAt
+// target, fov).
 export const ClipCamera: FC<ClipCameraProps> = () => null;

@@ -1,5 +1,6 @@
 import { Box } from "lucide-react";
 
+import { ErrorScreen } from "@/components/status-screen";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -17,7 +18,7 @@ export function Viewport({ clip }: { clip: ClipModule }) {
 
   return (
     <div className="relative min-h-0 min-w-0 bg-muted/20 p-6">
-      <div className="grid size-full place-items-center [container-type:size]">
+      <div className="[container-type:size] grid size-full place-items-center">
         <div
           className="relative overflow-hidden rounded-md bg-black shadow-2xl ring-1 ring-border"
           style={{
@@ -25,7 +26,17 @@ export function Viewport({ clip }: { clip: ClipModule }) {
             aspectRatio: `${width} / ${height}`,
           }}
         >
-          <ClipCanvas video={clip.spec.video} className="size-full">
+          <ClipCanvas
+            video={clip.spec.video}
+            className="size-full"
+            fallback={
+              <ErrorScreen
+                title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"
+                error="เปิดหน้านี้ด้วย Chrome หรือ Edge เวอร์ชันล่าสุดบน desktop"
+                className="relative z-10 h-full bg-black"
+              />
+            }
+          >
             <SceneRoot spec={clip.spec} components={clip.components} />
           </ClipCanvas>
           <ScenePendingOverlay />
@@ -52,7 +63,9 @@ function ScenePendingOverlay() {
           <EmptyMedia variant="icon" className="bg-white/10 text-white/80">
             <Box />
           </EmptyMedia>
-          <EmptyTitle className="text-white/80">ยังไม่ได้ render ฉาก</EmptyTitle>
+          <EmptyTitle className="text-white/80">
+            ยังไม่ได้ render ฉาก
+          </EmptyTitle>
           <EmptyDescription className="text-white/50">
             ภาพจะแสดงที่นี่เมื่อเชื่อม SceneRoot กับ frame driver
           </EmptyDescription>

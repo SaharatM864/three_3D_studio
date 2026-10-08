@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 
 import { useWebGPURenderer } from "../canvas/use-renderer";
+import { RENDER_PRIORITY } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { createScenePipeline } from "./create-scene-pipeline";
 
@@ -20,7 +21,7 @@ export function ScenePipeline({ exposure }: { exposure: number }) {
     pipeline.setExposure(exposure);
   }, [pipeline, exposure]);
 
-  useFrame(() => pipeline.render(), 1);
+  useFrame(() => pipeline.render(), RENDER_PRIORITY);
 
   return null;
 }

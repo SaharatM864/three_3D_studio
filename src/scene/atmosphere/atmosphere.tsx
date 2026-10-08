@@ -27,12 +27,11 @@ export function Atmosphere({ location, epochMs, children }: AtmosphereProps) {
 
   const { latitude, longitude, height } = location;
   useLayoutEffect(() => {
-    atmosphere.setLocation({ latitude, longitude, height });
-  }, [atmosphere, latitude, longitude, height]);
-
-  useLayoutEffect(() => {
-    atmosphere.setDate(epochMs);
-  }, [atmosphere, epochMs]);
+    atmosphere.setEnvironment({
+      location: { latitude, longitude, height },
+      epochMs,
+    });
+  }, [atmosphere, latitude, longitude, height, epochMs]);
 
   return <>{children}</>;
 }

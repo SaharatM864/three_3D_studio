@@ -4,9 +4,10 @@ import { useDisposable } from "../use-disposable";
 import { skyBackground, skyEnvironment } from "./takram";
 
 export function Sky() {
-  const background = useMemo(() => skyBackground(), []);
+  const background = useMemo(() => createSkyBackground(), []);
   const environment = useMemo(() => skyEnvironment(), []);
   useDisposable(background);
+  useDisposable(background.starsNode);
   useDisposable(environment);
 
   return (
@@ -15,4 +16,11 @@ export function Sky() {
       <primitive object={environment} attach="environmentNode" />
     </>
   );
+}
+
+// TODO(future): self-host stars.bin (same-origin) before enabling stars for night scenes.
+function createSkyBackground() {
+  const background = skyBackground();
+  background.showStars = false;
+  return background;
 }

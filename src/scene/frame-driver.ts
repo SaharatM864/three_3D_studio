@@ -27,7 +27,7 @@ export interface FrameDriver {
 export interface FrameDriverOptions {
   clip: ClipSpec;
   bridge: RenderBridge;
-  advance: (timestampMs: number) => void;
+  advance: (timeSeconds: number) => void;
 }
 
 export type CreateFrameDriver = (options: FrameDriverOptions) => FrameDriver;
