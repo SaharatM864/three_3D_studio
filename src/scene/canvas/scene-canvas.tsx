@@ -6,6 +6,7 @@ import { useRenderBackendLoader } from "../backend/load-backend";
 import type { RenderBackendId } from "../backend/render-backend";
 import { CAMERA_DEFAULTS, CANVAS_DPR } from "../render-config";
 import { CanvasErrorBoundary } from "./canvas-error-boundary";
+import "./three-console";
 
 export interface SceneCanvasProps {
   backend: RenderBackendId;
