@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   ChevronUp,
+  Gauge,
   Lightbulb,
   type LucideIcon,
   Mountain,
@@ -24,9 +25,25 @@ import {
 } from "@/presets/environments";
 import { lightingPresets, type LightingPresetId } from "@/presets/lighting";
 import { materialPresets, type MaterialPreset } from "@/presets/materials";
+import {
+  DEFAULT_RENDER_QUALITY,
+  RENDER_QUALITIES,
+  type RenderQualityId,
+} from "@/scene/render-config";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
 const PROJECT_VALUE = "project";
+
+const RENDER_QUALITY_LABELS: Record<RenderQualityId, string> = {
+  high: "สูง · เหมือน Studio",
+  performance: "ลื่น",
+};
+
+const renderQualityIds = Object.keys(RENDER_QUALITIES) as RenderQualityId[];
+
+function isRenderQualityId(value: string): value is RenderQualityId {
+  return value in RENDER_QUALITIES;
+}
 
 const lightingIds = Object.keys(lightingPresets) as LightingPresetId[];
 const environmentIds = Object.keys(environmentPresets) as EnvironmentPresetId[];
@@ -66,6 +83,8 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   const setEnvironmentPreset = usePlaygroundStore(
     (s) => s.setEnvironmentPreset
   );
+  const renderQuality = usePlaygroundStore((s) => s.renderQuality);
+  const setRenderQuality = usePlaygroundStore((s) => s.setRenderQuality);
 
   const projectEnvironment = scene.environment.presetId;
   const projectPreset =
@@ -171,6 +190,35 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
             <p className="text-[11px] text-muted-foreground">
               เดินไปดูวัสดุจริงบนแท่นโชว์ในฉาก
             </p>
+          </PanelSection>
+
+          <PanelSection icon={Gauge} title="คุณภาพการแสดงผล">
+            <ToggleGroup
+              aria-label="คุณภาพการแสดงผล"
+              variant="outline"
+              size="sm"
+              spacing={1}
+              className="w-full flex-wrap"
+              value={[renderQuality]}
+              onValueChange={(values) => {
+                const next = values[0];
+                if (next !== undefined && isRenderQualityId(next)) {
+                  setRenderQuality(next);
+                }
+              }}
+            >
+              {renderQualityIds.map((id) => (
+                <PresetItem key={id} value={id}>
+                  {RENDER_QUALITY_LABELS[id]}
+                </PresetItem>
+              ))}
+            </ToggleGroup>
+            {renderQuality !== DEFAULT_RENDER_QUALITY && (
+              <p className="text-[11px] text-muted-foreground">
+                ลดคุณภาพเมฆและความละเอียดเพื่อความลื่น ภาพจะต่างจาก Studio
+                และไฟล์ export
+              </p>
+            )}
           </PanelSection>
         </div>
       )}

@@ -5,6 +5,7 @@ import { environmentEpochMs } from "@/presets/environments";
 import { evaluateCloudMotion } from "@/timeline/clouds";
 
 import type { RenderStageProps } from "../backend/render-backend";
+import { useRenderQuality } from "../canvas/render-quality";
 import { RENDER_PRIORITY } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { createWebGLStage } from "./create-stage";
@@ -16,6 +17,7 @@ export function WebGLStage({ environment }: RenderStageProps) {
   const width = useThree((state) => state.size.width);
   const height = useThree((state) => state.size.height);
   const dpr = useThree((state) => state.viewport.dpr);
+  const cloudsQuality = useRenderQuality().clouds;
 
   const { location, dateTime, exposure, clouds } = environment;
   const hasClouds = clouds !== null;
@@ -49,6 +51,10 @@ export function WebGLStage({ environment }: RenderStageProps) {
   useLayoutEffect(() => {
     stage.setExposure(exposure);
   }, [stage, exposure]);
+
+  useLayoutEffect(() => {
+    stage.setCloudsQuality(cloudsQuality);
+  }, [stage, cloudsQuality]);
 
   useLayoutEffect(() => {
     if (clouds !== null) stage.setClouds(clouds);

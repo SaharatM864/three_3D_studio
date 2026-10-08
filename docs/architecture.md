@@ -76,8 +76,8 @@ WebGPU เป็น backend หลัก ส่วน WebGL เป็น backend
 ```text
 features (playground-app / viewport)
 └─ useSelectedRenderBackend(environment)    ?renderer= > RENDER_BACKEND > auto
-   └─ SceneCanvas backend={id} (canvas/)    lazy import backend → detectSupport() → <Canvas gl={backend.createRenderer}> flat, shadows="percentage", dpr [1, 2], frameloop
-      └─ RenderBackendContext
+   └─ SceneCanvas backend={id} quality (canvas/)  lazy import backend → detectSupport() → <Canvas gl={backend.createRenderer}> flat, shadows="percentage", dpr ตาม RENDER_QUALITIES[quality], frameloop
+      └─ RenderBackendContext + RenderQualityContext
          └─ SceneContent                    resolveEnvironment(spec.environment)
             ├─ <backend.Stage>              atmosphere + post pipeline (+ เมฆ) ของแต่ละ backend
             ├─ LightRig                     แสงเสริมจาก spec.lights
@@ -92,6 +92,11 @@ features (playground-app / viewport)
   - auto เลือก `webgpu` ถ้ารองรับทุก feature ที่ฉากใช้ ตาม `RENDER_BACKEND_FEATURES` ตอนนี้ฉากที่มี `environment.clouds` จึงได้ `webgl`
   - ถ้าบังคับ backend ที่ไม่รองรับเมฆ จะ `console.warn` ครั้งเดียวแล้ว render โดยไม่มีเมฆ
   - เปลี่ยน backend คือ remount canvas ทั้งตัว (`key`) จึงได้ renderer, scene และกล้องชุดใหม่
+- **คุณภาพการแสดงผล** (`RENDER_QUALITIES` ใน `render-config.ts`): `high` (ค่าเริ่มต้น) กับ `performance` กำหนด dpr และคุณภาพเมฆ
+  - `SceneCanvas` รับ prop `quality` แล้วส่งต่อผ่าน `RenderQualityContext` (`canvas/render-quality.ts`) backend อ่านด้วย `useRenderQuality()`
+  - Studio ใช้ค่าเริ่มต้นเสมอ playground ค่าเริ่มต้นจึงเห็นภาพเดียวกับ Studio ส่วน `performance` (เมฆ `medium` + dpr 1) เป็นตัวเลือกใน environment panel ของ playground เท่านั้น ห้ามใช้ตอน export
+  - เปลี่ยนคุณภาพไม่ remount canvas: R3F resize ตาม dpr และ WebGL stage เรียก `setCloudsQuality` กับ `CloudsEffect` ตัวเดิม (แค่ compile shader ใหม่ ไม่โหลด LUT/texture ซ้ำ)
+  - เติม `?stats` ใน URL ของ playground เพื่อแสดง FPS (drei `<Stats>`) วัดใน production build (`bun run build` แล้ว `bun run start`) เพราะ dev mode มี StrictMode และ overlay
 - **Lazy load**: `backend/load-backend.ts` ใช้ dynamic import หน้า WebGPU จึงไม่โหลดโค้ดและ GLSL ของเมฆ แต่ยังโหลด `postprocessing` ผ่าน root entry ของ three-atmosphere (ดู "`@takram/three-atmosphere` root entry")
 - **Error**: `WebGPUUnavailableError` และ `WebGLUnavailableError` สืบจาก `RenderBackendUnavailableError` ซึ่ง `CanvasErrorBoundary` แปลงเป็น `fallback`
 
@@ -110,7 +115,7 @@ WebGPUStage (backend/webgpu.tsx)
   - ฟังก์ชัน imperative (`createAtmosphere`, `createScenePipeline`) สร้าง อัปเดต และ dispose node เอง
   - component บาง ๆ ผูกกับ R3F ด้วย `useMemo` + `useDisposable` + effect
   - แยกแบบนี้เพื่อให้ export (M1) เรียกฟังก์ชันชุดเดียวกันได้โดยไม่ผ่าน React และผ่านกฎ `react-hooks/immutability`
-- **ค่าที่จูนได้** (dpr, กล้อง, tone mapping, เงาดวงอาทิตย์, คุณภาพเมฆ) อยู่ใน `scene/render-config.ts` ที่เดียว
+- **ค่าที่จูนได้** (คุณภาพการแสดงผล ซึ่งรวม dpr และคุณภาพเมฆ, กล้อง, tone mapping, เงาดวงอาทิตย์) อยู่ใน `scene/render-config.ts` ที่เดียว
 - **พิกัด**: world origin วางที่ `environment.location` ด้วย `Ellipsoid.WGS84.getNorthUpEastFrame` แกนเป็น +X เหนือ, +Y ขึ้น, +Z ตะวันออก และ 1 หน่วยเท่ากับ 1 เมตร
   - การแปลง geodetic → ECEF และ local frame → ECEF อยู่ใน `atmosphere/geo-frame.ts` ที่เดียว
   - ไม่เปิด `highPrecision` และ `reversedDepthBuffer` เพราะใช้เมื่อวาง object ในพิกัด ECEF เท่านั้น
@@ -165,7 +170,7 @@ WebGPUStage (backend/webgpu.tsx)
 WebGLStage (webgl/stage.tsx)        createWebGLStage(renderer, scene, camera, { clouds })
 ├─ SunDirectionalLight              สีจาก transmittance LUT, เงาตาม SUN_SHADOW
 ├─ SkyLightProbe                    SH จาก irradiance LUT (diffuse เท่านั้น)
-└─ EffectComposer (HalfFloat)       RenderPass → EffectPass(CloudsEffect, AerialPerspectiveEffect) → EffectPass(ToneMapping AgX) + dithering
+└─ EffectComposer (HalfFloat)       RenderPass → EffectPass(CloudsEffect, AerialPerspectiveEffect, ToneMapping AgX) + dithering
 ```
 
 - โค้ดทั้งหมดอยู่ใน `src/scene/webgl/` และ import `@takram/*` กับ `postprocessing` ผ่าน `webgl/takram.ts` เท่านั้น ห้ามเพิ่ม effect ใหม่ที่นี่ ให้เพิ่มใน WebGPU pipeline
@@ -176,8 +181,10 @@ WebGLStage (webgl/stage.tsx)        createWebGLStage(renderer, scene, camera, { 
   - ถ้าโหลดไม่สำเร็จ `WebGLStage` จะ throw ไปที่ `error.tsx`
 - **แสง**: `AerialPerspectiveEffect` ตั้ง `sky = true`, `sunLight = false`, `skyLight = false` และ `correctGeometricError = false` เพราะวัสดุเป็น PBR ที่รับแสงจาก `SunDirectionalLight` + `SkyLightProbe` แล้ว
   - constructor ของ `SunDirectionalLight` (0.19.1) ไม่อ่าน `transmittanceTexture` จาก params จึงต้องตั้ง property หลังสร้าง
-- **เมฆ**: ส่ง `atmosphereOverlay`, `atmosphereShadow` และ `atmosphereShadowLength` เข้า aerial perspective ทุกครั้งที่ `CloudsEffect.events` ยิง `change`
+- **เมฆ**: ส่ง `atmosphereOverlay` และ `atmosphereShadowLength` เข้า aerial perspective ทุกครั้งที่ `CloudsEffect.events` ยิง `change`
+  - ไม่ส่ง `atmosphereShadow` เพราะ shader ใช้ผลของมัน (`HAS_SHADOW`) เฉพาะตอนเปิด `sunLight`/`skyLight` ถ้าส่งไปจะได้ loop เงา 8 sample ต่อ pixel ที่ไม่มีผลกับภาพ
 - **Tone mapping**: AgX ของ `postprocessing` อ่าน `renderer.toneMappingExposure` ซึ่งตั้งจาก `environment.exposure` และ `EffectPass` ทำ dithering หลังแปลงเป็น sRGB เหมือน WebGPU
+  - รวมเป็น effect ตัวสุดท้ายใน `EffectPass` เดียวกับเมฆและ aerial perspective เพื่อประหยัด pass เต็มจอหนึ่งรอบ ทำได้เพราะ `ToneMappingEffect` ไม่มี `EffectAttribute.CONVOLUTION`
 - **เวลา**: `composer.render(0)` จึงไม่สะสม delta
   - offset ของเมฆมาจาก `evaluateCloudMotion(clouds, clock.elapsedTime)`
   - ตอน `frameloop="never"` ค่านี้คือเวลาที่ส่งเข้า `advance()` (`TODO(M2)`: เปลี่ยนไปใช้ `useClipFrame()`)
@@ -213,7 +220,9 @@ WebGLStage (webgl/stage.tsx)        createWebGLStage(renderer, scene, camera, { 
   - ห้ามสะสม delta แบบ `CloudsEffect.update(deltaTime)` เพราะ seek และ export ต้องได้ค่าเดิม
 - **คุณภาพ**: `scene/clouds/quality.ts` คัดลอก `qualityPresets.ts` ของ takram ซึ่งไม่ได้ export ไว้
   - ใช้ค่าจากโค้ด ไม่ใช้ค่าใน README เช่น high ใช้ `maxIterationCountToSun` 2 และ `maxIterationCountToGround` 3 และ ultra ลด `minStepSize` เป็น 10 ม. นอกจากขยาย shadow map
-  - เลือก preset ที่ `CLOUDS_RENDER` ใน `render-config.ts` ค่าเริ่มต้นคือ `high` กับ `temporalUpscale` ซึ่งไม่อยู่ใน preset
+  - เลือก preset ที่ `RENDER_QUALITIES[quality].clouds` ใน `render-config.ts` ค่าเริ่มต้น (`high`) คือ preset `high` กับ `temporalUpscale` ซึ่งไม่อยู่ใน preset
+  - `qualityPreset` ของ takram ใส่ `Vector2` ที่ใช้ร่วมกันของ preset เข้า `shadowMaps.mapSize` ห้ามเรียก `.set()` กับค่านี้ ให้กำหนด `new Vector2(...)` แทน
+  - อย่าตัด `maxShadowLengthRayDistance` ให้สั้นลงตาม `camera.far` เพื่อเร่งความเร็ว cascade สุดท้ายของ cloud shadow ไม่มีขอบไกล (`cascadedShadowMaps.glsl`) จึงยังอ่านเงาได้เลย `far` โดยเฉพาะตอนมองเข้าหาดวงอาทิตย์ light shafts จะเปลี่ยน
   - คุณภาพเป็นเรื่องของ renderer จึงไม่อยู่ใน spec ของฉาก
 - **Assets**: `public/assets/clouds/` คัดลอกจาก `node_modules/@takram/three-clouds/assets/` (0.7.6) พร้อม `LICENSE` (MIT)
   - เป็น data texture จึงใช้ `NoColorSpace` และ `RepeatWrapping`

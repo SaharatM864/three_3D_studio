@@ -4,12 +4,19 @@ import type { ReactNode } from "react";
 import { RenderBackendContext } from "../backend/context";
 import { useRenderBackendLoader } from "../backend/load-backend";
 import type { RenderBackendId } from "../backend/render-backend";
-import { CAMERA_DEFAULTS, CANVAS_DPR } from "../render-config";
+import {
+  CAMERA_DEFAULTS,
+  DEFAULT_RENDER_QUALITY,
+  RENDER_QUALITIES,
+  type RenderQualityId,
+} from "../render-config";
 import { CanvasErrorBoundary } from "./canvas-error-boundary";
+import { RenderQualityContext } from "./render-quality";
 import "./three-console";
 
 export interface SceneCanvasProps {
   backend: RenderBackendId;
+  quality?: RenderQualityId;
   className?: string;
   frameloop?: "always" | "never";
   fallback?: ReactNode;
@@ -18,6 +25,7 @@ export interface SceneCanvasProps {
 
 export function SceneCanvas({
   backend: backendId,
+  quality: qualityId = DEFAULT_RENDER_QUALITY,
   className,
   frameloop = "always",
   fallback,
@@ -30,6 +38,7 @@ export function SceneCanvas({
   if (state.status === "error") throw state.error;
 
   const { backend } = state;
+  const quality = RENDER_QUALITIES[qualityId];
 
   return (
     <CanvasErrorBoundary key={backend.id} fallback={fallback}>
@@ -39,10 +48,14 @@ export function SceneCanvas({
         frameloop={frameloop}
         flat
         shadows="percentage"
-        dpr={CANVAS_DPR}
+        dpr={quality.dpr}
         camera={CAMERA_DEFAULTS}
       >
-        <RenderBackendContext value={backend}>{children}</RenderBackendContext>
+        <RenderBackendContext value={backend}>
+          <RenderQualityContext value={quality}>
+            {children}
+          </RenderQualityContext>
+        </RenderBackendContext>
       </Canvas>
     </CanvasErrorBoundary>
   );

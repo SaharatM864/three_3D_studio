@@ -5,7 +5,30 @@ import type { CloudsQualityPreset } from "./clouds/quality";
 
 export const RENDER_BACKEND: RenderBackendPreference = "auto";
 
-export const CANVAS_DPR: [min: number, max: number] = [1, 2];
+export type RenderQualityId = "high" | "performance";
+
+export interface CloudsRenderSettings {
+  quality: CloudsQualityPreset;
+  temporalUpscale: boolean;
+}
+
+export interface RenderQuality {
+  dpr: [min: number, max: number];
+  clouds: CloudsRenderSettings;
+}
+
+export const RENDER_QUALITIES: Record<RenderQualityId, RenderQuality> = {
+  high: {
+    dpr: [1, 2],
+    clouds: { quality: "high", temporalUpscale: true },
+  },
+  performance: {
+    dpr: [1, 1],
+    clouds: { quality: "medium", temporalUpscale: true },
+  },
+};
+
+export const DEFAULT_RENDER_QUALITY: RenderQualityId = "high";
 
 export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 5000 };
 
@@ -18,12 +41,4 @@ export const SUN_SHADOW = {
   extent: 20,
   mapSize: 2048,
   normalBias: 0.02,
-};
-
-export const CLOUDS_RENDER: {
-  quality: CloudsQualityPreset;
-  temporalUpscale: boolean;
-} = {
-  quality: "high",
-  temporalUpscale: true,
 };

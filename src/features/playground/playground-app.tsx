@@ -1,5 +1,5 @@
-import { KeyboardControls } from "@react-three/drei";
-import { useEffect } from "react";
+import { KeyboardControls, Stats } from "@react-three/drei";
+import { useEffect, useState } from "react";
 
 import { ErrorScreen, LoadingScreen } from "@/components/status-screen";
 import { controlsMap } from "@/game/controls";
@@ -44,13 +44,22 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
   );
 }
 
+const STATS_QUERY_PARAM = "stats";
+
+function readShowStats(): boolean {
+  return new URLSearchParams(window.location.search).has(STATS_QUERY_PARAM);
+}
+
 function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
   const backend = useSelectedRenderBackend(module.scene.environment);
+  const renderQuality = usePlaygroundStore((s) => s.renderQuality);
+  const [showStats] = useState(readShowStats);
 
   return (
     <KeyboardControls map={controlsMap}>
       <SceneCanvas
         backend={backend}
+        quality={renderQuality}
         fallback={
           <ErrorScreen
             title={`เบราว์เซอร์นี้ไม่รองรับ ${RENDER_BACKEND_LABELS[backend]}`}
@@ -64,6 +73,7 @@ function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
           playground={module.playground}
           components={module.components}
         />
+        {showStats && <Stats className="top-auto! bottom-3! left-3!" />}
       </SceneCanvas>
     </KeyboardControls>
   );

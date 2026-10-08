@@ -1,12 +1,15 @@
 import type { ResolvedClouds } from "@/presets/clouds";
 import type { EvaluatedCloudMotion } from "@/timeline/types";
 
-import { CLOUDS_RENDER } from "../render-config";
+import type { CloudsRenderSettings } from "../render-config";
 import type { CloudsEffect } from "./takram";
 
-export function applyCloudsQuality(effect: CloudsEffect): void {
-  effect.qualityPreset = CLOUDS_RENDER.quality;
-  effect.temporalUpscale = CLOUDS_RENDER.temporalUpscale;
+export function applyCloudsQuality(
+  effect: CloudsEffect,
+  settings: CloudsRenderSettings
+): void {
+  effect.qualityPreset = settings.quality;
+  effect.temporalUpscale = settings.temporalUpscale;
 }
 
 export function applyClouds(

@@ -22,7 +22,7 @@ import {
   type CloudTextures,
 } from "../clouds/cloud-textures";
 import { configureSunShadow } from "../lights/sun-shadow";
-import { SUN_SHADOW } from "../render-config";
+import { SUN_SHADOW, type CloudsRenderSettings } from "../render-config";
 import type { Disposable } from "../use-disposable";
 import { applyCloudMotion, applyClouds, applyCloudsQuality } from "./clouds";
 import {
@@ -56,6 +56,7 @@ export interface WebGLStageHandle extends Disposable {
   setEnvironment(environment: WebGLStageEnvironment): void;
   setExposure(exposure: number): void;
   setClouds(clouds: ResolvedClouds): void;
+  setCloudsQuality(settings: CloudsRenderSettings): void;
   setCloudMotion(motion: EvaluatedCloudMotion): void;
   resize(): void;
   render(): void;
@@ -94,11 +95,9 @@ export function createWebGLStage(
   const syncCloudOutputs = () => {
     if (cloudsEffect === null) return;
     aerialPerspective.overlay = cloudsEffect.atmosphereOverlay;
-    aerialPerspective.shadow = cloudsEffect.atmosphereShadow;
     aerialPerspective.shadowLength = cloudsEffect.atmosphereShadowLength;
   };
   if (cloudsEffect !== null) {
-    applyCloudsQuality(cloudsEffect);
     Object.assign(cloudsEffect, luts);
     cloudsEffect.events.addEventListener("change", syncCloudOutputs);
     syncCloudOutputs();
@@ -109,17 +108,13 @@ export function createWebGLStage(
     multisampling: 0,
   });
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(
+  const toneMapping = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
+  const effectPass =
     cloudsEffect === null
-      ? new EffectPass(camera, aerialPerspective)
-      : new EffectPass(camera, cloudsEffect, aerialPerspective)
-  );
-  const toneMappingPass = new EffectPass(
-    camera,
-    new ToneMappingEffect({ mode: ToneMappingMode.AGX })
-  );
-  toneMappingPass.dithering = true;
-  composer.addPass(toneMappingPass);
+      ? new EffectPass(camera, aerialPerspective, toneMapping)
+      : new EffectPass(camera, cloudsEffect, aerialPerspective, toneMapping);
+  effectPass.dithering = true;
+  composer.addPass(effectPass);
 
   const frame: CelestialFrame = {
     worldToECEF: new Matrix4(),
@@ -189,6 +184,10 @@ export function createWebGLStage(
 
     setClouds(clouds) {
       if (cloudsEffect !== null) applyClouds(cloudsEffect, clouds);
+    },
+
+    setCloudsQuality(settings) {
+      if (cloudsEffect !== null) applyCloudsQuality(cloudsEffect, settings);
     },
 
     setCloudMotion(motion) {
