@@ -57,6 +57,21 @@ export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
   };
 }
 
+export function applyEnvironmentPreset(
+  spec: EnvironmentSpec,
+  presetId: EnvironmentPresetId
+): EnvironmentSpec {
+  const preset = presetEnvironment(presetId);
+  return {
+    ...spec,
+    ...preset,
+    presetId,
+    location: preset.location
+      ? { ...spec.location, ...preset.location }
+      : spec.location,
+  };
+}
+
 const DATE_TIME_OFFSET = /(?:Z|[+-]\d{2}:\d{2})$/;
 
 export function environmentEpochMs(dateTime: string): number {

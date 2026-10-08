@@ -4,6 +4,7 @@ import {
   mrt,
   output,
   pass,
+  renderOutput,
   toneMapping,
   uniform,
 } from "three/tsl";
@@ -42,7 +43,11 @@ export function createScenePipeline(
     passNode.getTextureNode("velocity"),
     camera
   );
-  const pipeline = new RenderPipeline(renderer, taaNode.add(dithering));
+  const pipeline = new RenderPipeline(
+    renderer,
+    renderOutput(taaNode).add(dithering)
+  );
+  pipeline.outputColorTransform = false;
 
   return {
     render() {

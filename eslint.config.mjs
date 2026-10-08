@@ -16,6 +16,14 @@ const mediabunnyImports = [
   },
 ];
 
+const webglPostprocessingMessage =
+  "WebGL post-processing does not work with WebGPU; add TSL nodes in src/scene/pipeline/ instead (see docs/architecture.md).";
+
+const webglPostprocessingImports = [
+  { name: "postprocessing", message: webglPostprocessingMessage },
+  { name: "@react-three/postprocessing", message: webglPostprocessingMessage },
+];
+
 // @takram/* is alpha and typed against an older @types/three; only the two
 // adapter files may import it, so upgrades and casts stay in one place.
 const takramImports = {
@@ -37,7 +45,10 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: mediabunnyImports, patterns: [takramImports] },
+        {
+          paths: [...mediabunnyImports, ...webglPostprocessingImports],
+          patterns: [takramImports],
+        },
       ],
     },
   },
@@ -49,6 +60,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...mediabunnyImports,
+            ...webglPostprocessingImports,
             { name: "react", message: pureModuleMessage },
             { name: "react-dom", message: pureModuleMessage },
             { name: "three", message: pureModuleMessage },
@@ -85,7 +97,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: mediabunnyImports,
+          paths: [...mediabunnyImports, ...webglPostprocessingImports],
           patterns: [
             {
               group: ["@/projects/*/**"],
@@ -101,7 +113,10 @@ const eslintConfig = defineConfig([
   {
     files: ["src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts"],
     rules: {
-      "no-restricted-imports": ["error", { paths: mediabunnyImports }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [...mediabunnyImports, ...webglPostprocessingImports] },
+      ],
     },
   },
   {

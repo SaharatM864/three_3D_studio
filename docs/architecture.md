@@ -62,7 +62,7 @@ flowchart TD
 | `src/stores/`                                    | zustand store สำหรับ state ของ UI                                                                              | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
 | `public/assets/`                                 | ใช้ร่วมกัน: `models/`, `textures/`, `hdri/`, `audio/`, `fonts/` เฉพาะ project: `projects/<id>/`                | same-origin เท่านั้น เพื่อเลี่ยงปัญหา CORS ตอนอ่าน canvas                                                        |
 
-**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter เดียวของ `@takram/*` และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
+**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter เดียวของ `@takram/*` กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing` (WebGL) และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
 
 ## Render layer (WebGPU)
 
@@ -73,7 +73,7 @@ SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", 
    │  └─ Atmosphere (atmosphere/)   AtmosphereContext → renderer.contextNode, พิกัดโลก (geo-frame.ts), วันเวลา, กล้อง
    │     ├─ Sky                     scene.backgroundNode = skyBackground() (ปิดดาว), scene.environmentNode = skyEnvironment()
    │     └─ SunLight                AtmosphereLight (เงา, ปิด indirect เพราะใช้ IBL จาก skyEnvironment)
-   ├─ ScenePipeline (pipeline/)     pass(MRT output + highpVelocity) → lensFlare → toneMapping(AgX, exposure) → TAA → dithering
+   ├─ ScenePipeline (pipeline/)     pass(MRT output + highpVelocity) → lensFlare → toneMapping(AgX, exposure) → TAA → renderOutput (sRGB) → dithering
    ├─ LightRig                      แสงเสริมจาก spec.lights
    └─ SceneObject × n               primitive + MeshStandardNodeMaterial
 ```
@@ -91,6 +91,9 @@ SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", 
   - `environmentEpochMs` บังคับให้ `dateTime` เป็น ISO-8601 ที่ลงท้ายด้วย `Z` หรือ `±hh:mm` เพราะถ้าไม่มี offset จะถูกตีเป็นเวลาของเครื่อง
   - ห้ามใช้ `new Date()` ตอน runtime
 - **Tone mapping** ทำใน pipeline ที่เดียว `SceneCanvas` จึงตั้ง `flat` ถ้าไม่ตั้ง R3F จะใส่ ACES ให้ แล้ว `RenderPipeline` จะ tone map ซ้ำ
+- **Dithering ทำหลังแปลงเป็น sRGB**: `createScenePipeline` ตั้ง `outputColorTransform = false` แล้วเรียก `renderOutput()` เองก่อน `dithering`
+  - `dithering` มีขนาด ±0.5/255 ใน display space ถ้าใส่ก่อน OETF ของ sRGB noise ในส่วนมืดจะขยายเป็นหลายระดับของ 8-bit
+  - `renderOutput()` ที่ไม่ส่งอาร์กิวเมนต์อ่าน tone mapping และ color space ของ renderer จาก context ของ `RenderPipeline` จึงยังต้องตั้ง `flat`
 - **Velocity สำหรับ TAA** ใช้ `highpVelocity` ของ takram ห้ามใช้ `velocity` ของ three
   - TAA ของ takram ยกเลิก jitter ผ่าน `highpVelocity.setProjectionMatrix()` เท่านั้น และใช้ค่า `.z` ตรวจ depth แต่ `velocity` ของ three เป็น `vec2`
   - `highpVelocity` ใช้กับ `SkinnedMesh`/`InstancedMesh` ได้ เพราะ MRT มี key `velocity` และ three จะคำนวณ `positionPrevious` ให้

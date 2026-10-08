@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 
 import { useWebGPURenderer } from "../canvas/use-renderer";
 import { RENDER_PRIORITY } from "../render-config";
@@ -17,7 +17,7 @@ export function ScenePipeline({ exposure }: { exposure: number }) {
   );
   useDisposable(pipeline);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     pipeline.setExposure(exposure);
   }, [pipeline, exposure]);
 

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type { PlaygroundSpec, SceneSpec } from "@/model/types";
+import { applyEnvironmentPreset } from "@/presets/environments";
 import { lightingPresets } from "@/presets/lighting";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
@@ -32,10 +33,7 @@ export function PlaygroundScene({
     () => ({
       ...scene,
       environment: environmentPresetId
-        ? {
-            presetId: environmentPresetId,
-            location: scene.environment.location,
-          }
+        ? applyEnvironmentPreset(scene.environment, environmentPresetId)
         : scene.environment,
       lights: lightingPresetId
         ? lightingPresets[lightingPresetId].lights
