@@ -11,8 +11,8 @@ import {
 import type { PrimitiveShape, SceneObjectSpec, Vec3 } from "@/model/types";
 import type { EvaluatedObject } from "@/timeline/types";
 
+import { useRenderBackend } from "../backend/context";
 import type { SceneComponents } from "../custom-components";
-import { createMaterial } from "../materials/create-material";
 import { useDisposable } from "../use-disposable";
 
 export interface SceneObjectProps {
@@ -47,6 +47,7 @@ function Primitive({
   spec: PrimitiveSpec;
   values: EvaluatedObject;
 }) {
+  const { createMaterial } = useRenderBackend();
   const { color, metalness, roughness, emissiveIntensity, opacity } =
     values.material ?? {};
   const material = useMemo(
@@ -58,7 +59,15 @@ function Primitive({
         emissiveIntensity,
         opacity,
       }),
-    [spec.material, color, metalness, roughness, emissiveIntensity, opacity]
+    [
+      createMaterial,
+      spec.material,
+      color,
+      metalness,
+      roughness,
+      emissiveIntensity,
+      opacity,
+    ]
   );
   useDisposable(material);
 

@@ -1,18 +1,15 @@
-import { Vector3, type Camera } from "three";
+import type { Camera } from "three";
 import { context } from "three/tsl";
 import type { WebGPURenderer } from "three/webgpu";
 
 import type { GeoLocation } from "@/model/types";
 
 import type { Disposable } from "../use-disposable";
-import { geoToECEF, localFrameToECEF } from "./geo-frame";
+import { computeCelestialFrame } from "./geo-frame";
 import {
   AtmosphereContext,
   AtmosphereLight,
   AtmosphereLightNode,
-  getECIToECEFRotationMatrix,
-  getMoonDirectionECI,
-  getSunDirectionECI,
 } from "./takram";
 
 export interface AtmosphereEnvironment {
@@ -32,7 +29,6 @@ export function registerAtmosphere(renderer: WebGPURenderer): void {
 
 export function createAtmosphere(): AtmosphereHandle {
   const atmosphere = new AtmosphereContext();
-  const originECEF = new Vector3();
 
   return {
     provide(renderer) {
@@ -51,23 +47,12 @@ export function createAtmosphere(): AtmosphereHandle {
     },
 
     setEnvironment({ location, epochMs }) {
-      geoToECEF(location, originECEF);
-      localFrameToECEF(originECEF, atmosphere.matrixWorldToECEF.value);
-
-      const matrixECIToECEF = getECIToECEFRotationMatrix(
-        epochMs,
-        atmosphere.matrixECIToECEF.value
-      );
-      getSunDirectionECI(
-        epochMs,
-        atmosphere.sunDirectionECEF.value,
-        originECEF
-      ).applyMatrix4(matrixECIToECEF);
-      getMoonDirectionECI(
-        epochMs,
-        atmosphere.moonDirectionECEF.value,
-        originECEF
-      ).applyMatrix4(matrixECIToECEF);
+      computeCelestialFrame(location, epochMs, {
+        worldToECEF: atmosphere.matrixWorldToECEF.value,
+        eciToECEF: atmosphere.matrixECIToECEF.value,
+        sunDirectionECEF: atmosphere.sunDirectionECEF.value,
+        moonDirectionECEF: atmosphere.moonDirectionECEF.value,
+      });
     },
 
     dispose() {

@@ -17,7 +17,7 @@ const mediabunnyImports = [
 ];
 
 const webglPostprocessingMessage =
-  "WebGL post-processing does not work with WebGPU; add TSL nodes in src/scene/pipeline/ instead (see docs/architecture.md).";
+  "WebGL post-processing belongs to the temporary WebGL backend; import it through src/scene/webgl/takram.ts, or add TSL nodes in src/scene/pipeline/ (see docs/architecture.md).";
 
 const webglPostprocessingImports = [
   { name: "postprocessing", message: webglPostprocessingMessage },
@@ -25,7 +25,7 @@ const webglPostprocessingImports = [
 ];
 
 const webglCloudsMessage =
-  "@takram/three-clouds is WebGL only (GLSL + postprocessing); cloud config lives in src/presets/clouds.ts (see docs/architecture.md).";
+  "@takram/three-clouds is WebGL only (GLSL + postprocessing); import it through src/scene/webgl/takram.ts, cloud config lives in src/presets/clouds.ts (see docs/architecture.md).";
 
 const webglImports = [
   ...webglPostprocessingImports,
@@ -33,12 +33,12 @@ const webglImports = [
   { name: "@takram/three-clouds/r3f", message: webglCloudsMessage },
 ];
 
-// @takram/* is alpha and typed against an older @types/three; only the two
+// @takram/* is alpha and typed against an older @types/three; only the
 // adapter files may import it, so upgrades and casts stay in one place.
 const takramImports = {
   group: ["@takram/**"],
   message:
-    'Import @takram/* through "src/scene/atmosphere/takram.ts" or "src/scene/pipeline/takram.ts" (see docs/architecture.md).',
+    'Import @takram/* through "src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts" or "src/scene/webgl/takram.ts" (see docs/architecture.md).',
 };
 
 // model/, timeline/ and presets/ stay pure TypeScript so preview and export
@@ -126,6 +126,12 @@ const eslintConfig = defineConfig([
         "error",
         { paths: [...mediabunnyImports, ...webglImports] },
       ],
+    },
+  },
+  {
+    files: ["src/scene/webgl/takram.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: mediabunnyImports }],
     },
   },
   {

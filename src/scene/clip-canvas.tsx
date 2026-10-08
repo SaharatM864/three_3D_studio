@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 
 import type { VideoSettings } from "@/model/types";
 
+import type { RenderBackendId } from "./backend/render-backend";
 import { SceneCanvas } from "./canvas/scene-canvas";
 
 export interface ClipCanvasProps {
   video: VideoSettings;
+  backend: RenderBackendId;
   className?: string;
   fallback?: ReactNode;
   children?: ReactNode;
@@ -13,6 +15,7 @@ export interface ClipCanvasProps {
 
 export function ClipCanvas({
   video,
+  backend,
   className,
   fallback,
   children,
@@ -24,7 +27,9 @@ export function ClipCanvas({
       className={className}
       style={{ aspectRatio: `${video.width} / ${video.height}` }}
     >
-      <SceneCanvas fallback={fallback}>{children}</SceneCanvas>
+      <SceneCanvas backend={backend} fallback={fallback}>
+        {children}
+      </SceneCanvas>
     </div>
   );
 }

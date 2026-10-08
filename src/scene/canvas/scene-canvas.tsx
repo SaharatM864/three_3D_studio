@@ -1,12 +1,14 @@
 import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 
+import { RenderBackendContext } from "../backend/context";
+import { useRenderBackendLoader } from "../backend/load-backend";
+import type { RenderBackendId } from "../backend/render-backend";
 import { CAMERA_DEFAULTS, CANVAS_DPR } from "../render-config";
 import { CanvasErrorBoundary } from "./canvas-error-boundary";
-import { createRenderer } from "./create-renderer";
-import { useWebGPUSupport } from "./webgpu-support";
 
 export interface SceneCanvasProps {
+  backend: RenderBackendId;
   className?: string;
   frameloop?: "always" | "never";
   fallback?: ReactNode;
@@ -14,28 +16,32 @@ export interface SceneCanvasProps {
 }
 
 export function SceneCanvas({
+  backend: backendId,
   className,
   frameloop = "always",
   fallback,
   children,
 }: SceneCanvasProps) {
-  const support = useWebGPUSupport();
+  const state = useRenderBackendLoader(backendId);
 
-  if (support === "checking") return null;
-  if (support === "unsupported") return <>{fallback}</>;
+  if (state.status === "checking") return null;
+  if (state.status === "unsupported") return <>{fallback}</>;
+  if (state.status === "error") throw state.error;
+
+  const { backend } = state;
 
   return (
-    <CanvasErrorBoundary fallback={fallback}>
+    <CanvasErrorBoundary key={backend.id} fallback={fallback}>
       <Canvas
         className={className}
-        gl={createRenderer}
+        gl={backend.createRenderer}
         frameloop={frameloop}
         flat
         shadows="percentage"
         dpr={CANVAS_DPR}
         camera={CAMERA_DEFAULTS}
       >
-        {children}
+        <RenderBackendContext value={backend}>{children}</RenderBackendContext>
       </Canvas>
     </CanvasErrorBoundary>
   );

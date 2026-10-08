@@ -1,12 +1,13 @@
+import { useMemo } from "react";
+
 import type { SceneSpec } from "@/model/types";
 import { resolveEnvironment } from "@/presets/environments";
 import type { EvaluatedSceneContent } from "@/timeline/types";
 
+import { useRenderBackend } from "./backend/context";
 import type { SceneComponents } from "./custom-components";
-import { EnvironmentRenderer } from "./environment/environment-renderer";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
-import { ScenePipeline } from "./pipeline/scene-pipeline";
 
 export interface SceneContentProps {
   spec: SceneSpec;
@@ -21,12 +22,15 @@ export function SceneContent({
   evaluated,
   components,
 }: SceneContentProps) {
-  const environment = resolveEnvironment(spec.environment);
+  const { Stage } = useRenderBackend();
+  const environment = useMemo(
+    () => resolveEnvironment(spec.environment),
+    [spec.environment]
+  );
 
   return (
     <>
-      <EnvironmentRenderer environment={environment} />
-      <ScenePipeline exposure={environment.exposure} />
+      <Stage environment={environment} />
       <LightRig lights={spec.lights} values={evaluated.lights} />
       {spec.objects.map((object, index) => (
         <SceneObject

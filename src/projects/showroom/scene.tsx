@@ -38,7 +38,7 @@ function materialSwatches(): SceneObjectSpec[] {
 
 export default defineScene({
   spec: {
-    environment: { presetId: "morning" },
+    environment: { presetId: "morning", clouds: { coverage: 0.4 } },
     lights: [],
     objects: [
       {
