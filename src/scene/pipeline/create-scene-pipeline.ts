@@ -33,6 +33,7 @@ export function createScenePipeline(
   const passNode = pass(scene, camera, { samples: 0 }).setMRT(
     mrt({ output, velocity: highpVelocity })
   );
+  // TODO(M6): aerialPerspective + clouds (src/scene/clouds) between the scene pass and lensFlare; see docs/architecture.md "Clouds".
   const lensFlareNode = lensFlare(passNode.getTextureNode("output"));
   const toneMappedNode = convertToTexture(
     toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)

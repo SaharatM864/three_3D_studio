@@ -11,23 +11,24 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 
 ## Tech stack
 
-| ชั้น          | Package                                          | ใช้ทำอะไร                                                                                                |
-| ------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Framework     | `next` 16 (App Router + Turbopack)               | ตัวแอป, routing และ build สำหรับ deploy บน Vercel (ใช้แทน React + Vite ในเอกสารต้นทาง)                   |
-| UI            | `react` / `react-dom` 19                         | สร้าง UI ของ editor, preview controls และหน้าเกม                                                         |
-| ภาษา          | TypeScript 5.9                                   | กำหนด type ของ project, scene, timeline และ export config                                                |
-| Styling       | Tailwind CSS 4 (`@tailwindcss/postcss`)          | จัดหน้าตา UI                                                                                             |
-| UI components | shadcn/ui (Base UI, style `base-nova`)           | component สำเร็จรูปใน `src/components/ui` ใช้ `cn` จาก package `cn` และไอคอน `lucide-react`              |
-| 3D engine     | `three` 0.184 (`three/webgpu`, `three/tsl`)      | render ผ่าน `WebGPURenderer` + node material และทำ post-processing ด้วย `RenderPipeline`                 |
-| ท้องฟ้าและแสง | `@takram/three-atmosphere`, `three-geospatial`   | ท้องฟ้า ดวงอาทิตย์ และ IBL จากพิกัดโลกกับวันเวลา รวมถึง lens flare, TAA และ dithering (WebGPU entry)     |
-| React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                    |
-| 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                        |
-| Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม               |
-| State         | `zustand`                                        | เก็บ state ของเกมและ editor                                                                              |
-| Export วิดีโอ | `mediabunny`                                     | encode H.264 และ AAC ผ่าน WebCodecs แล้วรวมเป็นไฟล์ MP4 (`CanvasSource`, `StreamTarget`, `BufferTarget`) |
-| AAC fallback  | `@mediabunny/aac-encoder`                        | AAC encoder แบบ WASM สำหรับเบราว์เซอร์ที่ไม่มี AAC ในตัว ใช้ dynamic import เฉพาะตอนจำเป็น               |
-| Types         | `@types/three`, `@types/wicg-file-system-access` | type ของ three.js และ `showSaveFilePicker()` ที่ TypeScript ยังไม่มีในตัว                                |
-| Tooling       | ESLint, Prettier (+ tailwind plugin)             | ตรวจโค้ดและจัดรูปแบบ                                                                                     |
+| ชั้น          | Package                                          | ใช้ทำอะไร                                                                                                                             |
+| ------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework     | `next` 16 (App Router + Turbopack)               | ตัวแอป, routing และ build สำหรับ deploy บน Vercel (ใช้แทน React + Vite ในเอกสารต้นทาง)                                                |
+| UI            | `react` / `react-dom` 19                         | สร้าง UI ของ editor, preview controls และหน้าเกม                                                                                      |
+| ภาษา          | TypeScript 5.9                                   | กำหนด type ของ project, scene, timeline และ export config                                                                             |
+| Styling       | Tailwind CSS 4 (`@tailwindcss/postcss`)          | จัดหน้าตา UI                                                                                                                          |
+| UI components | shadcn/ui (Base UI, style `base-nova`)           | component สำเร็จรูปใน `src/components/ui` ใช้ `cn` จาก package `cn` และไอคอน `lucide-react`                                           |
+| 3D engine     | `three` 0.184 (`three/webgpu`, `three/tsl`)      | render ผ่าน `WebGPURenderer` + node material และทำ post-processing ด้วย `RenderPipeline`                                              |
+| ท้องฟ้าและแสง | `@takram/three-atmosphere`, `three-geospatial`   | ท้องฟ้า ดวงอาทิตย์ และ IBL จากพิกัดโลกกับวันเวลา รวมถึง lens flare, TAA และ dithering (WebGPU entry)                                  |
+| เมฆ           | `@takram/three-clouds`                           | แหล่ง texture ของเมฆ (`public/assets/clouds/`) และค่าอ้างอิงเท่านั้น ห้าม import เพราะเป็น WebGL (renderer เมฆเป็น TSL ของเราเอง, M6) |
+| React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                                                 |
+| 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                                                     |
+| Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม                                            |
+| State         | `zustand`                                        | เก็บ state ของเกมและ editor                                                                                                           |
+| Export วิดีโอ | `mediabunny`                                     | encode H.264 และ AAC ผ่าน WebCodecs แล้วรวมเป็นไฟล์ MP4 (`CanvasSource`, `StreamTarget`, `BufferTarget`)                              |
+| AAC fallback  | `@mediabunny/aac-encoder`                        | AAC encoder แบบ WASM สำหรับเบราว์เซอร์ที่ไม่มี AAC ในตัว ใช้ dynamic import เฉพาะตอนจำเป็น                                            |
+| Types         | `@types/three`, `@types/wicg-file-system-access` | type ของ three.js และ `showSaveFilePicker()` ที่ TypeScript ยังไม่มีในตัว                                                             |
+| Tooling       | ESLint, Prettier (+ tailwind plugin)             | ตรวจโค้ดและจัดรูปแบบ                                                                                                                  |
 
 ### Browser API ที่ใช้ (ไม่ต้องติดตั้ง)
 
@@ -54,8 +55,8 @@ src/
 ├── projects/      project ที่ AI เขียน (<id>/scene.tsx, playground.tsx, clip.tsx) + define.ts, manifest.ts, loaders.ts (_template สำหรับคัดลอก)
 ├── model/         type ของ scene/clip/playground และ composeClip (pure TS)
 ├── timeline/      evaluateClip(clip, frame), evaluateScene, easing, interpolation, seeded random (pure TS)
-├── presets/       preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน (pure data)
-├── scene/         ชั้น render ด้วย R3F + WebGPU: canvas กลาง, atmosphere (takram), post pipeline, scene content, render bridge, frame driver
+├── presets/       preset แสง วัสดุ สภาพแวดล้อม และค่าเริ่มต้นของเมฆ (pure data)
+├── scene/         ชั้น render ด้วย R3F + WebGPU: canvas กลาง, atmosphere (takram), clouds (quality + textures), post pipeline, scene content, render bridge, frame driver
 ├── game/          playground: controls, physics, player, playground scene
 ├── audio/         โหลดเสียง, เล่นตอน preview, offline mix
 ├── export/        capability check, AAC fallback, output target, export loop
@@ -63,7 +64,7 @@ src/
 ├── stores/        zustand store สำหรับ state ของ UI
 ├── components/    shadcn ui + status-screen (loading/error)
 └── lib/           utils, notImplemented
-public/assets/     ใช้ร่วมกัน: models, textures, hdri, audio, fonts · เฉพาะ project: projects/<id>/
+public/assets/     ใช้ร่วมกัน: models, textures, hdri, audio, fonts, clouds · เฉพาะ project: projects/<id>/
 docs/              architecture.md, project-authoring.md
 ```
 
@@ -96,6 +97,7 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
   - `three` pin ไว้ที่ 0.184.0 และ `@types/three` ที่ 0.184.x เพราะ `@takram/three-atmosphere@0.19.1` crash ตอน import บน three 0.185 ขึ้นไป ([issue #111](https://github.com/takram-design-engineering/three-geospatial/issues/111)) อัปเกรดได้เมื่อ takram ออกเวอร์ชันที่รวม [PR #118](https://github.com/takram-design-engineering/three-geospatial/pull/118)
   - `@takram/three-atmosphere` กับ `@takram/three-geospatial` pin แบบ exact เพราะยังเป็น alpha และ atmosphere ผูกเวอร์ชัน geospatial ไว้ตายตัว
   - `postprocessing` ถูกติดตั้งมาเพราะเป็น required peer ของ three-atmosphere เท่านั้น ห้ามนำมาใช้ (เป็น WebGL)
+  - `@takram/three-clouds` pin แบบ exact ที่ 0.7.6 ให้ตรงกับ atmosphere 0.19.1 แต่ห้าม import เพราะเป็น GLSL บน `postprocessing` (ESLint บังคับ) ใช้เป็นแหล่ง `public/assets/clouds/` และค่าอ้างอิงของ `src/presets/clouds.ts` กับ `src/scene/clouds/quality.ts` เมื่ออัปเกรดให้คัดลอก texture และตรวจค่าซ้ำ
   - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha
   - ห้ามอัป TypeScript เป็น 7 เพราะ typescript-eslint ยังไม่รองรับ
   - `mediabunny` กับ `@mediabunny/aac-encoder` ต้องเป็นเวอร์ชันเดียวกัน

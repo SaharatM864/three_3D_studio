@@ -24,6 +24,15 @@ const webglPostprocessingImports = [
   { name: "@react-three/postprocessing", message: webglPostprocessingMessage },
 ];
 
+const webglCloudsMessage =
+  "@takram/three-clouds is WebGL only (GLSL + postprocessing); cloud config lives in src/presets/clouds.ts (see docs/architecture.md).";
+
+const webglImports = [
+  ...webglPostprocessingImports,
+  { name: "@takram/three-clouds", message: webglCloudsMessage },
+  { name: "@takram/three-clouds/r3f", message: webglCloudsMessage },
+];
+
 // @takram/* is alpha and typed against an older @types/three; only the two
 // adapter files may import it, so upgrades and casts stay in one place.
 const takramImports = {
@@ -46,7 +55,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [...mediabunnyImports, ...webglPostprocessingImports],
+          paths: [...mediabunnyImports, ...webglImports],
           patterns: [takramImports],
         },
       ],
@@ -60,7 +69,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...mediabunnyImports,
-            ...webglPostprocessingImports,
+            ...webglImports,
             { name: "react", message: pureModuleMessage },
             { name: "react-dom", message: pureModuleMessage },
             { name: "three", message: pureModuleMessage },
@@ -97,7 +106,7 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [...mediabunnyImports, ...webglPostprocessingImports],
+          paths: [...mediabunnyImports, ...webglImports],
           patterns: [
             {
               group: ["@/projects/*/**"],
@@ -115,7 +124,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: [...mediabunnyImports, ...webglPostprocessingImports] },
+        { paths: [...mediabunnyImports, ...webglImports] },
       ],
     },
   },

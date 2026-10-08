@@ -113,6 +113,11 @@ export default definePlayground(
   - `environment: { presetId: "morning" }` picks a preset: `morning`, `noon` or `golden-hour`.
   - Override any field: `location: { latitude, longitude, height }` (degrees, meters; default Bangkok), `dateTime` (ISO-8601 with an explicit offset, e.g. `"2026-03-21T09:00:00+07:00"`) and `exposure` (about 3–10).
   - The scene is a local frame placed at `location`: +X points north, +Y up, +Z east. The sun position follows `dateTime`, so change the time to move the sun.
+  - `clouds` (optional) adds volumetric clouds; `clouds: {}` uses the defaults (coverage 0.3, three layers). **Not rendered yet** (the renderer is M6), but the data is already validated.
+    - `coverage` is 0–1. `layers` (at most 4) replaces the default set: `{ channel: "r" | "g" | "b" | "a", altitude, height, densityScale?, shadow?, … }`.
+    - `altitude` and `height` are meters above the WGS84 ellipsoid, not above the scene ground at `location.height`.
+    - `localWeather.velocity`, `shape.velocity` and `shapeDetail.velocity` are texture offsets per second, not wind speed (e.g. `localWeather: { velocity: [0.001, 0] }`).
+    - Keep `scattering` and `haze` at their defaults unless the shot needs it. Defaults and limits are in `src/presets/clouds.ts`.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
 - **Presets** (`src/presets/`): fields you set override the preset, e.g. `material: { presetId: "brushed-metal", color: "#..." }`.
 - **Objects:** `kind` is one of `primitive` (`box`, `sphere`, `plane`, `cylinder`, `torus`), `model` (GLB `src`, optional `animation`), `text`, or `custom`.

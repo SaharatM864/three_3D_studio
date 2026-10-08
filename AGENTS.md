@@ -25,4 +25,4 @@ Rules:
 - Use `bun`. Run `bun run check` (lint + typecheck) before finishing. New routes need `bun run build` or `next dev` once to generate `PageProps` types.
 - Respect the version pins listed in `README.md` (three 0.184.0 because of `@takram/*`, R3F 9, TypeScript 5, mediabunny = aac-encoder version).
 - Rendering is WebGPU only (`three/webgpu`, TSL). Every canvas is `SceneCanvas` from `src/scene/canvas/`, and tone mapping happens only in the scene pipeline (`src/scene/pipeline/`).
-- Import `@takram/*` only through `src/scene/atmosphere/takram.ts` or `src/scene/pipeline/takram.ts`. Don't use `postprocessing` or `@react-three/postprocessing` (WebGL).
+- Import `@takram/*` only through `src/scene/atmosphere/takram.ts` or `src/scene/pipeline/takram.ts`. Don't use `postprocessing`, `@react-three/postprocessing` or `@takram/three-clouds` (WebGL). Cloud data and defaults live in `src/presets/clouds.ts` (see "Clouds" in `docs/architecture.md`).

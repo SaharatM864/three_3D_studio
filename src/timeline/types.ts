@@ -1,4 +1,4 @@
-import type { ColorValue, Vec3 } from "@/model/types";
+import type { ColorValue, Vec2, Vec3 } from "@/model/types";
 
 export interface EvaluatedSceneContent {
   lights: readonly EvaluatedLight[];
@@ -44,4 +44,10 @@ export interface EvaluatedObject {
   transform: EvaluatedTransform;
   material?: EvaluatedMaterial;
   animationTime?: number;
+}
+
+export interface EvaluatedCloudMotion {
+  localWeatherOffset: Vec2;
+  shapeOffset: Vec3;
+  shapeDetailOffset: Vec3;
 }

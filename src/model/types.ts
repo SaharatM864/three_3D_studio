@@ -12,6 +12,8 @@
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+export type Vec2 = readonly [x: number, y: number];
+
 export type Vec3 = readonly [x: number, y: number, z: number];
 
 export type ColorValue = string;
@@ -156,11 +158,76 @@ export interface GeoLocation {
   height?: number;
 }
 
+export type CloudChannel = "r" | "g" | "b" | "a";
+
+export interface CloudDensityProfile {
+  expTerm: number;
+  exponent: number;
+  linearTerm: number;
+  constantTerm: number;
+}
+
+export interface CloudLayerSpec {
+  channel: CloudChannel;
+  altitude: number;
+  height: number;
+  densityScale?: number;
+  shapeAmount?: number;
+  shapeDetailAmount?: number;
+  weatherExponent?: number;
+  shapeAlteringBias?: number;
+  coverageFilterWidth?: number;
+  densityProfile?: Partial<CloudDensityProfile>;
+  shadow?: boolean;
+}
+
+export interface CloudTextureTransform<V> {
+  repeat: V;
+  offset: V;
+  velocity: V;
+}
+
+export interface CloudTurbulence {
+  repeat: Vec2;
+  displacement: number;
+}
+
+export interface CloudScattering {
+  scatteringCoefficient: number;
+  absorptionCoefficient: number;
+  scatterAnisotropy1: number;
+  scatterAnisotropy2: number;
+  scatterAnisotropyMix: number;
+  skyLightScale: number;
+  groundBounceScale: number;
+  powderScale: number;
+  powderExponent: number;
+}
+
+export interface CloudHaze {
+  densityScale: number;
+  exponent: number;
+  scatteringCoefficient: number;
+  absorptionCoefficient: number;
+}
+
+export interface CloudsSpec {
+  coverage?: number;
+  layers?: readonly CloudLayerSpec[];
+  localWeather?: Partial<CloudTextureTransform<Vec2>>;
+  shape?: Partial<CloudTextureTransform<Vec3>>;
+  shapeDetail?: Partial<CloudTextureTransform<Vec3>>;
+  turbulence?: Partial<CloudTurbulence>;
+  scattering?: Partial<CloudScattering>;
+  haze?: Partial<CloudHaze>;
+}
+
 export interface EnvironmentSpec {
   presetId?: string;
   location?: GeoLocation;
   dateTime?: string;
   exposure?: number;
+  clouds?: CloudsSpec;
 }
 
 export interface AudioClipSpec {

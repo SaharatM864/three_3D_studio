@@ -1,5 +1,7 @@
 import type { ColorValue, EnvironmentSpec, GeoLocation } from "@/model/types";
 
+import { resolveClouds, type ResolvedClouds } from "./clouds";
+
 export interface EnvironmentPreset {
   label: string;
   swatch: ColorValue;
@@ -10,12 +12,14 @@ export interface ResolvedEnvironment {
   location: Required<GeoLocation>;
   dateTime: string;
   exposure: number;
+  clouds: ResolvedClouds | null;
 }
 
 export const DEFAULT_ENVIRONMENT: ResolvedEnvironment = {
   location: { latitude: 13.7563, longitude: 100.5018, height: 0 },
   dateTime: "2026-03-21T09:00:00+07:00",
   exposure: 5,
+  clouds: null,
 };
 
 export const environmentPresets = {
@@ -45,6 +49,7 @@ export function isEnvironmentPresetId(id: string): id is EnvironmentPresetId {
 export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
   const preset: Omit<EnvironmentSpec, "presetId"> =
     spec.presetId === undefined ? {} : presetEnvironment(spec.presetId);
+  const clouds = spec.clouds ?? preset.clouds;
 
   return {
     location: {
@@ -54,6 +59,8 @@ export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
     },
     dateTime: spec.dateTime ?? preset.dateTime ?? DEFAULT_ENVIRONMENT.dateTime,
     exposure: spec.exposure ?? preset.exposure ?? DEFAULT_ENVIRONMENT.exposure,
+    clouds:
+      clouds === undefined ? DEFAULT_ENVIRONMENT.clouds : resolveClouds(clouds),
   };
 }
 

@@ -43,26 +43,27 @@ flowchart TD
 
 ## โมดูล
 
-| Path                                             | หน้าที่                                                                                                        | ข้อจำกัด                                                                                                         |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `src/app/`                                       | routing อย่างเดียว page เป็น Server Component แบบบาง                                                           | ห้าม import R3F หรือ three ตรง ๆ ต้องผ่าน loader                                                                 |
-| `src/features/studio`, `src/features/playground` | UI ของแต่ละโหมด รับ `projectId`                                                                                | `*-loader.tsx` เป็น client boundary (`'use client'` + `dynamic(..., { ssr: false })`)                            |
-| `src/projects/`                                  | project ที่ AI เขียน, `define.ts`, `manifest.ts` (metadata) และ `loaders.ts` (lazy import แยก clip/playground) | `manifest.ts` ต้องไม่ import โค้ด project เพราะ Server Component ใช้ไฟล์นี้ และ project ห้าม import project อื่น |
-| `src/model/`                                     | type ของ scene/clip/playground, ค่าเริ่มต้น และ `composeClip`                                                  | **pure**: ข้อมูลต้อง serialize เป็น JSON ได้                                                                     |
-| `src/timeline/`                                  | evaluator, interpolation, easing และ seeded random                                                             | **pure**: เป็นฟังก์ชันของ `(spec, frame)` เท่านั้น                                                               |
-| `src/presets/`                                   | preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน                                                                   | **pure data**                                                                                                    |
-| `src/scene/`                                     | ชั้น render ด้วย R3F + WebGPU, scene content, render bridge, frame driver และ clip clock (ดู "Render layer")   | client-only และห้าม import `src/projects`                                                                        |
-| `src/scene/canvas/`                              | `SceneCanvas` ตัวเดียวที่ทั้ง playground และ studio ใช้ สร้าง `WebGPURenderer` และตรวจว่ารองรับ WebGPU         | ห้ามสร้าง `<Canvas>` เองที่อื่น                                                                                  |
-| `src/scene/atmosphere/`                          | ท้องฟ้า ดวงอาทิตย์ และ IBL จาก takram (`createAtmosphere`, `<Atmosphere>`, `<Sky>`, `<SunLight>`)              | import `@takram/*` ผ่าน `atmosphere/takram.ts` เท่านั้น                                                          |
-| `src/scene/pipeline/`                            | post-processing (`createScenePipeline`, `<ScenePipeline>`)                                                     | import `@takram/*` ผ่าน `pipeline/takram.ts` เท่านั้น                                                            |
-| `src/game/`                                      | controls, physics config, player และ playground scene                                                          | client-only, physics ใช้ fixed timestep                                                                          |
-| `src/audio/`                                     | โหลดเสียง, เล่นเสียงตอน preview และ mix แบบ offline                                                            | client-only                                                                                                      |
-| `src/export/`                                    | capability check, AAC fallback, output target และ export loop                                                  | `mediabunny` import ได้เฉพาะใน `export/mediabunny.ts`                                                            |
-| `src/compositing/`                               | Canvas 2D สำหรับ subtitle/logo ที่ต้องติดไปในวิดีโอ                                                            | เพิ่มเมื่อมีความต้องการจริง                                                                                      |
-| `src/stores/`                                    | zustand store สำหรับ state ของ UI                                                                              | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
-| `public/assets/`                                 | ใช้ร่วมกัน: `models/`, `textures/`, `hdri/`, `audio/`, `fonts/` เฉพาะ project: `projects/<id>/`                | same-origin เท่านั้น เพื่อเลี่ยงปัญหา CORS ตอนอ่าน canvas                                                        |
+| Path                                             | หน้าที่                                                                                                                        | ข้อจำกัด                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `src/app/`                                       | routing อย่างเดียว page เป็น Server Component แบบบาง                                                                           | ห้าม import R3F หรือ three ตรง ๆ ต้องผ่าน loader                                                                 |
+| `src/features/studio`, `src/features/playground` | UI ของแต่ละโหมด รับ `projectId`                                                                                                | `*-loader.tsx` เป็น client boundary (`'use client'` + `dynamic(..., { ssr: false })`)                            |
+| `src/projects/`                                  | project ที่ AI เขียน, `define.ts`, `manifest.ts` (metadata) และ `loaders.ts` (lazy import แยก clip/playground)                 | `manifest.ts` ต้องไม่ import โค้ด project เพราะ Server Component ใช้ไฟล์นี้ และ project ห้าม import project อื่น |
+| `src/model/`                                     | type ของ scene/clip/playground, ค่าเริ่มต้น และ `composeClip`                                                                  | **pure**: ข้อมูลต้อง serialize เป็น JSON ได้                                                                     |
+| `src/timeline/`                                  | evaluator, interpolation, easing และ seeded random                                                                             | **pure**: เป็นฟังก์ชันของ `(spec, frame)` เท่านั้น                                                               |
+| `src/presets/`                                   | preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน รวมถึงค่าเริ่มต้นและการตรวจค่าของเมฆ (`clouds.ts`)                                | **pure data**                                                                                                    |
+| `src/scene/`                                     | ชั้น render ด้วย R3F + WebGPU, scene content, render bridge, frame driver และ clip clock (ดู "Render layer")                   | client-only และห้าม import `src/projects`                                                                        |
+| `src/scene/canvas/`                              | `SceneCanvas` ตัวเดียวที่ทั้ง playground และ studio ใช้ สร้าง `WebGPURenderer` และตรวจว่ารองรับ WebGPU                         | ห้ามสร้าง `<Canvas>` เองที่อื่น                                                                                  |
+| `src/scene/atmosphere/`                          | ท้องฟ้า ดวงอาทิตย์ และ IBL จาก takram (`createAtmosphere`, `<Atmosphere>`, `<Sky>`, `<SunLight>`)                              | import `@takram/*` ผ่าน `atmosphere/takram.ts` เท่านั้น                                                          |
+| `src/scene/pipeline/`                            | post-processing (`createScenePipeline`, `<ScenePipeline>`)                                                                     | import `@takram/*` ผ่าน `pipeline/takram.ts` เท่านั้น                                                            |
+| `src/scene/clouds/`                              | ฐานของเมฆ: quality presets (`quality.ts`) และ loader ของ texture (`cloud-textures.ts`) renderer ยังไม่ทำ (M6, ดู "Clouds")     | ห้าม import `@takram/three-clouds` (WebGL)                                                                       |
+| `src/game/`                                      | controls, physics config, player และ playground scene                                                                          | client-only, physics ใช้ fixed timestep                                                                          |
+| `src/audio/`                                     | โหลดเสียง, เล่นเสียงตอน preview และ mix แบบ offline                                                                            | client-only                                                                                                      |
+| `src/export/`                                    | capability check, AAC fallback, output target และ export loop                                                                  | `mediabunny` import ได้เฉพาะใน `export/mediabunny.ts`                                                            |
+| `src/compositing/`                               | Canvas 2D สำหรับ subtitle/logo ที่ต้องติดไปในวิดีโอ                                                                            | เพิ่มเมื่อมีความต้องการจริง                                                                                      |
+| `src/stores/`                                    | zustand store สำหรับ state ของ UI                                                                                              | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
+| `public/assets/`                                 | ใช้ร่วมกัน: `models/`, `textures/`, `hdri/`, `audio/`, `fonts/` และ texture ของเมฆ (`clouds/`) เฉพาะ project: `projects/<id>/` | same-origin เท่านั้น เพื่อเลี่ยงปัญหา CORS ตอนอ่าน canvas                                                        |
 
-**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter เดียวของ `@takram/*` กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing` (WebGL) และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
+**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter เดียวของ `@takram/*` กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing`/`@takram/three-clouds` (WebGL) และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
 
 ## Render layer (WebGPU)
 
@@ -82,7 +83,7 @@ SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", 
   - ฟังก์ชัน imperative (`createAtmosphere`, `createScenePipeline`) สร้าง อัปเดต และ dispose node เอง
   - component บาง ๆ ผูกกับ R3F ด้วย `useMemo` + `useDisposable` + effect
   - แยกแบบนี้เพื่อให้ export (M1) เรียกฟังก์ชันชุดเดียวกันได้โดยไม่ผ่าน React และผ่านกฎ `react-hooks/immutability`
-- **ค่าที่จูนได้** (dpr, กล้อง, tone mapping, เงาดวงอาทิตย์) อยู่ใน `scene/render-config.ts` ที่เดียว
+- **ค่าที่จูนได้** (dpr, กล้อง, tone mapping, เงาดวงอาทิตย์, คุณภาพเมฆ) อยู่ใน `scene/render-config.ts` ที่เดียว
 - **พิกัด**: world origin วางที่ `environment.location` ด้วย `Ellipsoid.WGS84.getNorthUpEastFrame` แกนเป็น +X เหนือ, +Y ขึ้น, +Z ตะวันออก และ 1 หน่วยเท่ากับ 1 เมตร
   - การแปลง geodetic → ECEF และ local frame → ECEF อยู่ใน `atmosphere/geo-frame.ts` ที่เดียว
   - ไม่เปิด `highPrecision` และ `reversedDepthBuffer` เพราะใช้เมื่อวาง object ในพิกัด ECEF เท่านั้น
@@ -120,12 +121,47 @@ SceneCanvas (canvas/)               WebGPURenderer, flat, shadows="percentage", 
     - ตัวนี้โหลด `stbn.bin` จาก media.githubusercontent.com ตอน runtime และต้องตรวจ license ตาม issue #117
     - ใน `@takram/three-geospatial` 0.9.1 ตั้ง `stbnTexture.url` เพื่อ self-host ไม่ได้ เพราะ `STBNTextureNode.clone()` ไม่ copy `url` และ `stbn` clone ทุกครั้ง
     - `AerialPerspectiveNode` วาด sky เองที่ depth = 1 ต้องตั้ง `skyNode = null` หรือเอา `scene.backgroundNode` ออก ไม่อย่างนั้น sky จะถูกคำนวณซ้ำ
-  - clouds (takram ยังไม่มี WebGPU entry)
+  - clouds: มีข้อมูลและ assets แล้ว แต่ยังไม่มี renderer (M6) ดูหัวข้อ "Clouds"
   - stars: `Sky` ตั้ง `showStars = false` เพราะค่า default จะโหลด `stars.bin` จาก GitHub ต้อง self-host ก่อนเปิดใช้กับฉากกลางคืน
   - animate เวลาของวันในคลิป ต้องเพิ่ม environment เข้า `EvaluatedScene` และ render bridge
   - TAA สะสม history ข้ามเฟรม ตอน M1 ต้องตัดสินว่าจะ warm-up หลัง seek หรือปิด TAA ตอน export
   - export ต้อง render warm-up หลายเฟรมก่อนเริ่ม: รอ LUT และ `AtmosphereLight` จะอัปเดตตำแหน่งช้าไปหนึ่ง render ในเฟรมแรก ๆ
   - `FrameDriverOptions.advance` รับเวลาเป็นวินาที เพราะ R3F ในโหมด `frameloop="never"` เอาค่านี้ไปใส่ `clock.elapsedTime` ตรง ๆ
+
+### Clouds
+
+สถานะ: มีข้อมูล ค่าเริ่มต้น quality presets และ assets แล้ว แต่ยังไม่มี renderer (M6) ใส่ `environment.clouds` ตอนนี้จึงยังไม่เห็นเมฆ
+
+- **ไม่ใช้ `@takram/three-clouds` ตรง ๆ**: เวอร์ชัน 0.7.6 เป็น GLSL บน `postprocessing` (`CloudsEffect` + `EffectComposer`) ไม่มี entry `./webgpu` และ entry หลักดึง `postprocessing` ผ่าน `build/shared.js`
+  - ESLint ห้าม import ทุกที่ รวมถึงไฟล์ adapter สองไฟล์
+  - ยังเก็บไว้ใน dependencies (pin 0.7.6) เพื่อเป็นแหล่ง texture และ GLSL อ้างอิงตอนเขียน TSL (`node_modules/@takram/three-clouds/src/shaders/`)
+- **ข้อมูล** (`EnvironmentSpec.clouds`): ไม่มี field นี้คือไม่มีเมฆ ส่วน `{}` คือค่าเริ่มต้นของ takram
+  - `resolveClouds` (`presets/clouds.ts`) merge ค่าเริ่มต้นกับ spec ทีละกลุ่ม แล้วตรวจค่าและ throw เมื่อผิด
+  - `layers` ที่ระบุจะแทนชุดเดิมทั้งหมด ไม่ patch ทีละ slot แบบ `.set()` ของ takram และมีได้สูงสุด 4 ชั้น เพราะ shader ใช้ `vec4` และ channel RGBA ของ weather texture
+  - ค่าเริ่มต้นทุกค่าคัดลอกจากซอร์สของ takram 0.7.6 (`CloudLayer`, `CloudLayers.DEFAULT`, `CloudsEffect`, `CloudsMaterial`) ได้แก่ coverage 0.3, ชั้นที่มีเงาช่วง 750–1,400 ม. และ 1,000–2,200 ม. กับชั้นบางช่วง 7,500–8,000 ม.
+  - clip ที่ตั้ง `environment.clouds` จะแทน clouds ของ scene ทั้งก้อน เพราะ `composeClip` merge แค่ระดับบนสุด
+- **หน่วย**: `altitude` และ `height` เป็นเมตร วัดจากผิว WGS84 ellipsoid ไม่ใช่จากพื้นฉากหรือระดับน้ำทะเล
+  - origin ของฉากอยู่ที่ `location.height` เหนือ ellipsoid ฐานเมฆเหนือพื้นฉากจึงเท่ากับ `altitude − location.height`
+  - ไม่มีการยกฐานเมฆตามภูมิประเทศ
+- **การเคลื่อนที่**: `velocity` คือ texture offset ต่อวินาที ไม่ใช่ความเร็วลมหน่วย m/s
+  - renderer ต้องอ่าน offset จาก `evaluateCloudMotion(clouds, timeSeconds)` (`timeline/clouds.ts`) ซึ่งเท่ากับ `offset + velocity × timeSeconds`
+  - ห้ามสะสม delta แบบ `CloudsEffect.update(deltaTime)` เพราะ seek และ export ต้องได้ค่าเดิม
+- **คุณภาพ**: `scene/clouds/quality.ts` คัดลอก `qualityPresets.ts` ของ takram ซึ่งไม่ได้ export ไว้
+  - ใช้ค่าจากโค้ด ไม่ใช้ค่าใน README เช่น high ใช้ `maxIterationCountToSun` 2 และ `maxIterationCountToGround` 3 และ ultra ลด `minStepSize` เป็น 10 ม. นอกจากขยาย shadow map
+  - เลือก preset ที่ `CLOUDS_RENDER` ใน `render-config.ts` ค่าเริ่มต้นคือ `high` กับ `temporalUpscale` ซึ่งไม่อยู่ใน preset
+  - คุณภาพเป็นเรื่องของ renderer จึงไม่อยู่ใน spec ของฉาก
+- **Assets**: `public/assets/clouds/` คัดลอกจาก `node_modules/@takram/three-clouds/assets/` (0.7.6) พร้อม `LICENSE` (MIT)
+  - เป็น data texture จึงใช้ `NoColorSpace` และ `RepeatWrapping`
+  - `loadCloudTextures()` ตรวจขนาด `.bin` (128³ และ 32³ ไบต์) เพื่อจับ 404, หน้า HTML หรือ Git LFS pointer
+  - `.gitattributes` ตั้ง `*.bin binary` เพราะ `shape.bin` และ `shape_detail.bin` ไม่มีไบต์ NUL Git จึงเดาว่าเป็น text และ `core.autocrlf` จะแปลงข้อมูลเสีย
+  - เมื่ออัปเกรด takram ให้คัดลอก texture ใหม่ และตรวจค่าเริ่มต้นกับ quality presets ซ้ำ
+  - STBN (blue noise) ยังไม่ self-host เพราะไม่มีในแพ็กเกจ และต้องตรวจ license ตาม issue #117
+- **แนวทาง renderer (M6)**: เขียนเป็น TSL เองตามลำดับ pass ของ takram คือ shadow → shadow resolve → clouds → clouds resolve
+  - อ่าน `matrixWorldToECEF`, `sunDirectionECEF` และ LUT (`lutNode.getTextureNode(...)`) จาก `AtmosphereContext` ตัวเดียวกับท้องฟ้า เพื่อให้ทิศดวงอาทิตย์และพิกัดตรงกัน
+  - ลำดับใน `createScenePipeline` คือ scene pass → `aerialPerspective` (ส่ง shadow length ของเมฆเข้า `shadowLengthNode`) → composite เมฆเอง (`color × transmittance + clouds`) → `lensFlare` เพราะ `AerialPerspectiveNode` ของ WebGPU ไม่มี `overlay` และ `shadow` แบบ WebGL
+  - เงาเมฆ (Beer shadow map) ไม่ลงบน `MeshStandardNodeMaterial` เอง ต้องต่อเข้ากับ `AtmosphereLight`
+  - temporal upscale สะสม history ข้ามเฟรมเหมือน TAA จึงต้องตัดสินเรื่อง warm-up และ seek ตอน export ไปพร้อมกัน
+  - `shadow.maxFar` ถูกจำกัดด้วย `camera.far` (`CAMERA_DEFAULTS.far` = 5,000 ม.)
 
 ## กฎหลัก
 
@@ -183,7 +219,7 @@ grep -rn "TODO(M1)" src
 | **M3** เสียง             | beep ตรง marker ทั้ง native AAC และ WASM fallback                                        | `audio/*`, `export/aac-fallback.ts`, audio track ใน `export-session.ts`                                                                                                                                                                                                                                                        |
 | **M4** assets และข้อความ | GLB, ฟอนต์ไทย และ overlay ติดครบในไฟล์                                                   | `model/assets.ts`, `objects/` (model/text), `materials/` (texture maps), `compositing/`                                                                                                                                                                                                                                        |
 | **M5** ขอบเขต MVP        | 30–60 วินาที, แนวนอน/แนวตั้ง, cancel, export ซ้ำ, codec ไม่รองรับ, ปลายทางไฟล์ทั้งสองแบบ | `export/*` (cancel, cleanup, ขนาดสูงสุดของ memory target)                                                                                                                                                                                                                                                                      |
-| **M6** effects/4K        | วัด RAM, GPU, เวลา export และ A/V sync ใหม่                                              | เพิ่ม node ใน `scene/pipeline/create-scene-pipeline.ts` (bloom, DOF, aerial perspective)                                                                                                                                                                                                                                       |
+| **M6** effects/4K        | วัด RAM, GPU, เวลา export และ A/V sync ใหม่                                              | เพิ่ม node ใน `scene/pipeline/create-scene-pipeline.ts` (bloom, DOF, aerial perspective) และ renderer ของเมฆ (`scene/clouds/`)                                                                                                                                                                                                 |
 | **G1** เดินใน playground | WASD + pointer lock + physics                                                            | `game/playground-scene.tsx`, `player/` (แทน `game/inspect-camera.tsx`), `features/playground/components/hud.tsx`                                                                                                                                                                                                               |
 | **G2** สลับ preset       | สลับแสง สภาพแวดล้อม และดู material swatch                                                | `projects/showroom/`, `environment-panel.tsx`                                                                                                                                                                                                                                                                                  |
 | **future**               | นำเข้า JSON และ LLM ในแอป                                                                | `model/schema.ts`                                                                                                                                                                                                                                                                                                              |
