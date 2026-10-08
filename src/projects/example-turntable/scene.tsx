@@ -1,10 +1,9 @@
 import { defineScene } from "@/projects/define";
-import { lightingPresets } from "@/presets/lighting";
 
 export default defineScene({
   spec: {
-    environment: { presetId: "studio-gray" },
-    lights: lightingPresets["studio-3-point"].lights,
+    environment: { presetId: "morning" },
+    lights: [],
     objects: [
       {
         id: "floor",

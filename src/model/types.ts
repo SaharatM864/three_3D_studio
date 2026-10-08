@@ -150,13 +150,16 @@ export type SceneObjectSpec =
       props?: Readonly<Record<string, JsonValue>>;
     });
 
+export interface GeoLocation {
+  latitude: number;
+  longitude: number;
+  height?: number;
+}
+
 export interface EnvironmentSpec {
   presetId?: string;
-  background?: ColorValue;
-  hdri?: AssetPath;
-  hdriAsBackground?: boolean;
-  environmentIntensity?: number;
-  fog?: { color: ColorValue; near: number; far: number };
+  location?: GeoLocation;
+  dateTime?: string;
   exposure?: number;
 }
 

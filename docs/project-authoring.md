@@ -12,7 +12,7 @@ A **project** is one folder, `src/projects/<project-id>/`, with three modules:
 
 Build the scene once, inspect it in the playground, then edit the video in the clip. The playground and the clip always show the same scene.
 
-> **Status:** rendering, physics and export are still scaffolded stubs (see the roadmap in `docs/architecture.md`). Until milestones M1 and G1 land, both pages show an empty canvas. A project must still typecheck and follow every rule below.
+> **Status:** the playground renders the scene (sky, sun, primitives) with a temporary orbit camera. Walking (G1), the studio viewport and export (M1) are still stubs (see the roadmap in `docs/architecture.md`). A project must still typecheck and follow every rule below.
 
 ## Working references
 
@@ -109,10 +109,12 @@ export default definePlayground(
   - Easing names: `linear`, `step`, `easeIn/Out/InOut` + `Quad`/`Cubic`.
   - Values hold before the first keyframe and after the last one.
 - **Video:** spread a format from `VIDEO_FORMATS` (`src/model/defaults.ts`) and set `durationInFrames`. Time is always `frame / fps`.
-- **Presets** (`src/presets/`): fields you set override the preset.
-  - `lights: lightingPresets["studio-3-point"].lights`
-  - `environment: { presetId: "studio-gray" }`
-  - `material: { presetId: "brushed-metal", color: "#..." }`
+- **Environment** (sky, sun and image-based light, rendered by `@takram/three-atmosphere`):
+  - `environment: { presetId: "morning" }` picks a preset: `morning`, `noon` or `golden-hour`.
+  - Override any field: `location: { latitude, longitude, height }` (degrees, meters; default Bangkok), `dateTime` (ISO-8601 with an explicit offset, e.g. `"2026-03-21T09:00:00+07:00"`) and `exposure` (about 3–10).
+  - The scene is a local frame placed at `location`: +X points north, +Y up, +Z east. The sun position follows `dateTime`, so change the time to move the sun.
+- **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
+- **Presets** (`src/presets/`): fields you set override the preset, e.g. `material: { presetId: "brushed-metal", color: "#..." }`.
 - **Objects:** `kind` is one of `primitive` (`box`, `sphere`, `plane`, `cylinder`, `torus`), `model` (GLB `src`, optional `animation`), `text`, or `custom`.
 - **Randomness:** `seed` feeds `createSeededRandom()` (`src/timeline/random.ts`).
 
@@ -143,7 +145,7 @@ These keep preview and export identical. Breaking them produces clips that diffe
 
 - 1920×1080 or 1080×1920 at 30 fps. A project has one clip, so for both orientations make a second project with a copy of the scene.
 - 30–60 seconds. The first export target is 10 seconds.
-- Solid opaque background (SDR).
+- Opaque sky background from the environment (SDR). No transparent background.
 - One mixed stereo audio track at 48 kHz.
 
 ## Checklist before finishing
@@ -153,6 +155,7 @@ These keep preview and export identical. Breaking them produces clips that diffe
 - [ ] Keyframe frames are within `0 … durationInFrames - 1` and sorted
 - [ ] Every `animate` key is a scene object id, and object ids are unique
 - [ ] No wall-clock time, deltas or unseeded randomness in `scene.tsx` or `clip.tsx`
+- [ ] `environment.dateTime`, if set, has an explicit UTC offset
 - [ ] Everything that must appear in the video is inside the canvas
 - [ ] Assets exist under `public/assets/` and paths are relative to it
 - [ ] No imports from other projects

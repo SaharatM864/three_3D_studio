@@ -16,6 +16,14 @@ const mediabunnyImports = [
   },
 ];
 
+// @takram/* is alpha and typed against an older @types/three; only the two
+// adapter files may import it, so upgrades and casts stay in one place.
+const takramImports = {
+  group: ["@takram/**"],
+  message:
+    'Import @takram/* through "src/scene/atmosphere/takram.ts" or "src/scene/pipeline/takram.ts" (see docs/architecture.md).',
+};
+
 // model/, timeline/ and presets/ stay pure TypeScript so preview and export
 // share one deterministic evaluator.
 const pureModuleMessage =
@@ -27,7 +35,10 @@ const eslintConfig = defineConfig([
   prettier,
   {
     rules: {
-      "no-restricted-imports": ["error", { paths: mediabunnyImports }],
+      "no-restricted-imports": [
+        "error",
+        { paths: mediabunnyImports, patterns: [takramImports] },
+      ],
     },
   },
   {
@@ -49,6 +60,7 @@ const eslintConfig = defineConfig([
                 "react-dom/**",
                 "three/**",
                 "@react-three/**",
+                "@takram/**",
                 "@/app/**",
                 "@/audio/**",
                 "@/compositing/**",
@@ -80,9 +92,16 @@ const eslintConfig = defineConfig([
               message:
                 'Projects must not import other projects; use "./" inside your own project (see docs/project-authoring.md).',
             },
+            takramImports,
           ],
         },
       ],
+    },
+  },
+  {
+    files: ["src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: mediabunnyImports }],
     },
   },
   {

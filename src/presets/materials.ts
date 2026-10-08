@@ -39,3 +39,19 @@ export const materialPresets = {
 } satisfies Record<string, MaterialPreset>;
 
 export type MaterialPresetId = keyof typeof materialPresets;
+
+export function isMaterialPresetId(id: string): id is MaterialPresetId {
+  return Object.hasOwn(materialPresets, id);
+}
+
+export function resolveMaterial(
+  spec: MaterialSpec | undefined
+): Omit<MaterialSpec, "presetId"> {
+  if (spec === undefined) return {};
+  const { presetId, ...overrides } = spec;
+  if (presetId === undefined) return overrides;
+  if (!isMaterialPresetId(presetId)) {
+    throw new Error(`Unknown material preset "${presetId}"`);
+  }
+  return { ...materialPresets[presetId].material, ...overrides };
+}

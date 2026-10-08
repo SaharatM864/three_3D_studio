@@ -18,7 +18,8 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 | ภาษา          | TypeScript 5.9                                   | กำหนด type ของ project, scene, timeline และ export config                                                |
 | Styling       | Tailwind CSS 4 (`@tailwindcss/postcss`)          | จัดหน้าตา UI                                                                                             |
 | UI components | shadcn/ui (Base UI, style `base-nova`)           | component สำเร็จรูปใน `src/components/ui` ใช้ `cn` จาก package `cn` และไอคอน `lucide-react`              |
-| 3D engine     | `three`                                          | render โมเดล, วัสดุ, แสง, กล้อง และ shader ผ่าน WebGL2                                                   |
+| 3D engine     | `three` 0.184 (`three/webgpu`, `three/tsl`)      | render ผ่าน `WebGPURenderer` + node material และทำ post-processing ด้วย `RenderPipeline`                 |
+| ท้องฟ้าและแสง | `@takram/three-atmosphere`, `three-geospatial`   | ท้องฟ้า ดวงอาทิตย์ และ IBL จากพิกัดโลกกับวันเวลา รวมถึง lens flare, TAA และ dithering (WebGPU entry)     |
 | React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                    |
 | 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                        |
 | Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม               |
@@ -30,13 +31,14 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 
 ### Browser API ที่ใช้ (ไม่ต้องติดตั้ง)
 
+- **WebGPU**: renderer หลักของทั้ง playground และ studio (ไม่ใช้ WebGL2 fallback เพราะ node ของ takram ยังทำงานไม่ถูกต้องบน fallback)
 - **WebCodecs**: encoder ของวิดีโอและเสียงในเบราว์เซอร์ ซึ่ง Mediabunny เรียกใช้ให้
 - **Web Audio API / OfflineAudioContext**: เล่นเสียงตอน preview และเกม และ mix เสียงตาม timeline ตอน export
 - **File System Access API**: เขียนไฟล์ MP4 ลงเครื่องโดยตรงแบบ stream ไม่ต้องเก็บทั้งไฟล์ไว้ใน RAM
 
 ### ส่วนที่จะเพิ่มเมื่อจำเป็น (ยังไม่ติดตั้ง)
 
-- `@react-three/postprocessing` + `postprocessing`: ใช้ทำ effect เช่น bloom หรือ DOF
+- effect เพิ่มเติม เช่น bloom, DOF หรือ aerial perspective: เพิ่มเป็น node ใน `src/scene/pipeline/create-scene-pipeline.ts` (ห้ามใช้ `@react-three/postprocessing` เพราะเป็น WebGL)
 - `ecctrl`: character controller สำเร็จรูป
 - IndexedDB: autosave
 - Web Worker / OffscreenCanvas: เพิ่มเมื่อ profiling เจอว่า main thread เป็นคอขวด
@@ -53,7 +55,7 @@ src/
 ├── model/         type ของ scene/clip/playground และ composeClip (pure TS)
 ├── timeline/      evaluateClip(clip, frame), evaluateScene, easing, interpolation, seeded random (pure TS)
 ├── presets/       preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน (pure data)
-├── scene/         ชั้น render ด้วย R3F: canvas, scene content, render bridge, frame driver, camera/lights/objects
+├── scene/         ชั้น render ด้วย R3F + WebGPU: canvas กลาง, atmosphere (takram), post pipeline, scene content, render bridge, frame driver
 ├── game/          playground: controls, physics, player, playground scene
 ├── audio/         โหลดเสียง, เล่นตอน preview, offline mix
 ├── export/        capability check, AAC fallback, output target, export loop
@@ -85,13 +87,15 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
 
 ## หมายเหตุ
 
-- **เบราว์เซอร์เป้าหมาย** คือ Chrome และ Edge บน desktop ก่อน export ต้องตรวจ codec จริงด้วย `canEncodeVideo('avc')` และ `canEncodeAudio('aac')`
+- **เบราว์เซอร์เป้าหมาย** คือ Chrome และ Edge บน desktop ที่รองรับ WebGPU ถ้าไม่รองรับ หน้า playground จะแสดงข้อความแจ้ง ก่อน export ต้องตรวจ codec จริงด้วย `canEncodeVideo('avc')` และ `canEncodeAudio('aac')`
 - **Deploy บน Vercel**: Vercel อ่าน `bun.lock` แล้วรัน `bun install` ให้เอง ไม่ต้องตั้ง COOP/COEP header แต่ script `build` เรียก `bun --bun next build` และ Vercel ต้อง opt-in ถึงจะใช้ Bun 1.4 ได้ ให้ตรวจการตั้งค่านี้ตอน deploy ครั้งแรก
 - **`.env` กับ `bun --bun`**: Next.js โหลด `.env*` เอง แต่ Bun 1.4 ไม่โหลด `.env` ให้เมื่อรันแบบ `--bun` ดังนั้น script แยก เช่น seed หรือ migration ต้องใส่ `--env-file=.env.local` เอง
 - **ธีม**: แอปใช้ธีมมืดถาวร (class `dark` ที่ `<html>` ใน `src/app/layout.tsx`) เพราะ shadcn ใช้ class `.dark` (`@custom-variant dark`) ไม่ใช่ `prefers-color-scheme` ฟอนต์ไทยใช้ Noto Sans Thai เป็น fallback ของ Geist
 - **UI gallery**: เปิด `/dev/ui` ตอน `bun dev` เพื่อดูทุก state ของ UI ที่ยังต่อ function ไม่ครบ (production build ขึ้น 404)
 - **ข้อจำกัดเรื่องเวอร์ชัน**:
-  - `three` ให้อยู่ที่ 0.186.x เพราะ `postprocessing` รองรับแค่ `<0.187`
+  - `three` pin ไว้ที่ 0.184.0 และ `@types/three` ที่ 0.184.x เพราะ `@takram/three-atmosphere@0.19.1` crash ตอน import บน three 0.185 ขึ้นไป ([issue #111](https://github.com/takram-design-engineering/three-geospatial/issues/111)) อัปเกรดได้เมื่อ takram ออกเวอร์ชันที่รวม [PR #118](https://github.com/takram-design-engineering/three-geospatial/pull/118)
+  - `@takram/three-atmosphere` กับ `@takram/three-geospatial` pin แบบ exact เพราะยังเป็น alpha และ atmosphere ผูกเวอร์ชัน geospatial ไว้ตายตัว
+  - `postprocessing` ถูกติดตั้งมาเพราะเป็น required peer ของ three-atmosphere เท่านั้น ห้ามนำมาใช้ (เป็น WebGL)
   - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha
   - ห้ามอัป TypeScript เป็น 7 เพราะ typescript-eslint ยังไม่รองรับ
   - `mediabunny` กับ `@mediabunny/aac-encoder` ต้องเป็นเวอร์ชันเดียวกัน

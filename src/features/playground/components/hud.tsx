@@ -2,10 +2,11 @@ import type { ProjectId } from "@/projects/manifest";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
 import { PlaygroundToolbar } from "./playground-toolbar";
-import { Crosshair, PointerLockOverlay } from "./pointer-lock-overlay";
+import { Crosshair } from "./pointer-lock-overlay";
 
-// TODO(G1): pass onStart that calls requestPointerLock() on the canvas and
-// mirror pointerlockchange into setPointerLocked().
+// TODO(G1): show <PointerLockOverlay onStart/> while unlocked; onStart calls
+// requestPointerLock() on the canvas and pointerlockchange feeds
+// setPointerLocked().
 export function Hud({
   projectId,
   sceneReady,
@@ -17,7 +18,7 @@ export function Hud({
 
   return (
     <>
-      {sceneReady && (isPointerLocked ? <Crosshair /> : <PointerLockOverlay />)}
+      {sceneReady && isPointerLocked && <Crosshair />}
       <PlaygroundToolbar projectId={projectId} hidden={isPointerLocked} />
     </>
   );

@@ -1,5 +1,4 @@
 import { KeyboardControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
 import { useEffect } from "react";
 
 import { ErrorScreen, LoadingScreen } from "@/components/status-screen";
@@ -7,6 +6,7 @@ import { controlsMap } from "@/game/controls";
 import { PlaygroundScene } from "@/game/playground-scene";
 import { projectLoaders } from "@/projects/loaders";
 import type { ProjectId } from "@/projects/manifest";
+import { SceneCanvas } from "@/scene/canvas/scene-canvas";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
 import { useLazyModule } from "../use-lazy-module";
@@ -23,13 +23,21 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
     <div className="relative h-dvh w-full overflow-hidden bg-black">
       {state.status === "ready" && (
         <KeyboardControls map={controlsMap}>
-          <Canvas shadows>
+          <SceneCanvas
+            fallback={
+              <ErrorScreen
+                title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"
+                error="เปิดหน้านี้ด้วย Chrome หรือ Edge เวอร์ชันล่าสุดบน desktop"
+                className="h-full"
+              />
+            }
+          >
             <PlaygroundScene
               scene={state.module.scene}
               playground={state.module.playground}
               components={state.module.components}
             />
-          </Canvas>
+          </SceneCanvas>
         </KeyboardControls>
       )}
       {state.status === "loading" && (

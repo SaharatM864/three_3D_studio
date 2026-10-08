@@ -1,7 +1,8 @@
-import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 
 import type { VideoSettings } from "@/model/types";
+
+import { SceneCanvas } from "./canvas/scene-canvas";
 
 export interface ClipCanvasProps {
   video: VideoSettings;
@@ -17,7 +18,7 @@ export function ClipCanvas({ video, className, children }: ClipCanvasProps) {
       className={className}
       style={{ aspectRatio: `${video.width} / ${video.height}` }}
     >
-      <Canvas>{children}</Canvas>
+      <SceneCanvas>{children}</SceneCanvas>
     </div>
   );
 }

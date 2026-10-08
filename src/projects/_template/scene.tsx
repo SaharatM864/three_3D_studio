@@ -3,7 +3,6 @@ import { useRef } from "react";
 import type { Mesh } from "three";
 
 import { defineScene, type SceneComponentProps } from "@/projects/define";
-import { lightingPresets } from "@/presets/lighting";
 import { useClipFrame } from "@/scene/clip-clock";
 
 /**
@@ -34,8 +33,8 @@ function PulsingSphere({ props }: SceneComponentProps) {
 
 export default defineScene({
   spec: {
-    environment: { presetId: "studio-gray" },
-    lights: lightingPresets["studio-3-point"].lights,
+    environment: { presetId: "morning" },
+    lights: [],
     objects: [
       {
         id: "floor",

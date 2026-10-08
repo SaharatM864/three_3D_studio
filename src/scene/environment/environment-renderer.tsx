@@ -1,11 +1,23 @@
-import type { FC } from "react";
+import type { ResolvedEnvironment } from "@/presets/environments";
 
-import type { EnvironmentSpec } from "@/model/types";
+import { Atmosphere } from "../atmosphere/atmosphere";
+import { Sky } from "../atmosphere/sky";
+import { SunLight } from "../atmosphere/sun-light";
 
 export interface EnvironmentRendererProps {
-  spec: EnvironmentSpec;
+  environment: ResolvedEnvironment;
 }
 
-// TODO(M1): merge spec over environmentPresets[spec.presetId]; solid background,
-// fog and tone mapping exposure. TODO(M4): HDRI via drei <Environment>.
-export const EnvironmentRenderer: FC<EnvironmentRendererProps> = () => null;
+export function EnvironmentRenderer({ environment }: EnvironmentRendererProps) {
+  const epochMs = Date.parse(environment.dateTime);
+  if (Number.isNaN(epochMs)) {
+    throw new Error(`Invalid environment dateTime "${environment.dateTime}"`);
+  }
+
+  return (
+    <Atmosphere location={environment.location} epochMs={epochMs}>
+      <Sky />
+      <SunLight />
+    </Atmosphere>
+  );
+}

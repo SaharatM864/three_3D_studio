@@ -19,6 +19,7 @@ import {
 import type { SceneSpec } from "@/model/types";
 import {
   environmentPresets,
+  isEnvironmentPresetId,
   type EnvironmentPresetId,
 } from "@/presets/environments";
 import { lightingPresets, type LightingPresetId } from "@/presets/lighting";
@@ -36,10 +37,6 @@ const materialEntries = Object.entries(materialPresets) as [
 
 function isLightingPresetId(value: string): value is LightingPresetId {
   return value in lightingPresets;
-}
-
-function isEnvironmentPresetId(value: string): value is EnvironmentPresetId {
-  return value in environmentPresets;
 }
 
 function swatchStyle({ material }: MaterialPreset): CSSProperties {
@@ -60,7 +57,6 @@ function swatchStyle({ material }: MaterialPreset): CSSProperties {
   };
 }
 
-// TODO(G2): PlaygroundScene applies the selected presets to the scene.
 export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   const [open, setOpen] = useState(true);
   const isPointerLocked = usePlaygroundStore((s) => s.isPointerLocked);
@@ -72,9 +68,9 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   );
 
   const projectEnvironment = scene.environment.presetId;
-  const projectEnvironmentLabel =
+  const projectPreset =
     projectEnvironment && isEnvironmentPresetId(projectEnvironment)
-      ? environmentPresets[projectEnvironment].label
+      ? environmentPresets[projectEnvironment]
       : undefined;
 
   return (
@@ -142,19 +138,17 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
               }}
             >
               <PresetItem value={PROJECT_VALUE}>
-                <ColorDot color={scene.environment.background} />
+                <ColorDot color={projectPreset?.swatch} />
                 ของ project
-                {projectEnvironmentLabel && (
+                {projectPreset && (
                   <span className="text-muted-foreground">
-                    {projectEnvironmentLabel}
+                    {projectPreset.label}
                   </span>
                 )}
               </PresetItem>
               {environmentIds.map((id) => (
                 <PresetItem key={id} value={id}>
-                  <ColorDot
-                    color={environmentPresets[id].environment.background}
-                  />
+                  <ColorDot color={environmentPresets[id].swatch} />
                   {environmentPresets[id].label}
                 </PresetItem>
               ))}

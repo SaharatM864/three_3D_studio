@@ -19,6 +19,7 @@ import type {
   MaterialSpec,
   SceneObjectSpec,
 } from "@/model/types";
+import { resolveEnvironment } from "@/presets/environments";
 import { useStudioStore, type StudioSelection } from "@/stores/studio-store";
 
 import { formatTimecode } from "../format";
@@ -163,9 +164,11 @@ function SelectionDetails({
 }
 
 function EnvironmentDetails({ environment }: { environment: EnvironmentSpec }) {
+  const { location, dateTime, exposure } = resolveEnvironment(environment);
+
   return (
     <>
-      <InspectorSection title="พื้นหลังและแสงรอบข้าง">
+      <InspectorSection title="ท้องฟ้าและดวงอาทิตย์">
         <PropertyRow label="Preset">
           {environment.presetId ? (
             <span>{environmentPresetLabel(environment.presetId)}</span>
@@ -173,50 +176,24 @@ function EnvironmentDetails({ environment }: { environment: EnvironmentSpec }) {
             <DefaultValue label="ไม่มี" />
           )}
         </PropertyRow>
-        <PropertyRow label="พื้นหลัง">
-          {environment.background ? (
-            <ColorSwatch value={environment.background} />
-          ) : (
-            <DefaultValue label="ตาม preset" />
-          )}
+        <PropertyRow label="วันเวลา">
+          <TextValue value={dateTime} />
         </PropertyRow>
-        <PropertyRow label="HDRI">
-          {environment.hdri ? (
-            <TextValue value={environment.hdri} />
-          ) : (
-            <DefaultValue label="ไม่มี" />
-          )}
-        </PropertyRow>
-        {environment.hdri && (
-          <PropertyRow label="HDRI เป็นพื้นหลัง">
-            <BooleanValue value={environment.hdriAsBackground} />
-          </PropertyRow>
-        )}
-        {environment.environmentIntensity !== undefined && (
-          <PropertyRow label="ความเข้ม env">
-            <NumberValue value={environment.environmentIntensity} />
-          </PropertyRow>
-        )}
         <PropertyRow label="Exposure">
-          {environment.exposure !== undefined ? (
-            <NumberValue value={environment.exposure} />
-          ) : (
-            <DefaultValue label="ตาม preset" />
-          )}
+          <NumberValue value={exposure} />
         </PropertyRow>
       </InspectorSection>
-      {environment.fog && (
-        <InspectorSection title="หมอก">
-          <PropertyRow label="สี">
-            <ColorSwatch value={environment.fog.color} />
-          </PropertyRow>
-          <PropertyRow label="ระยะ">
-            <span className="font-mono tabular-nums">
-              {environment.fog.near} – {environment.fog.far}
-            </span>
-          </PropertyRow>
-        </InspectorSection>
-      )}
+      <InspectorSection title="ตำแหน่งบนโลก">
+        <PropertyRow label="ละติจูด">
+          <NumberValue value={location.latitude} unit="°" />
+        </PropertyRow>
+        <PropertyRow label="ลองจิจูด">
+          <NumberValue value={location.longitude} unit="°" />
+        </PropertyRow>
+        <PropertyRow label="ความสูง">
+          <NumberValue value={location.height} unit="m" />
+        </PropertyRow>
+      </InspectorSection>
     </>
   );
 }
@@ -225,7 +202,11 @@ function CameraDetails({ camera, fps }: { camera: CameraSpec; fps: number }) {
   return (
     <InspectorSection title="กล้อง">
       <PropertyRow label="ตำแหน่ง">
-        <AnimatableValue value={camera.position} fps={fps} render={renderVec3} />
+        <AnimatableValue
+          value={camera.position}
+          fps={fps}
+          render={renderVec3}
+        />
       </PropertyRow>
       <PropertyRow label="มองไปที่">
         <AnimatableValue value={camera.target} fps={fps} render={renderVec3} />
@@ -431,11 +412,7 @@ function ObjectKindDetails({ object }: { object: SceneObjectSpec }) {
             <span className="break-words">{object.text}</span>
           </PropertyRow>
           <PropertyRow label="ฟอนต์">
-            {object.font ? (
-              <TextValue value={object.font} />
-            ) : (
-              <DefaultValue />
-            )}
+            {object.font ? <TextValue value={object.font} /> : <DefaultValue />}
           </PropertyRow>
           <PropertyRow label="ขนาด">
             {object.fontSize !== undefined ? (
@@ -487,7 +464,11 @@ function MaterialDetails({
         )}
       </PropertyRow>
       <PropertyRow label="สี">
-        <AnimatableValue value={material.color} fps={fps} render={renderColor} />
+        <AnimatableValue
+          value={material.color}
+          fps={fps}
+          render={renderColor}
+        />
       </PropertyRow>
       <PropertyRow label="Metalness">
         <AnimatableValue
