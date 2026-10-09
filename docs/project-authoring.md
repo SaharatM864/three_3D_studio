@@ -119,6 +119,12 @@ export default definePlayground(
     - `altitude` and `height` are meters above the WGS84 ellipsoid, not above the scene ground at `location.height`.
     - `localWeather.velocity`, `shape.velocity` and `shapeDetail.velocity` are texture offsets per second, not wind speed (e.g. `localWeather: { velocity: [0.001, 0] }`).
     - Keep `scattering` and `haze` at their defaults unless the shot needs it. Defaults and limits are in `src/presets/clouds.ts`.
+  - `ocean` (optional) adds an FFT ocean that reaches the horizon; `ocean: {}` uses the defaults. Example: `showroom`.
+    - `presetId` picks a sea state: `calm`, `moderate` (the default values) or `rough`. Fields you set override the preset per group, e.g. `ocean: { presetId: "calm", color: "tropical" }`.
+    - Mean sea level is world y = 0. Keep objects above the waves (`showroom` raises its floor into a deck with `DECK_HEIGHT`) and keep the camera above the water.
+    - `wind` and `swell` take `speed` (m/s, at least 0.5), `direction` (degrees the waves travel toward: 0 = +X north, 90 = +Z east), `fetch` (meters) and `scale` (wave amount). For a calmer sea lower `scale`, never `speed` to 0.
+    - `choppiness` sharpens crests, `foam` tunes whitecaps, `color` is `"open-ocean"` or `"tropical"`, `timeScale` slows or freezes the waves. Defaults and limits are in `src/presets/ocean.ts`.
+    - The water reflects the sky and the sun of the environment, but not clouds or objects.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.
   - Set `castShadow` on objects only when their shadow is visible in the shot.
@@ -150,7 +156,7 @@ These keep preview and export identical. Breaking them produces clips that diffe
 7. **Data stays serializable.** `spec` and the clip/playground definitions must contain only JSON values (no functions, class instances or three.js objects). Computed numbers like `Math.PI / 2` and data built with `map` are fine.
 8. **Keep the playground awake when it moves.** The playground stops rendering about 5 seconds after the camera and scene stop changing.
    - A playground-only component that changes the picture inside `useFrame` (moving objects, physics) must call `useRenderActivity().wake()` (`src/scene/canvas/render-activity.ts`) on every frame it changes something.
-   - Camera controls, React props and moving clouds already keep it awake.
+   - Camera controls, React props, moving clouds and the ocean already keep it awake.
    - Never allocate in `useFrame` (`new Vector3()`, arrays, closures); reuse scratch objects.
 
 ## MVP limits

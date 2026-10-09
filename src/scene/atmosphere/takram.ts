@@ -3,6 +3,8 @@ import {
   type AtmosphereContext as TakramAtmosphereContext,
   AtmosphereLightNode as TakramAtmosphereLightNode,
   getAtmosphereContext as takramGetAtmosphereContext,
+  getIndirectLuminance as takramGetIndirectLuminance,
+  getSplitIlluminance as takramGetSplitIlluminance,
   skyEnvironment as takramSkyEnvironment,
   StarsNode as TakramStarsNode,
   type AtmosphereLight,
@@ -43,9 +45,34 @@ export type AerialPerspectiveNode = Node<"vec4"> &
 
 export interface AtmosphereBuildContext {
   readonly matrixWorldToECEF: Node<"mat4">;
+  readonly matrixECEFToWorld: Node<"mat4">;
+  readonly sunDirectionECEF: Node<"vec3">;
+  readonly cameraPositionUnit: Node<"vec3">;
+  readonly altitudeCorrectionUnit: Node<"vec3">;
   readonly altitudeCorrectionECEF: Node<"vec3">;
   readonly correctAltitude: boolean;
 }
+
+export interface LuminanceTransfer {
+  get(member: "luminance" | "transmittance"): Node<"vec3">;
+}
+
+export interface SplitIlluminance {
+  get(member: "direct" | "indirect"): Node<"vec3">;
+}
+
+export const getIndirectLuminance = takramGetIndirectLuminance as unknown as (
+  cameraUnit: Node<"vec3">,
+  rayDirectionECEF: Node<"vec3">,
+  shadowLength: Node<"vec2">,
+  lightDirectionECEF: Node<"vec3">
+) => LuminanceTransfer;
+
+export const getSplitIlluminance = takramGetSplitIlluminance as unknown as (
+  pointUnit: Node<"vec3">,
+  normalECEF: Node<"vec3">,
+  lightDirectionECEF: Node<"vec3">
+) => SplitIlluminance;
 
 export const AtmosphereLightNode = TakramAtmosphereLightNode as unknown as new (
   light: AtmosphereLight

@@ -7,6 +7,7 @@ import {
   Mountain,
   Palette,
   SlidersHorizontal,
+  Waves,
 } from "lucide-react";
 import { useState, type CSSProperties, type ReactNode } from "react";
 
@@ -26,6 +27,12 @@ import {
 import { lightingPresets, type LightingPresetId } from "@/presets/lighting";
 import { materialPresets, type MaterialPreset } from "@/presets/materials";
 import {
+  isOceanPresetId,
+  oceanPresets,
+  type OceanOverride,
+  type OceanPresetId,
+} from "@/presets/ocean";
+import {
   DEFAULT_RENDER_QUALITY,
   RENDER_QUALITIES,
   type RenderQualityId,
@@ -33,6 +40,7 @@ import {
 import { usePlaygroundStore } from "@/stores/playground-store";
 
 const PROJECT_VALUE = "project";
+const OCEAN_OFF: OceanOverride = "off";
 
 const RENDER_QUALITY_LABELS: Record<RenderQualityId, string> = {
   high: "สูง · เหมือน Studio",
@@ -47,6 +55,19 @@ function isRenderQualityId(value: string): value is RenderQualityId {
 
 const lightingIds = Object.keys(lightingPresets) as LightingPresetId[];
 const environmentIds = Object.keys(environmentPresets) as EnvironmentPresetId[];
+const oceanIds = Object.keys(oceanPresets) as OceanPresetId[];
+
+function isOceanOverride(value: string): value is OceanOverride {
+  return value === OCEAN_OFF || isOceanPresetId(value);
+}
+
+function projectOceanLabel({ environment: { ocean } }: SceneSpec): string {
+  if (ocean === undefined) return "ไม่มี";
+  if (ocean.presetId !== undefined && isOceanPresetId(ocean.presetId)) {
+    return oceanPresets[ocean.presetId].label;
+  }
+  return "กำหนดเอง";
+}
 const materialEntries = Object.entries(materialPresets) as [
   string,
   MaterialPreset,
@@ -83,6 +104,8 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   const setEnvironmentPreset = usePlaygroundStore(
     (s) => s.setEnvironmentPreset
   );
+  const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
+  const setOceanOverride = usePlaygroundStore((s) => s.setOceanOverride);
   const renderQuality = usePlaygroundStore((s) => s.renderQuality);
   const setRenderQuality = usePlaygroundStore((s) => s.setRenderQuality);
 
@@ -169,6 +192,35 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                 <PresetItem key={id} value={id}>
                   <ColorDot color={environmentPresets[id].swatch} />
                   {environmentPresets[id].label}
+                </PresetItem>
+              ))}
+            </ToggleGroup>
+          </PanelSection>
+
+          <PanelSection icon={Waves} title="ทะเล">
+            <ToggleGroup
+              aria-label="ทะเล"
+              variant="outline"
+              size="sm"
+              spacing={1}
+              className="w-full flex-wrap"
+              value={[oceanOverride ?? PROJECT_VALUE]}
+              onValueChange={(values) => {
+                const next = values[0];
+                if (next === undefined) return;
+                setOceanOverride(isOceanOverride(next) ? next : null);
+              }}
+            >
+              <PresetItem value={PROJECT_VALUE}>
+                ของ project
+                <span className="text-muted-foreground">
+                  {projectOceanLabel(scene)}
+                </span>
+              </PresetItem>
+              <PresetItem value={OCEAN_OFF}>ปิด</PresetItem>
+              {oceanIds.map((id) => (
+                <PresetItem key={id} value={id}>
+                  {oceanPresets[id].label}
                 </PresetItem>
               ))}
             </ToggleGroup>

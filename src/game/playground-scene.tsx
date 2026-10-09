@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { PlaygroundSpec, SceneSpec } from "@/model/types";
 import { applyEnvironmentPreset } from "@/presets/environments";
 import { lightingPresets } from "@/presets/lighting";
+import { applyOceanOverride } from "@/presets/ocean";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
 import { usePlaygroundStore } from "@/stores/playground-store";
@@ -28,14 +29,14 @@ export function PlaygroundScene({
 }: PlaygroundSceneProps) {
   const lightingPresetId = usePlaygroundStore((s) => s.lightingPresetId);
   const environmentPresetId = usePlaygroundStore((s) => s.environmentPresetId);
+  const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
 
-  const environment = useMemo(
-    () =>
-      environmentPresetId
-        ? applyEnvironmentPreset(scene.environment, environmentPresetId)
-        : scene.environment,
-    [scene.environment, environmentPresetId]
-  );
+  const environment = useMemo(() => {
+    const preset = environmentPresetId
+      ? applyEnvironmentPreset(scene.environment, environmentPresetId)
+      : scene.environment;
+    return oceanOverride ? applyOceanOverride(preset, oceanOverride) : preset;
+  }, [scene.environment, environmentPresetId, oceanOverride]);
   const spec = useMemo<SceneSpec>(
     () => ({
       ...scene,

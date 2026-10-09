@@ -50,12 +50,13 @@ flowchart TD
 | `src/projects/`                                  | project ที่ AI เขียน, `define.ts`, `manifest.ts` (metadata) และ `loaders.ts` (lazy import แยก clip/playground)                                                                                    | `manifest.ts` ต้องไม่ import โค้ด project เพราะ Server Component ใช้ไฟล์นี้ และ project ห้าม import project อื่น |
 | `src/model/`                                     | type ของ scene/clip/playground, ค่าเริ่มต้น และ `composeClip`                                                                                                                                     | **pure**: ข้อมูลต้อง serialize เป็น JSON ได้                                                                     |
 | `src/timeline/`                                  | evaluator, interpolation, easing และ seeded random                                                                                                                                                | **pure**: เป็นฟังก์ชันของ `(spec, frame)` เท่านั้น                                                               |
-| `src/presets/`                                   | preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน รวมถึงค่าเริ่มต้นและการตรวจค่าของเมฆ (`clouds.ts`)                                                                                                   | **pure data**                                                                                                    |
+| `src/presets/`                                   | preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน รวมถึงค่าเริ่มต้นและการตรวจค่าของเมฆ (`clouds.ts`) และทะเล (`ocean.ts`) โดยใช้ตัวตรวจค่ากลาง (`validation.ts`)                                       | **pure data**                                                                                                    |
 | `src/scene/`                                     | ชั้น render ด้วย R3F + WebGPU, scene content, render bridge, frame driver และ clip clock (ดู "Render layer")                                                                                      | client-only และห้าม import `src/projects`                                                                        |
 | `src/scene/canvas/`                              | `SceneCanvas` ตัวเดียวที่ทั้ง playground และ studio ใช้ สร้าง `WebGPURenderer` (ขอ limit ของเมฆ), ตรวจว่ารองรับ WebGPU, คำนวณ pixel budget, idle render (`RenderActivity`) และ `?inspector`       | ห้ามสร้าง `<Canvas>` เองที่อื่น                                                                                  |
 | `src/scene/atmosphere/`                          | บรรยากาศจาก takram: aerial perspective + ท้องฟ้า (`createAerialPerspective`), ดวงอาทิตย์/ดวงจันทร์ (`<CelestialLight>`), IBL (`<SkyEnvironment>`) และ context (`<Atmosphere>`, `useAtmosphere()`) | import `@takram/*` ผ่าน `atmosphere/takram.ts` เท่านั้น                                                          |
 | `src/scene/pipeline/`                            | post-processing (`createScenePipeline`, `<ScenePipeline>`)                                                                                                                                        | import `@takram/*` ผ่าน `pipeline/takram.ts` เท่านั้น                                                            |
 | `src/scene/clouds/`                              | เมฆเชิงปริมาตร: `createClouds` (`CloudsHandle`), adapter ของไลบรารีเมฆ (`three-clouds.ts`), quality presets (`quality.ts`) และ loader ของ texture (`cloud-textures.ts`) (ดู "Clouds")             | import ไลบรารีเมฆและ `@takram/*` ผ่าน `clouds/three-clouds.ts` เท่านั้น                                          |
+| `src/scene/ocean/`                               | FFT ocean ที่ port จาก Poseidon: `createOcean` (`OceanHandle`), `<Ocean>`, simulation (`simulation/`) และ material ของผิวน้ำ (`surface/`) (ดู "Ocean")                                            | ไฟล์นอกโฟลเดอร์ใช้ได้แค่ `create-ocean.ts` กับ `ocean.tsx` (ESLint บังคับ)                                       |
 | `src/game/`                                      | controls, physics config, player และ playground scene                                                                                                                                             | client-only, physics ใช้ fixed timestep                                                                          |
 | `src/audio/`                                     | โหลดเสียง, เล่นเสียงตอน preview และ mix แบบ offline                                                                                                                                               | client-only                                                                                                      |
 | `src/export/`                                    | capability check, AAC fallback, output target และ export loop                                                                                                                                     | `mediabunny` import ได้เฉพาะใน `export/mediabunny.ts`                                                            |
@@ -77,7 +78,8 @@ features (playground-app / viewport)
          ├─ Atmosphere (atmosphere/)    AtmosphereContext → renderer.contextNode, CelestialFrame (geo-frame.ts) จากพิกัดและวันเวลา, กล้อง, useAtmosphere()
          │  ├─ SkyEnvironment           scene.environmentNode = skyEnvironment() (IBL)
          │  ├─ CelestialLight           AtmosphereLight ตัวเดียว: กลางวันเป็นดวงอาทิตย์ (ปิด indirect เพราะใช้ IBL) กลางคืนเป็นดวงจันทร์
-         │  └─ ScenePipeline (pipeline/) pass(MRT output + highpVelocity) → aerialPerspective (วาดท้องฟ้า ดวงอาทิตย์ ดวงจันทร์ ดาว + shadow length ของเมฆ) → เมฆ (ถ้ามี) → lensFlare → toneMapping(AgX, exposure) → TAA → renderOutput (sRGB) → dithering
+         │  ├─ ScenePipeline (pipeline/) pass(MRT output + highpVelocity) → aerialPerspective (วาดท้องฟ้า ดวงอาทิตย์ ดวงจันทร์ ดาว + shadow length ของเมฆ) → เมฆ (ถ้ามี) → lensFlare → toneMapping(AgX, exposure) → TAA → renderOutput (sRGB) → dithering
+         │  └─ Ocean (ocean/)             ทะเล FFT (ถ้ามี environment.ocean) compute ก่อน pipeline render แล้ววาดเป็น mesh ใน scene pass
          ├─ LightRig                    แสงเสริมจาก spec.lights
          └─ SceneObject × n             primitive + MeshStandardNodeMaterial
 ```
@@ -240,16 +242,74 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
 
   pipeline, component ของ R3F, model, presets, timeline และ project ไม่ต้องแก้ ส่วน patch ของ atmosphere ให้ลบเมื่อ takram ออกเวอร์ชันที่ใช้ `invert()` แล้ว
 
+### Ocean
+
+สถานะ: FFT ocean บน WebGPU ที่ port เป็น TypeScript จาก [Poseidon](https://github.com/owenyuwono/poseidon) commit `671053b812fcbffe8ecc4668eaa6ab7ffeb63287` (MIT) ไม่ใช่ npm package และไม่เพิ่ม dependency ตัวอย่างอยู่ที่ project `showroom` ใช้ใน playground ได้แล้ว ส่วน Studio รอ M1 (`SceneRoot`) และ M2 (`useClipFrame`)
+
+```text
+SceneContent                         {environment.ocean && <Ocean ocean exposure/>} ใต้ <Atmosphere>
+└─ Ocean (ocean/ocean.tsx)           useMemo(createOcean(renderer)) + useDisposable, layout effect: setQuality/setOcean/setExposure, useFrame (priority 0): update(camera, time)
+   └─ createOcean (create-ocean.ts)  OceanHandle { ready, mesh, setOcean, setQuality, setExposure, update, dispose }
+      ├─ simulation/                 createOceanSimulation: spectrum (JONSWAP + swell), FFT 256² × 3 cascade, cascade maps + foam history
+      └─ surface/                    createSurfaceMaterial: waves, reflection, water-body, foam, underwater, sky-light (takram), velocity (TAA), radial-grid, detail-texture
+```
+
+- **ขอบเขตโมดูล**: ส่วนอื่นของแอปเห็นแค่ `createOcean`/`OceanHandle` กับ `<Ocean>` ESLint (`oceanInternalImports`) ห้ามไฟล์นอก `src/scene/ocean/` import `ocean/simulation/**` และ `ocean/surface/**`
+- **ข้อมูล** (`EnvironmentSpec.ocean`, `presets/ocean.ts`): ไม่มี field คือไม่มีทะเล `{}` คือค่าเริ่มต้นของ Poseidon
+  - `presetId` เลือก sea state (`calm`, `moderate`, `rough`) แล้ว `resolveOcean` merge default ← preset ← spec ทีละกลุ่มและตรวจค่า (ใช้ตัวตรวจค่ากลางใน `presets/validation.ts` ร่วมกับเมฆ)
+  - `wind.speed`/`swell.speed` ต่ำสุด 0.5 m/s เพราะค่า 0 ทำให้ JONSWAP เป็น NaN ทั้งผืน (หารด้วย U² และยก U·fetch เป็นกำลังลบ)
+  - `direction` เป็นองศาของทิศที่คลื่นวิ่งไป ใช้ `(cos θ, sin θ)` บน XZ ตรงกับแกน +X เหนือ, +Z ตะวันออก จึงไม่ต้องแปลง
+  - ค่าที่ผูกกับ shader (N 256, 3 cascade, lengthScales [1024, 144, 24], boundaryFactor 6, รูปร่าง spectrum และ chop) อยู่ใน `simulation/config.ts` ไม่อยู่ใน spec
+  - clip ที่ตั้ง `environment.ocean` จะแทนของ scene ทั้งก้อน (`composeClip` merge แค่ระดับบนสุด) ส่วน playground แทนด้วย `applyOceanOverride` จาก section "ทะเล" ใน environment panel
+- **สิ่งที่เปลี่ยนจาก Poseidon**:
+  - ตัด GUI (`lil-gui`), HUD, fly camera, capture, FFT self-test, sky panorama, sky dome และ fog ทิ้ง ไม่มี state ระดับโมดูล (`params`, uniform ของ chop/ลม, texture ของ sky ย้ายเป็นต่อ instance)
+  - เพิ่ม `reset` ของ foam history, `dispose()` และเก็บ reference ของ scratch buffer กับ history texture
+  - `fft.ts` throw ถ้า `log2(N)` เป็นเลขคี่ เพราะ pass แนวตั้งเริ่มอ่าน `field` เสมอ (N 128/512 ผิด)
+  - `AGE_U_DEATH4` คำนวณจาก uniform `foamThreshold` และขนาด detail texture ใช้ค่าคงที่เดียว (`DETAIL_TEXTURE_SIZE`)
+  - `attributeArray(typedArray)` ส่ง typed array ต่อเป็นจำนวนสมาชิกของ `storage()` จึงสร้าง buffer ด้วยจำนวนแล้วเติมค่า `value.array` ทีหลังเสมอ
+- **ท้องฟ้าและแสง** (`surface/sky-light.ts`): น้ำอ่านท้องฟ้าจาก atmosphere context ของ takram ผ่าน `atmosphere/takram.ts` ไม่ใช้ภาพ panorama
+  - ท้องฟ้าที่สะท้อนคือ `getIndirectLuminance` (ไม่มีจานดวงอาทิตย์ เพราะ material วาด glint เอง) ทิศดวงอาทิตย์จาก `sunDirectionECEF`, สีแดดและสีฟ้าจาก `getSplitIlluminance` (direct กับ indirect ÷ π)
+  - material จูนไว้กับ Neutral tone mapping ที่ exposure 1.2 จึง shade ในหน่วยที่คูณด้วย `exposure / 1.2` แล้วหารกลับก่อนส่งออก ท้องฟ้าที่สะท้อนจึงสว่างเท่าท้องฟ้าจริงทุก exposure
+  - ค่าความสว่างคงที่ของ Poseidon (เนื้อน้ำ, foam, ใต้น้ำ) คูณด้วย `ambientLevel` และ `sunLevel` (ความสว่างของฟ้าและแดดเทียบกับกลางวัน) ตอนเย็นและกลางคืนน้ำจึงมืดตามฉาก
+  - ค่าคาลิเบรต (`SUN_CALIBRATION`, `SUN_REFERENCE`, `AMBIENT_REFERENCE`, `SPECULAR_BOOST`) จูนด้วยตาที่ preset `morning`
+  - ตัด haze กับ `FAR_SINK` ของ Poseidon ออก เพราะ aerial perspective ของ pipeline ใส่ให้จาก depth อยู่แล้ว
+  - material เป็น `MeshBasicNodeMaterial` (`lights = false`, `fog = false`, `DoubleSide` เพราะ winding ของ grid กลับด้าน) ไม่ทำ tone mapping เอง
+- **Velocity สำหรับ TAA** (`surface/velocity.ts`): `positionPrevious` ของ three เป็นตำแหน่งก่อน displace และ mesh เลื่อนตามกล้อง material จึงตั้ง `mrtNode = mrt({ velocity })` เอง
+  - velocity = NDC ปัจจุบัน − NDC ก่อนหน้า ของตำแหน่ง world ที่ displace แล้ว ใช้ projection ที่ไม่ jitter ของ `highpVelocity` (`pipeline/takram.ts`) กับ view matrix ของเฟรมก่อนที่ `OceanHandle.update` เก็บไว้
+  - ไม่นับการขยับของคลื่นระหว่างเฟรม (ไม่กี่ ซม.) ให้ neighborhood clamp ของ TAA จัดการ
+  - material ที่มี `mrtNode` ห้าม render ใน pass ที่ไม่มี MRT (three จะใช้ MRT ของ material แทน output) ตอนนี้มีแค่ scene pass ที่ render ทะเล (ไม่ cast shadow และ sky environment ใช้ฉากของตัวเอง)
+- **Determinism ของ foam**: คลื่นคำนวณจากเวลาสัมบูรณ์จึง seek ได้ แต่ foam สะสมใน history texture ข้ามเฟรมด้วย `dt`
+  - `planOceanSteps` (`timeline/ocean.ts`, pure) เดิน simulation บน grid เวลาคงที่ `t_k = k × stepSeconds` (`OCEAN_STEP_POLICY`: 1/60 วินาที) ไม่ใช้ delta ของ `useFrame`
+  - เดินหน้าทีละช่อง ถ้าถอยหลัง เริ่มครั้งแรก หรือข้ามเกิน `maxCatchUpSteps` (8) จะ reset foam แล้ว pre-roll `prerollSteps` (300 = 5 วินาที) ก่อนเป้า (เวลาติดลบได้เพราะคลื่นเป็นฟังก์ชันของเวลา) ไม่ส่ง `dt < 0` เด็ดขาด เพราะ foam จะกลายเป็น Infinity และขาวทั้งผืนถาวร
+  - pre-roll เดินช่องละ `prerollStride` (10 step = 1/6 วินาที) ตาม `forEachOceanStep` เหลือ 31 ครั้งแทน 300 ครั้ง ลดอาการกระตุกตอนโหลด สลับ sea state หรือ seek ผลยังกำหนดได้แน่นอนเพราะลำดับ step มาจาก plan กับ policy เท่านั้น
+  - เปลี่ยน spectrum (ลม swell seed) ก็ reset + pre-roll เพราะ foam เก่าไม่ตรงกับคลื่นใหม่ ส่วน choppiness, foam และสีเป็น uniform เปลี่ยนได้ทันที
+  - M2: clip ควรใช้ `stepSeconds = 1/fps` ให้เวลาของเฟรมตรง grid พอดี export ที่ render ต่อเนื่องจากเฟรม 0 จะได้ผลตรงกับ preview ที่เล่นจากเฟรม 0 ส่วน seek กลางคลิปต่างจาก export แค่ foam ที่เก่ากว่า pre-roll ถ้าต้องตรงทุกเฟรมให้เปลี่ยน policy เป็น replay จากต้นคลิป
+  - mesh ซ่อนจนกว่า spectrum แรกเสร็จและ step แรกเสร็จ เพราะ texture ที่ยังเป็น 0 จะทำให้ทะเลขาวทั้งผืน
+- **Grid**: radial grid ที่ละเอียดใกล้กล้องและหยาบไกลออกไป รัศมีราว 19–20 กม. (< `CAMERA_DEFAULTS.far`) เลื่อนตามกล้องทีละ `innerSpacing` พร้อม uniform `originXZ` (ต้องเปลี่ยนคู่กัน) และ `frustumCulled = false`
+  - shader แปลง `positionGeometry.xy` เป็น world XZ เอง mesh จึงห้ามหมุน ห้าม scale และห้ามมี parent ระดับน้ำทะเลคือ world y = 0
+- **Compute**: `OceanHandle.update` เรียก `renderer.compute` ตรง ๆ ใน `useFrame` priority 0 ก่อน `pipeline.render()` (priority 1) ไม่ใช้ FRAME node เพราะ `NodeFrame` เดินครั้งเดียวต่อ tick ของ renderer
+  - ต่อ step: time-dependent spectrum 3 ชุด, IFFT 2 × 8 stage + permute ของ 12 field และ assemble 3 ชุด (213 dispatch) รวมเป็น `renderer.compute` ครั้งเดียว (compute pass เดียว submit เดียว) เพราะ WebGPU ซิงก์ storage ระหว่าง dispatch ใน pass เดียวกันให้อยู่แล้ว ส่วน Poseidon แยกเป็น 19 ครั้ง
+  - array ของ compute node ต่อ step เป็น object เดิมทุกครั้ง (สองชุดสลับตาม parity ของ foam history) เพราะ backend เก็บ state ของ pass ผูกกับ array นั้น
+  - kernel ใช้ storage texture ไม่เกิน 4 ต่อ stage จึงไม่ต้องขอ limit เพิ่มใน `createRenderer`
+- **Dispose**: ComputeNode, StorageTexture, material, geometry และ detail texture คืนผ่าน `dispose()` ส่วน storage buffer ไม่มี public API ให้คืนใน three 0.184 จึงตัด reference ทิ้งให้ GC เก็บ (ไม่แตะ `renderer._attributes`)
+- **License**: ข้อความ MIT ของ Poseidon และที่มาอยู่ใน `src/scene/ocean/LICENSE` ไม่ได้ใช้ asset ของ Poseidon
+- **ยังไม่ทำ**:
+  - วัตถุและเมฆไม่สะท้อนบนน้ำ (Poseidon สะท้อนแค่ท้องฟ้า และเมฆ composite ใน post) เงาวัตถุและเงาเมฆยังไม่ลงบนน้ำ กลางคืนยังไม่มี glint ของดวงจันทร์
+  - ทะเลเป็นแผ่นเรียบ ไม่โค้งตามโลก ระดับสายตาต่ำไม่ต่างกัน แต่กล้องที่สูงหลายร้อยเมตรจะเห็นพื้นของ takram ระหว่างขอบทะเลกับขอบฟ้า
+  - ไม่มีฟองรอบวัตถุ คลื่นซัดฝั่ง การลอยตัว หรือ `getHeightAt(x, z)` ฝั่ง CPU
+  - กล้องของ playground (`InspectCamera`) ยังมุดใต้น้ำได้ ใต้น้ำมีแค่ Snell's window ของ Poseidon ไม่มี volumetrics
+
 ### Performance
 
 ต้นทุนหลักอยู่ที่จำนวน pixel ไม่ใช่ draw call: pipeline มี pass เต็มจอราว 10 ชุด (scene MRT, aerial perspective raymarch, cloud resolve, RTT ของ lens flare, tone mapping, TAA + depth copy) ซึ่งโตตาม dpr² ส่วนฉากตอนนี้มีไม่เกิน 13 mesh
 
 - **Quality profile** (`RenderQuality` ใน `render-config.ts`) เป็นที่เดียวที่กำหนดค่าตามคุณภาพ ค่าที่ขึ้นกับคุณภาพอันใหม่ให้เพิ่มเป็น field ที่นี่ ห้ามกระจายไว้ใน component
 
-  | tier                         | dpr   | `maxPixels` | `sunShadowMapSize` | เมฆ                         |
-  | ---------------------------- | ----- | ----------- | ------------------ | --------------------------- |
-  | `high` (ค่าเริ่มต้น, Studio) | 0.5–2 | 1920×1080   | 2048               | `high` + temporal upscale   |
-  | `performance` (playground)   | 0.5–1 | 1280×720    | 1024               | `medium` + temporal upscale |
+  | tier                         | dpr   | `maxPixels` | `sunShadowMapSize` | เมฆ                         | grid ของทะเล                           |
+  | ---------------------------- | ----- | ----------- | ------------------ | --------------------------- | -------------------------------------- |
+  | `high` (ค่าเริ่มต้น, Studio) | 0.5–2 | 1920×1080   | 2048               | `high` + temporal upscale   | 620 × 1280 (794k vertex, รัศมี 20 กม.) |
+  | `performance` (playground)   | 0.5–1 | 1280×720    | 1024               | `medium` + temporal upscale | 440 × 768 (338k vertex, รัศมี 19 กม.)  |
+  - ทะเลใช้ FFT 256² × 3 cascade ทุก tier (ลด N ไม่ได้เพราะข้อจำกัดเลขคู่ของ `fft.ts` และ cascade ผูกกับ shader) `setQuality` สร้างแค่ geometry ใหม่ ไม่ compile material ใหม่
 
 - **Pixel budget** (`canvas/pixel-ratio.ts`): `resolvePixelRatio` = `min(clamp(devicePixelRatio, dpr), √(maxPixels / พื้นที่ CSS))` แล้วไม่ต่ำกว่า `dpr[0]`
   - `SceneCanvas` คำนวณ dpr เองจากขนาดที่ R3F วัดได้แล้วส่งเป็นตัวเลขเข้า `<Canvas>` เพราะ R3F ตั้ง dpr จาก prop ทับทุกครั้งที่ Canvas render จึงตั้งจากข้างในไม่ได้
@@ -259,6 +319,7 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
 - **Idle render** (`canvas/render-activity.ts`): playground ใช้ `frameloop="demand"` แล้ว `ScenePipeline` render ต่ออีก `IDLE_SETTLE_FRAMES` (300 เฟรม ราว 5 วินาที) หลังการเปลี่ยนแปลงล่าสุดแล้วหยุด
   - 300 เฟรมเผื่อให้ BSM ของเมฆ (temporal α 0.01) converge ราว 95% ส่วน TAA และ cloud resolve converge เร็วกว่านั้น
   - `ScenePipeline` ตรวจเองทุกเฟรม: กล้อง (`matrixWorld`, fov, aspect, zoom, near, far ไม่เทียบ `projectionMatrix` เพราะ TAA jitter), pixel ratio และเมฆที่มี velocity
+  - `<Ocean>` เรียก `wake()` ทุกเฟรมที่ simulation เดิน playground ที่มีทะเล (และ `timeScale` > 0) จึงไม่เข้า idle
   - เรียก `wake()`: prop `spec`/`evaluated` ของ `SceneContent`, effect ทุกตัวของ `ScenePipeline`, `pipeline.ready` และ event `update` ของ LUT (`AtmosphereHandle.onLUTUpdate`) ส่วน drei controls เรียก `invalidate()` เองอยู่แล้ว
   - นับ `state.internal.frames` ของ R3F แทนไม่ได้ เพราะ R3F 9 ตั้งค่าเป็น 1 หรือ 2 ไม่ได้บวกสะสม จึงแยกไม่ออกว่าเฟรมไหน pipeline ขอเอง
   - Studio ยังเป็น `"always"` (กลไกนี้ไม่มีผล) จนกว่า M1 จะเปลี่ยนเป็น `"never"` + frame-driver
@@ -280,6 +341,7 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
   - อะไรที่ทำให้ภาพเปลี่ยนนอก React props และกล้อง เช่น physics ของ G1 หรือ animation ใน `useFrame` ของ playground ต้องเรียก `useRenderActivity().wake()` ทุกเฟรมที่เปลี่ยน
   - M4: self-host decoder ของ Draco, meshopt และ KTX2 (ค่าเริ่มต้นของ drei ชี้ CDN), texture ใหญ่ใช้ KTX2 พร้อม mipmap, geometry ซ้ำหลายชิ้นใช้ `InstancedMesh` (ใช้กับ `highpVelocity` ได้) และตั้ง `castShadow` เฉพาะวัตถุที่เงามีผลต่อภาพ
 - **ยังไม่ทำ** (รอผลวัดจาก `?inspector`):
+  - วัด GPU ms ของ compute ของทะเล, scene pass ที่มีทะเล และ aerial perspective (pixel ทะเลเป็น surface จึงเข้า raymarch แทน sky lookup) ทั้ง `high` และ `performance` แล้วลงตาราง
   - light shafts ของเมฆ `high`: shadow-length march สูงสุด 500 ครั้งต่อ pixel ของ march (`maxShadowLengthIterationCount`) ลองลดจำนวนครั้งหรือเพิ่ม `minShadowLengthStepSize` ห้ามตัด `maxShadowLengthRayDistance` (ดู "คุณภาพ" ของ Clouds)
   - ปิด lens flare ใน tier `performance`
   - LUT ของ atmosphere เป็น `HalfFloatType` (ลด memory 3D LUT จากราว 32 เป็น 16 MiB) ต้องตรวจ banding ที่ขอบฟ้า

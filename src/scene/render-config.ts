@@ -9,11 +9,23 @@ export interface CloudsRenderSettings {
   temporalUpscale: boolean;
 }
 
+export interface OceanGridSettings {
+  rings: number;
+  sectors: number;
+  spacing: number;
+  soften: number;
+}
+
+export interface OceanRenderSettings {
+  grid: OceanGridSettings;
+}
+
 export interface RenderQuality {
   dpr: [min: number, max: number];
   maxPixels: number;
   sunShadowMapSize: number;
   clouds: CloudsRenderSettings;
+  ocean: OceanRenderSettings;
 }
 
 export const RENDER_QUALITIES: Record<RenderQualityId, RenderQuality> = {
@@ -22,12 +34,14 @@ export const RENDER_QUALITIES: Record<RenderQualityId, RenderQuality> = {
     maxPixels: 1920 * 1080,
     sunShadowMapSize: 2048,
     clouds: { quality: "high", temporalUpscale: true },
+    ocean: { grid: { rings: 620, sectors: 1280, spacing: 0.35, soften: 41 } },
   },
   performance: {
     dpr: [0.5, 1],
     maxPixels: 1280 * 720,
     sunShadowMapSize: 1024,
     clouds: { quality: "medium", temporalUpscale: true },
+    ocean: { grid: { rings: 440, sectors: 768, spacing: 0.5, soften: 30 } },
   },
 };
 

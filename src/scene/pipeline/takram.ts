@@ -11,7 +11,13 @@ import type { Disposable } from "../use-disposable";
 
 export const dithering = takramDithering as unknown as Node<"vec3">;
 
-export const highpVelocity = takramHighpVelocity as unknown as Node<"vec3">;
+export type HighpVelocityNode = Node<"vec3"> & {
+  readonly currentProjectionMatrix: Node<"mat4">;
+  readonly previousProjectionMatrix: Node<"mat4">;
+};
+
+export const highpVelocity =
+  takramHighpVelocity as unknown as HighpVelocityNode;
 
 export const lensFlare = takramLensFlare as unknown as (
   input: Node

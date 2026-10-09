@@ -11,6 +11,7 @@ import { useRenderActivity } from "./canvas/render-activity";
 import type { SceneComponents } from "./custom-components";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
+import { Ocean } from "./ocean/ocean";
 import { ScenePipeline } from "./pipeline/scene-pipeline";
 
 export interface SceneContentProps {
@@ -48,6 +49,9 @@ export function SceneContent({
           exposure={environment.exposure}
           clouds={environment.clouds}
         />
+        {environment.ocean && (
+          <Ocean ocean={environment.ocean} exposure={environment.exposure} />
+        )}
       </Atmosphere>
       <LightRig lights={spec.lights} values={evaluated.lights} />
       {spec.objects.map((object, index) => (

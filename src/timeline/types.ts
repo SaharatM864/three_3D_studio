@@ -51,3 +51,16 @@ export interface EvaluatedCloudMotion {
   shapeOffset: Vec3;
   shapeDetailOffset: Vec3;
 }
+
+export interface OceanStepPolicy {
+  stepSeconds: number;
+  prerollSteps: number;
+  prerollStride: number;
+  maxCatchUpSteps: number;
+}
+
+export interface OceanStepPlan {
+  reset: boolean;
+  firstStep: number;
+  lastStep: number;
+}

@@ -1,6 +1,7 @@
 import type { ColorValue, EnvironmentSpec, GeoLocation } from "@/model/types";
 
 import { resolveClouds, type ResolvedClouds } from "./clouds";
+import { resolveOcean, type ResolvedOcean } from "./ocean";
 
 export interface EnvironmentPreset {
   label: string;
@@ -13,6 +14,7 @@ export interface ResolvedEnvironment {
   dateTime: string;
   exposure: number;
   clouds: ResolvedClouds | null;
+  ocean: ResolvedOcean | null;
 }
 
 export const DEFAULT_ENVIRONMENT: ResolvedEnvironment = {
@@ -20,6 +22,7 @@ export const DEFAULT_ENVIRONMENT: ResolvedEnvironment = {
   dateTime: "2026-03-21T09:00:00+07:00",
   exposure: 5,
   clouds: null,
+  ocean: null,
 };
 
 export const environmentPresets = {
@@ -55,6 +58,7 @@ export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
   const preset: Omit<EnvironmentSpec, "presetId"> =
     spec.presetId === undefined ? {} : presetEnvironment(spec.presetId);
   const clouds = spec.clouds ?? preset.clouds;
+  const ocean = spec.ocean ?? preset.ocean;
 
   return {
     location: {
@@ -66,6 +70,8 @@ export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
     exposure: spec.exposure ?? preset.exposure ?? DEFAULT_ENVIRONMENT.exposure,
     clouds:
       clouds === undefined ? DEFAULT_ENVIRONMENT.clouds : resolveClouds(clouds),
+    ocean:
+      ocean === undefined ? DEFAULT_ENVIRONMENT.ocean : resolveOcean(ocean),
   };
 }
 

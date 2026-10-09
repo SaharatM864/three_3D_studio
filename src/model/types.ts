@@ -222,12 +222,45 @@ export interface CloudsSpec {
   haze?: Partial<CloudHaze>;
 }
 
+export type OceanColor = "open-ocean" | "tropical";
+
+export interface OceanWaves {
+  speed: number;
+  direction: number; // degrees, bearing the waves travel toward (0 = +X north, 90 = +Z east)
+  fetch: number;
+  scale: number;
+}
+
+export interface OceanFoam {
+  threshold: number;
+  scale: number;
+  decay: number;
+  spread: number;
+  brightness: number;
+  relief: number;
+  milk: number;
+}
+
+export interface OceanSpec {
+  presetId?: string;
+  wind?: Partial<OceanWaves>;
+  swell?: Partial<OceanWaves>;
+  choppiness?: number;
+  foam?: Partial<OceanFoam>;
+  color?: OceanColor;
+  detail?: number;
+  subsurface?: number;
+  timeScale?: number;
+  seed?: number;
+}
+
 export interface EnvironmentSpec {
   presetId?: string;
   location?: GeoLocation;
   dateTime?: string;
   exposure?: number;
   clouds?: CloudsSpec;
+  ocean?: OceanSpec;
 }
 
 export interface AudioClipSpec {

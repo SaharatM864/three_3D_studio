@@ -21,6 +21,7 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 | 3D engine     | `three` 0.184 (`three/webgpu`, `three/tsl`)      | render ผ่าน `WebGPURenderer` + node material และทำ post-processing ด้วย `RenderPipeline`                                     |
 | ท้องฟ้าและแสง | `@takram/three-atmosphere`, `three-geospatial`   | ท้องฟ้า ดวงอาทิตย์ และ IBL จากพิกัดโลกกับวันเวลา รวมถึง lens flare, TAA และ dithering (WebGPU entry)                         |
 | เมฆ           | `@yong_three/three-clouds` (`/webgpu`)           | เมฆเชิงปริมาตรแบบ TSL บน WebGPU จาก fork ของ three-geospatial ใช้ชั่วคราวจนกว่า takram จะออกเมฆ WebGPU (`src/scene/clouds/`) |
+| ทะเล          | port จาก Poseidon (ไม่ใช่ package)               | FFT ocean แบบ TSL + compute บน WebGPU port เป็น TypeScript ไว้ใน `src/scene/ocean/` (ไม่เพิ่ม dependency)                    |
 | React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                                        |
 | 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                                            |
 | Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม                                   |
@@ -55,8 +56,8 @@ src/
 ├── projects/      project ที่ AI เขียน (<id>/scene.tsx, playground.tsx, clip.tsx) + define.ts, manifest.ts, loaders.ts (_template สำหรับคัดลอก)
 ├── model/         type ของ scene/clip/playground และ composeClip (pure TS)
 ├── timeline/      evaluateClip(clip, frame), evaluateScene, easing, interpolation, seeded random (pure TS)
-├── presets/       preset แสง วัสดุ สภาพแวดล้อม และค่าเริ่มต้นของเมฆ (pure data)
-├── scene/         ชั้น render ด้วย R3F + WebGPU: canvas กลาง, atmosphere (takram), clouds (adapter ของไลบรารีเมฆ + textures), post pipeline, scene content, render bridge, frame driver
+├── presets/       preset แสง วัสดุ สภาพแวดล้อม และค่าเริ่มต้นของเมฆกับทะเล (pure data)
+├── scene/         ชั้น render ด้วย R3F + WebGPU: canvas กลาง, atmosphere (takram), clouds (adapter ของไลบรารีเมฆ + textures), ocean (FFT ocean), post pipeline, scene content, render bridge, frame driver
 ├── game/          playground: controls, physics, player, playground scene
 ├── audio/         โหลดเสียง, เล่นตอน preview, offline mix
 ├── export/        capability check, AAC fallback, output target, export loop
@@ -109,4 +110,5 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
   - ตรวจว่า Turbopack resolve `worker_threads` ใน aac-encoder ได้
   - ตรวจว่า mediabunny ไม่ถูก bundle ซ้ำใน production build (ถ้าซ้ำจะเกิด error `instanceof OutputFormat`) วิธีเลี่ยงคือ import ผ่าน entry เดียว คือ `src/export/mediabunny.ts` ซึ่ง ESLint บังคับไว้แล้ว
 - **License**: Mediabunny และ AAC encoder เป็น MPL-2.0 และ AAC encoder มีส่วนของ FFmpeg ที่ compile เป็น WASM อยู่ด้วย
+  - โค้ดใน `src/scene/ocean/` port มาจาก [Poseidon](https://github.com/owenyuwono/poseidon) commit `671053b812` (MIT) ซึ่งดัดแปลงเทคนิคจาก gasgiant/FFT-Ocean (MIT) ข้อความ license ฉบับเต็มและที่มาอยู่ใน `src/scene/ocean/LICENSE` ต้องเก็บไฟล์นี้ไว้กับโค้ด
 - เอกสารออกแบบต้นทาง: `final-front-end-3d-video-stack.th.md` ฉบับที่ปรับให้ตรงกับโค้ดจริงอยู่ที่ [`docs/architecture.md`](docs/architecture.md)

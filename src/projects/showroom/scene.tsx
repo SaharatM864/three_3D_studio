@@ -4,6 +4,12 @@ import { materialPresets, type MaterialPresetId } from "@/presets/materials";
 
 export const PLINTH_SPACING = 2.5;
 
+export const DECK_HEIGHT = 2;
+
+const DECK_DRAFT = 4;
+const DECK_WIDTH = 18;
+const DECK_DEPTH = 10;
+
 const materialIds = Object.keys(materialPresets) as MaterialPresetId[];
 
 export const PLINTH_ROW_HALF_WIDTH =
@@ -18,7 +24,7 @@ function materialSwatches(): SceneObjectSpec[] {
         kind: "primitive",
         shape: "box",
         size: [1, 1, 1],
-        transform: { position: [x, 0.5, 0] },
+        transform: { position: [x, DECK_HEIGHT + 0.5, 0] },
         material: { presetId: "matte-plastic" },
         castShadow: true,
         receiveShadow: true,
@@ -28,7 +34,7 @@ function materialSwatches(): SceneObjectSpec[] {
         kind: "primitive",
         shape: "sphere",
         size: [0.7, 0.7, 0.7],
-        transform: { position: [x, 1.35, 0] },
+        transform: { position: [x, DECK_HEIGHT + 1.35, 0] },
         material: { presetId: id },
         castShadow: true,
       },
@@ -38,15 +44,19 @@ function materialSwatches(): SceneObjectSpec[] {
 
 export default defineScene({
   spec: {
-    environment: { presetId: "morning", clouds: { coverage: 0.4 } },
+    environment: {
+      presetId: "morning",
+      clouds: { coverage: 0.4 },
+      ocean: { presetId: "moderate" },
+    },
     lights: [],
     objects: [
       {
-        id: "floor",
+        id: "deck",
         kind: "primitive",
-        shape: "plane",
-        size: [40, 40, 1],
-        transform: { rotation: [-Math.PI / 2, 0, 0] },
+        shape: "box",
+        size: [DECK_WIDTH, DECK_HEIGHT + DECK_DRAFT, DECK_DEPTH],
+        transform: { position: [0, (DECK_HEIGHT - DECK_DRAFT) / 2, 0] },
         material: { presetId: "matte-plastic" },
         receiveShadow: true,
       },

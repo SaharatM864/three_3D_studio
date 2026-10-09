@@ -45,6 +45,12 @@ const cloudsForkImports = {
     'Import the WebGPU clouds through "src/scene/clouds/three-clouds.ts" (see docs/architecture.md).',
 };
 
+const oceanInternalImports = {
+  group: ["**/ocean/simulation/**", "**/ocean/surface/**"],
+  message:
+    'Use the ocean through "src/scene/ocean/create-ocean.ts" or "src/scene/ocean/ocean.tsx" (see docs/architecture.md).',
+};
+
 // model/, timeline/ and presets/ stay pure TypeScript so preview and export
 // share one deterministic evaluator.
 const pureModuleMessage =
@@ -55,6 +61,18 @@ const eslintConfig = defineConfig([
   ...nextTs,
   prettier,
   {
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...mediabunnyImports, ...webglImports],
+          patterns: [takramImports, cloudsForkImports, oceanInternalImports],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/scene/ocean/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -120,6 +138,7 @@ const eslintConfig = defineConfig([
             },
             takramImports,
             cloudsForkImports,
+            oceanInternalImports,
           ],
         },
       ],
