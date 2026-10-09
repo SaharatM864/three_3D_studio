@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { ResolvedClouds } from "@/presets/clouds";
 import { evaluateCloudMotion } from "@/timeline/clouds";
 
+import { useAtmosphere } from "../atmosphere/atmosphere";
+import { nightSky } from "../atmosphere/night";
 import { useRenderQuality } from "../canvas/render-quality";
 import { useWebGPURenderer } from "../canvas/use-renderer";
 import { RENDER_PRIORITY } from "../render-config";
@@ -19,6 +21,7 @@ export function ScenePipeline({ exposure, clouds }: ScenePipelineProps) {
   const renderer = useWebGPURenderer();
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
+  const { handle: atmosphere, celestial } = useAtmosphere();
   const cloudsQuality = useRenderQuality().clouds;
   const hasClouds = clouds !== null;
 
@@ -40,8 +43,19 @@ export function ScenePipeline({ exposure, clouds }: ScenePipelineProps) {
   }, [pipeline]);
 
   useLayoutEffect(() => {
+    atmosphere.setSunTransmittance(pipeline.clouds);
+    return () => {
+      atmosphere.setSunTransmittance(null);
+    };
+  }, [atmosphere, pipeline]);
+
+  useLayoutEffect(() => {
     pipeline.setExposure(exposure);
   }, [pipeline, exposure]);
+
+  useLayoutEffect(() => {
+    pipeline.setNightSky(nightSky(celestial));
+  }, [pipeline, celestial]);
 
   useLayoutEffect(() => {
     pipeline.clouds?.setQuality(cloudsQuality);

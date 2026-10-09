@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 
 import type { SceneSpec } from "@/model/types";
-import { resolveEnvironment } from "@/presets/environments";
+import { environmentEpochMs, resolveEnvironment } from "@/presets/environments";
 import type { EvaluatedSceneContent } from "@/timeline/types";
 
+import { Atmosphere } from "./atmosphere/atmosphere";
+import { CelestialLight } from "./atmosphere/celestial-light";
+import { SkyEnvironment } from "./atmosphere/sky-environment";
 import type { SceneComponents } from "./custom-components";
-import { EnvironmentRenderer } from "./environment/environment-renderer";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
 import { ScenePipeline } from "./pipeline/scene-pipeline";
@@ -30,11 +32,17 @@ export function SceneContent({
 
   return (
     <>
-      <EnvironmentRenderer environment={environment} />
-      <ScenePipeline
-        exposure={environment.exposure}
-        clouds={environment.clouds}
-      />
+      <Atmosphere
+        location={environment.location}
+        epochMs={environmentEpochMs(environment.dateTime)}
+      >
+        <SkyEnvironment />
+        <CelestialLight />
+        <ScenePipeline
+          exposure={environment.exposure}
+          clouds={environment.clouds}
+        />
+      </Atmosphere>
       <LightRig lights={spec.lights} values={evaluated.lights} />
       {spec.objects.map((object, index) => (
         <SceneObject

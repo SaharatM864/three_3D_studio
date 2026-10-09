@@ -1,4 +1,4 @@
-import { Vector3, type Matrix4 } from "three";
+import { MathUtils, Matrix4, Vector3 } from "three";
 
 import type { GeoLocation } from "@/model/types";
 
@@ -16,44 +16,46 @@ export interface CelestialFrame {
   eciToECEF: Matrix4;
   sunDirectionECEF: Vector3;
   moonDirectionECEF: Vector3;
+  sunAltitude: number;
+  moonIllumination: number;
 }
 
 const geodetic = new Geodetic();
 const observerECEF = new Vector3();
-
-export function geoToECEF(
-  { latitude, longitude, height = 0 }: GeoLocation,
-  result: Vector3
-): Vector3 {
-  return geodetic
-    .set(radians(longitude), radians(latitude), height)
-    .toECEF(result);
-}
-
-export function localFrameToECEF(
-  originECEF: Vector3,
-  result: Matrix4
-): Matrix4 {
-  return Ellipsoid.WGS84.getNorthUpEastFrame(originECEF, result);
-}
+const upECEF = new Vector3();
 
 export function computeCelestialFrame(
-  location: GeoLocation,
-  epochMs: number,
-  result: CelestialFrame
+  { latitude, longitude, height = 0 }: GeoLocation,
+  epochMs: number
 ): CelestialFrame {
-  geoToECEF(location, observerECEF);
-  localFrameToECEF(observerECEF, result.worldToECEF);
-  getECIToECEFRotationMatrix(epochMs, result.eciToECEF);
-  getSunDirectionECI(
+  geodetic
+    .set(radians(longitude), radians(latitude), height)
+    .toECEF(observerECEF);
+  const worldToECEF = Ellipsoid.WGS84.getNorthUpEastFrame(
+    observerECEF,
+    new Matrix4()
+  );
+  const eciToECEF = getECIToECEFRotationMatrix(epochMs, new Matrix4());
+  const sunDirectionECEF = getSunDirectionECI(
     epochMs,
-    result.sunDirectionECEF,
+    new Vector3(),
     observerECEF
-  ).applyMatrix4(result.eciToECEF);
-  getMoonDirectionECI(
+  ).applyMatrix4(eciToECEF);
+  const moonDirectionECEF = getMoonDirectionECI(
     epochMs,
-    result.moonDirectionECEF,
+    new Vector3(),
     observerECEF
-  ).applyMatrix4(result.eciToECEF);
-  return result;
+  ).applyMatrix4(eciToECEF);
+  upECEF.setFromMatrixColumn(worldToECEF, 1).normalize();
+
+  return {
+    worldToECEF,
+    eciToECEF,
+    sunDirectionECEF,
+    moonDirectionECEF,
+    sunAltitude: Math.asin(
+      MathUtils.clamp(sunDirectionECEF.dot(upECEF), -1, 1)
+    ),
+    moonIllumination: (1 - sunDirectionECEF.dot(moonDirectionECEF)) / 2,
+  };
 }

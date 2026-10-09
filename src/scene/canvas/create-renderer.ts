@@ -2,6 +2,7 @@ import { WebGPURenderer } from "three/webgpu";
 
 import { registerAtmosphere } from "../atmosphere/create-atmosphere";
 import { CLOUDS_REQUIRED_LIMITS } from "../clouds/three-clouds";
+import { applyReversedDepthSort } from "./reversed-depth-sort";
 import { WebGPUUnavailableError } from "./webgpu-support";
 
 export async function createRenderer({
@@ -17,6 +18,7 @@ export async function createRenderer({
     canvas,
     antialias: false,
     powerPreference: "high-performance",
+    reversedDepthBuffer: true,
     requiredLimits: CLOUDS_REQUIRED_LIMITS,
   });
 
@@ -32,6 +34,7 @@ export async function createRenderer({
     throw new WebGPUUnavailableError();
   }
 
+  applyReversedDepthSort(renderer);
   registerAtmosphere(renderer);
   return renderer;
 }

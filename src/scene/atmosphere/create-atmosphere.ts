@@ -2,43 +2,54 @@ import type { Camera } from "three";
 import { context } from "three/tsl";
 import type { WebGPURenderer } from "three/webgpu";
 
-import type { GeoLocation } from "@/model/types";
-
 import type { Disposable } from "../use-disposable";
-import { computeCelestialFrame } from "./geo-frame";
+import type { CelestialFrame } from "./geo-frame";
 import {
-  AtmosphereContext,
-  AtmosphereLight,
-  AtmosphereLightNode,
-} from "./takram";
-
-export interface AtmosphereEnvironment {
-  location: GeoLocation;
-  epochMs: number;
-}
+  ShadowedAtmosphereLightNode,
+  SUN_TRANSMITTANCE_CONTEXT_KEY,
+  type SunTransmittanceSource,
+} from "./shadowed-light-node";
+import { AtmosphereContext, AtmosphereLight } from "./takram";
 
 export interface AtmosphereHandle extends Disposable {
   provide(renderer: WebGPURenderer): () => void;
   setCamera(camera: Camera): void;
-  setEnvironment(environment: AtmosphereEnvironment): void;
+  setCelestialFrame(frame: CelestialFrame): void;
+  setSunTransmittance(source: SunTransmittanceSource | null): void;
+}
+
+interface ProvidedContext {
+  renderer: WebGPURenderer;
+  base: WebGPURenderer["contextNode"];
 }
 
 export function registerAtmosphere(renderer: WebGPURenderer): void {
-  renderer.library.addLight(AtmosphereLightNode, AtmosphereLight);
+  renderer.library.addLight(ShadowedAtmosphereLightNode, AtmosphereLight);
 }
 
 export function createAtmosphere(): AtmosphereHandle {
   const atmosphere = new AtmosphereContext();
+  let sunTransmittance: SunTransmittanceSource | null = null;
+  let provided: ProvidedContext | null = null;
+
+  function apply(): void {
+    if (provided === null) return;
+    const source = sunTransmittance;
+    provided.renderer.contextNode = context({
+      ...provided.base.value,
+      getAtmosphere: () => atmosphere,
+      [SUN_TRANSMITTANCE_CONTEXT_KEY]: () => source,
+    });
+  }
 
   return {
     provide(renderer) {
-      const previous = renderer.contextNode;
-      renderer.contextNode = context({
-        ...previous.value,
-        getAtmosphere: () => atmosphere,
-      });
+      const base = renderer.contextNode;
+      provided = { renderer, base };
+      apply();
       return () => {
-        renderer.contextNode = previous;
+        if (provided?.renderer === renderer) provided = null;
+        renderer.contextNode = base;
       };
     },
 
@@ -46,13 +57,17 @@ export function createAtmosphere(): AtmosphereHandle {
       atmosphere.camera = camera;
     },
 
-    setEnvironment({ location, epochMs }) {
-      computeCelestialFrame(location, epochMs, {
-        worldToECEF: atmosphere.matrixWorldToECEF.value,
-        eciToECEF: atmosphere.matrixECIToECEF.value,
-        sunDirectionECEF: atmosphere.sunDirectionECEF.value,
-        moonDirectionECEF: atmosphere.moonDirectionECEF.value,
-      });
+    setCelestialFrame(frame) {
+      atmosphere.matrixWorldToECEF.value.copy(frame.worldToECEF);
+      atmosphere.matrixECIToECEF.value.copy(frame.eciToECEF);
+      atmosphere.sunDirectionECEF.value.copy(frame.sunDirectionECEF);
+      atmosphere.moonDirectionECEF.value.copy(frame.moonDirectionECEF);
+    },
+
+    setSunTransmittance(source) {
+      if (source === sunTransmittance) return;
+      sunTransmittance = source;
+      apply();
     },
 
     dispose() {

@@ -1,6 +1,6 @@
 import { clouds as vendorClouds } from "@yong_three/three-clouds/webgpu";
 import type { Data3DTexture, Texture, Vector2, Vector3 } from "three";
-import type { Node, TextureNode } from "three/webgpu";
+import type { Node, NodeBuilder, TextureNode } from "three/webgpu";
 
 import type { ResolvedCloudLayer } from "@/presets/clouds";
 
@@ -18,7 +18,6 @@ export type CloudsNode = Node<"vec4"> & {
   coverage: number;
   qualityPreset: CloudsQualityPreset;
   temporalUpscale: boolean;
-  lightShafts: boolean;
   readonly cloudLayers: { reset(): unknown };
   setCloudLayers(layers: readonly ResolvedCloudLayer[]): unknown;
   readonly localWeatherRepeat: Vector2;
@@ -57,8 +56,18 @@ export type CloudsNode = Node<"vec4"> & {
   shapeDetailTexture: Data3DTexture;
   turbulenceTexture: Texture;
   stbnTexture: Data3DTexture;
+  getShadowLengthNode(): Node<"vec2">;
+  getSunTransmittanceNode(
+    positionECEF: Node<"vec3">,
+    builder: NodeBuilder
+  ): Node<"float">;
 };
 
+export interface CloudsOptions {
+  depth?: { mode: "conventional" | "reversed-z" };
+}
+
 export const clouds = vendorClouds as unknown as (
-  depth: TextureNode
+  depth: TextureNode,
+  options?: CloudsOptions
 ) => CloudsNode;

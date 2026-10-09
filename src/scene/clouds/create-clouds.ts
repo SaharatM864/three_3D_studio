@@ -1,6 +1,6 @@
 import type { Data3DTexture } from "three";
 import { vec4 } from "three/tsl";
-import type { Node, TextureNode } from "three/webgpu";
+import type { Node, NodeBuilder, TextureNode } from "three/webgpu";
 
 import type { ResolvedClouds } from "@/presets/clouds";
 import type { EvaluatedCloudMotion } from "@/timeline/types";
@@ -17,7 +17,12 @@ import {
 
 export interface CloudsHandle extends Disposable {
   readonly ready: Promise<void>;
+  readonly shadowLength: Node<"vec2">;
   composite(color: Node<"vec4">): Node<"vec4">;
+  sunTransmittance(
+    positionECEF: Node<"vec3">,
+    builder: NodeBuilder
+  ): Node<"float">;
   setClouds(clouds: ResolvedClouds): void;
   setQuality(settings: CloudsRenderSettings): void;
   setMotion(motion: EvaluatedCloudMotion): void;
@@ -28,8 +33,17 @@ interface CloudAssets extends Disposable {
   stbn: Data3DTexture;
 }
 
-export function createClouds(depth: TextureNode): CloudsHandle {
-  const node = createCloudsNode(depth);
+export interface CloudsDepthOptions {
+  reversedDepth: boolean;
+}
+
+export function createClouds(
+  depth: TextureNode,
+  { reversedDepth }: CloudsDepthOptions
+): CloudsHandle {
+  const node = createCloudsNode(depth, {
+    depth: { mode: reversedDepth ? "reversed-z" : "conventional" },
+  });
   node.localWeatherVelocity.setScalar(0);
   node.shapeVelocity.setScalar(0);
   node.shapeDetailVelocity.setScalar(0);
@@ -53,6 +67,7 @@ export function createClouds(depth: TextureNode): CloudsHandle {
 
   return {
     ready,
+    shadowLength: node.getShadowLengthNode(),
 
     composite(color) {
       return vec4(color.rgb.mul(node.a.oneMinus()).add(node.rgb), 1);
@@ -62,11 +77,13 @@ export function createClouds(depth: TextureNode): CloudsHandle {
       applyClouds(node, clouds);
     },
 
+    sunTransmittance(positionECEF, builder) {
+      return node.getSunTransmittanceNode(positionECEF, builder);
+    },
+
     setQuality(settings) {
       node.qualityPreset = settings.quality;
       node.temporalUpscale = settings.temporalUpscale;
-      // TODO(future): keep the preset's light shafts once aerialPerspective consumes the cloud shadow length.
-      node.lightShafts = false;
     },
 
     setMotion(motion) {

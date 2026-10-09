@@ -26,17 +26,22 @@ export const environmentPresets = {
   morning: {
     label: "Morning",
     swatch: "#9ec5e8",
-    environment: { dateTime: "2026-03-21T09:00:00+07:00" },
+    environment: { dateTime: "2026-03-21T09:00:00+07:00", exposure: 5 },
   },
   noon: {
     label: "Noon",
     swatch: "#5f9fd9",
-    environment: { dateTime: "2026-03-21T12:00:00+07:00" },
+    environment: { dateTime: "2026-03-21T12:00:00+07:00", exposure: 5 },
   },
   "golden-hour": {
     label: "Golden hour",
     swatch: "#f2a65a",
-    environment: { dateTime: "2026-03-21T17:45:00+07:00" },
+    environment: { dateTime: "2026-03-21T17:45:00+07:00", exposure: 5 },
+  },
+  night: {
+    label: "Night",
+    swatch: "#1d2a4a",
+    environment: { dateTime: "2026-03-03T22:00:00+07:00", exposure: 100 },
   },
 } satisfies Record<string, EnvironmentPreset>;
 

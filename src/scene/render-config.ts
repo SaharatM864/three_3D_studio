@@ -27,7 +27,7 @@ export const RENDER_QUALITIES: Record<RenderQualityId, RenderQuality> = {
 
 export const DEFAULT_RENDER_QUALITY: RenderQualityId = "high";
 
-export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 5000 };
+export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 1e5 };
 
 export const RENDER_PRIORITY = 1;
 

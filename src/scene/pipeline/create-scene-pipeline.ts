@@ -10,6 +10,8 @@ import {
 } from "three/tsl";
 import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
 
+import { createAerialPerspective } from "../atmosphere/create-aerial-perspective";
+import type { NightSky } from "../atmosphere/night";
 import { createClouds, type CloudsHandle } from "../clouds/create-clouds";
 import { TONE_MAPPING } from "../render-config";
 import type { Disposable } from "../use-disposable";
@@ -29,6 +31,7 @@ export interface ScenePipelineHandle extends Disposable {
   readonly clouds: CloudsHandle | null;
   render(): void;
   setExposure(exposure: number): void;
+  setNightSky(sky: NightSky): void;
 }
 
 export function createScenePipeline(
@@ -42,16 +45,24 @@ export function createScenePipeline(
     mrt({ output, velocity: highpVelocity })
   );
   const colorNode = passNode.getTextureNode("output");
+  const depthNode = passNode.getTextureNode("depth");
   const clouds = options.clouds
-    ? createClouds(passNode.getTextureNode("depth"))
+    ? createClouds(depthNode, { reversedDepth: renderer.reversedDepthBuffer })
     : null;
-  const lensFlareNode = lensFlare(clouds?.composite(colorNode) ?? colorNode);
+  const aerial = createAerialPerspective(
+    colorNode,
+    depthNode,
+    clouds?.shadowLength ?? null
+  );
+  const lensFlareNode = lensFlare(
+    clouds?.composite(aerial.node) ?? aerial.node
+  );
   const toneMappedNode = convertToTexture(
     toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)
   );
   const taaNode = temporalAntialias(
     toneMappedNode,
-    passNode.getTextureNode("depth"),
+    depthNode,
     passNode.getTextureNode("velocity"),
     camera
   );
@@ -82,6 +93,10 @@ export function createScenePipeline(
       exposureNode.value = exposure;
     },
 
+    setNightSky(sky) {
+      if (aerial.setNightSky(sky)) pipeline.needsUpdate = true;
+    },
+
     dispose() {
       pipeline.dispose();
       taaNode.dispose();
@@ -89,6 +104,7 @@ export function createScenePipeline(
       toneMappedNode.dispose();
       lensFlareNode.featuresNode.renderTarget?.dispose();
       lensFlareNode.dispose();
+      aerial.dispose();
       clouds?.dispose();
       passNode.dispose();
     },
