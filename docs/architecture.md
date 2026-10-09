@@ -57,11 +57,11 @@ flowchart TD
 | `src/scene/pipeline/`                            | post-processing (`createScenePipeline`, `<ScenePipeline>`)                                                                                                                                        | import `@takram/*` ผ่าน `pipeline/takram.ts` เท่านั้น                                                            |
 | `src/scene/clouds/`                              | เมฆเชิงปริมาตร: `createClouds` (`CloudsHandle`), adapter ของไลบรารีเมฆ (`three-clouds.ts`), quality presets (`quality.ts`) และ loader ของ texture (`cloud-textures.ts`) (ดู "Clouds")             | import ไลบรารีเมฆและ `@takram/*` ผ่าน `clouds/three-clouds.ts` เท่านั้น                                          |
 | `src/scene/ocean/`                               | FFT ocean ที่ port จาก Poseidon: `createOcean` (`OceanHandle`), `<Ocean>`, simulation (`simulation/`) และ material ของผิวน้ำ (`surface/`) (ดู "Ocean")                                            | ไฟล์นอกโฟลเดอร์ใช้ได้แค่ `create-ocean.ts` กับ `ocean.tsx` (ESLint บังคับ)                                       |
-| `src/game/`                                      | controls, physics config, player และ playground scene                                                                                                                                             | client-only, physics ใช้ fixed timestep                                                                          |
+| `src/game/`                                      | controls, physics config, player, playground scene และ settings ของ playground (`settings.ts`)                                                                                                    | client-only, physics ใช้ fixed timestep                                                                          |
 | `src/audio/`                                     | โหลดเสียง, เล่นเสียงตอน preview และ mix แบบ offline                                                                                                                                               | client-only                                                                                                      |
 | `src/export/`                                    | capability check, AAC fallback, output target และ export loop                                                                                                                                     | `mediabunny` import ได้เฉพาะใน `export/mediabunny.ts`                                                            |
 | `src/compositing/`                               | Canvas 2D สำหรับ subtitle/logo ที่ต้องติดไปในวิดีโอ                                                                                                                                               | เพิ่มเมื่อมีความต้องการจริง                                                                                      |
-| `src/stores/`                                    | zustand store สำหรับ state ของ UI                                                                                                                                                                 | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
+| `src/stores/`                                    | zustand store สำหรับ state ของ UI: `playground-store` (override เฉพาะฉาก) และ `playground-settings-store` (ค่าตั้งของ playground)                                                                 | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
 | `public/assets/`                                 | ใช้ร่วมกัน: `models/`, `textures/`, `hdri/`, `audio/`, `fonts/`, texture ของเมฆ (`clouds/`) และข้อมูลดาว (`atmosphere/`) เฉพาะ project: `projects/<id>/`                                          | same-origin เท่านั้น เพื่อเลี่ยงปัญหา CORS ตอนอ่าน canvas                                                        |
 
 **pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `@yong_three/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter ของ `@takram/*` (`atmosphere/takram.ts`, `pipeline/takram.ts`, `clouds/three-clouds.ts`) กฎ adapter เดียวของไลบรารีเมฆ (`@yong_three/*` ผ่าน `clouds/three-clouds.ts`) กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing` และ entry WebGL ของ `@takram/three-clouds`/`@yong_three/three-clouds` และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
@@ -89,11 +89,12 @@ features (playground-app / viewport)
   - component บาง ๆ ผูกกับ R3F ด้วย `useMemo` + `useDisposable` + effect
   - แยกแบบนี้เพื่อให้ export (M1) เรียกฟังก์ชันชุดเดียวกันได้โดยไม่ผ่าน React และผ่านกฎ `react-hooks/immutability`
 - **ค่าที่จูนได้** (คุณภาพการแสดงผล ซึ่งรวม dpr, pixel budget, shadow map และคุณภาพเมฆ, กล้อง, tone mapping, เงาดวงอาทิตย์, `IDLE_SETTLE_FRAMES`) อยู่ใน `scene/render-config.ts` ที่เดียว
-- **คุณภาพการแสดงผล** (`RENDER_QUALITIES` ใน `render-config.ts`): `high` (ค่าเริ่มต้น) กับ `performance` กำหนด dpr, `maxPixels`, `sunShadowMapSize` และคุณภาพเมฆ (ตารางอยู่ใน "Performance")
-  - `SceneCanvas` รับ prop `quality` แล้วส่งต่อผ่าน `RenderQualityContext` (`canvas/render-quality.ts`) ทุก component อ่านด้วย `useRenderQuality()`: `ScenePipeline` ส่ง `clouds` ให้ `CloudsHandle.setQuality` และ `CelestialLight` ตั้งขนาด shadow map
-  - Studio ใช้ค่าเริ่มต้นเสมอ playground ค่าเริ่มต้นจึงเห็นภาพเดียวกับ Studio ส่วน `performance` เป็นตัวเลือกใน environment panel ของ playground เท่านั้น ห้ามใช้ตอน export
+- **คุณภาพการแสดงผล** (`RENDER_QUALITIES` ใน `render-config.ts`): `high` (ค่าเริ่มต้น) กับ `performance` เป็น `RenderQualitySettings` แบบ flat (pixel ratio สูงสุด, `PIXEL_BUDGETS`, `sunShadowMapSize`, preset เมฆ, temporal upscale และ `OCEAN_GRIDS`) ตารางอยู่ใน "Performance"
+  - `resolveRenderQuality(settings)` แปลงเป็น `RenderQuality` ที่ renderer ใช้ ค่าเริ่มต้นคือ `DEFAULT_QUALITY_PROFILE`
+  - `SceneCanvas` รับ prop `quality` (`RenderQuality`) แล้วส่งต่อผ่าน `RenderQualityContext` (`canvas/render-quality.ts`) ทุก component อ่านด้วย `useRenderQuality()`: `ScenePipeline` ส่ง `clouds` ให้ `CloudsHandle.setQuality` (ข้ามถ้าค่าเท่าเดิม) และ `CelestialLight` ตั้งขนาด shadow map
+  - Studio ใช้ `DEFAULT_QUALITY_PROFILE` เสมอ playground ค่าเริ่มต้นจึงเห็นภาพเดียวกับ Studio ส่วน dialog ตั้งค่าของ playground เลือก tier หรือปรับทีละค่าได้ ห้ามใช้ค่าเหล่านี้ตอน export
   - เปลี่ยนคุณภาพไม่ remount canvas: R3F resize ตาม dpr, `ShadowNode` resize shadow map เอง และ `ScenePipeline` ตั้ง preset ใหม่กับ `CloudsNode` ตัวเดิม (compile shader ใหม่เมื่อ flag ที่ฝังใน shader เปลี่ยน ไม่โหลด texture ซ้ำ)
-  - วัดผลด้วย `?inspector` (ดู "Performance") และ `?stats` ใน URL ของ playground เพื่อแสดง FPS (drei `<Stats>`) วัดใน production build (`bun run build` แล้ว `bun run start`) เพราะ dev mode มี StrictMode และ overlay
+  - วัดผลด้วย `?inspector` (ดู "Performance") และ `?stats` ใน URL ของ playground เพื่อแสดง FPS (drei `<Stats>`) หรือเปิดจาก section Debug ของ dialog ตั้งค่า วัดใน production build (`bun run build` แล้ว `bun run start`) เพราะ dev mode มี StrictMode และ overlay
 - **พิกัด**: world origin วางที่ `environment.location` ด้วย `Ellipsoid.WGS84.getNorthUpEastFrame` แกนเป็น +X เหนือ, +Y ขึ้น, +Z ตะวันออก และ 1 หน่วยเท่ากับ 1 เมตร
   - การแปลง geodetic → ECEF, local frame → ECEF, มุมเงยของดวงอาทิตย์ และสัดส่วนสว่างของดวงจันทร์ อยู่ใน `computeCelestialFrame` (`atmosphere/geo-frame.ts`) ที่เดียว
   - ไม่เปิด `highPrecision` เพราะใช้เมื่อวาง object ในพิกัด ECEF เท่านั้น และใช้กับ `SkinnedMesh`/`InstancedMesh` ไม่ได้
@@ -344,6 +345,7 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - `ClipCanvas` ส่ง `maxPixels = video.width × video.height` preview จึงไม่ render เกินความละเอียดของ export
   - resize debounce 100 ms เพราะทุกครั้งที่ขนาดเปลี่ยน target เต็มจอทุกตัวถูกจองใหม่และ history ของ TAA/เมฆถูกล้าง
 - **Idle render** (`canvas/render-activity.ts`): playground ใช้ `frameloop="demand"` แล้ว `ScenePipeline` render ต่ออีก `IDLE_SETTLE_FRAMES` (300 เฟรม ราว 5 วินาที) หลังการเปลี่ยนแปลงล่าสุดแล้วหยุด
+  - ปิด "หยุด render เมื่อฉากนิ่ง" ใน dialog ตั้งค่าเพื่อใช้ `"always"` ตอนวัด FPS
   - 300 เฟรมเผื่อให้ BSM ของเมฆ (temporal α 0.01) converge ราว 95% ส่วน TAA และ cloud resolve converge เร็วกว่านั้น
   - `ScenePipeline` ตรวจเองทุกเฟรม: กล้อง (`matrixWorld`, fov, aspect, zoom, near, far ไม่เทียบ `projectionMatrix` เพราะ TAA jitter), pixel ratio และเมฆที่มี velocity
   - `<Ocean>` เรียก `wake()` ทุกเฟรมที่ simulation เดิน playground ที่มีทะเล (และ `timeScale` > 0) จึงไม่เข้า idle
@@ -404,6 +406,14 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
 - `studio-store` เก็บ `selection` (รายการที่เลือกใน Outliner/Timeline), `isPlaying`, `isLooping`, `displayFrame`, `exportPresetId` และ `exportState` (union เดียวที่ใช้คำเดียวกับ `CapabilityReport`/`ExportResult`)
 - Timeline และ Inspector อ่าน keyframe จาก `ClipSpec` ตรง ๆ (`features/studio/timeline-rows.ts`) ส่วนค่าที่เฟรมปัจจุบันจะแสดงใน M2 ด้วย `evaluateAnimatable`
 - หน้า `/dev/ui` (เฉพาะ dev) แสดงทุก state ของ Export dialog, panel ของ Studio และ Playground ที่ยังเปิดจากแอปจริงไม่ได้
+
+### UI ของ Playground
+
+- Toolbar (มุมซ้ายบน): กลับหน้าแรก, ไป Studio และปุ่มเฟืองเปิด dialog ตั้งค่า (`settings-dialog.tsx`)
+- Environment panel (มุมขวาบน): override เฉพาะฉาก (แสง สภาพแวดล้อม ทะเล) เก็บใน `playground-store` ซึ่ง reset ทุกครั้งที่เปิด project
+- Dialog ตั้งค่า: ค่าส่วนกลางของ playground (คุณภาพการแสดงผล, FOV, ชดเชยแสง, กล้อง orbit และ Debug) schema และค่าเริ่มต้นอยู่ที่ `game/settings.ts` (`DEFAULT_PLAYGROUND_SETTINGS` เท่ากับค่าเดิมของแอปทุกค่า) เก็บใน `playground-settings-store` ซึ่งอยู่ข้าม project จนกว่าจะปิดหรือ reload แท็บ
+  - FOV เขียนลงกล้อง default ตัวเดิม (`game/camera-fov.tsx`) ห้ามเปลี่ยน prop `camera` ของ `<Canvas>` เพราะ R3F จะสร้างกล้องใหม่และ pipeline ถูกสร้างใหม่ตาม
+  - ชดเชยแสง (EV) ส่งเป็น prop `exposureCompensation` ของ `SceneContent` ซึ่งคูณ `2 ** EV` เข้ากับ exposure ของ environment ก่อนส่งให้ `ScenePipeline` และ `Ocean` ไม่แก้ spec เพราะ environment ที่ resolve ใหม่จะ reset ชั้นเมฆ
 
 ### สิ่งที่ติดไปใน MP4
 

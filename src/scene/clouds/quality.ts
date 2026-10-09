@@ -1,4 +1,11 @@
-export type CloudsQualityPreset = "low" | "medium" | "high" | "ultra";
+export const CLOUDS_QUALITY_PRESETS = [
+  "low",
+  "medium",
+  "high",
+  "ultra",
+] as const;
+
+export type CloudsQualityPreset = (typeof CLOUDS_QUALITY_PRESETS)[number];
 
 export interface CloudsQuality {
   resolutionScale: number;

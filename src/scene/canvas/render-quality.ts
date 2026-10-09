@@ -1,13 +1,9 @@
 import { createContext, useContext } from "react";
 
-import {
-  DEFAULT_RENDER_QUALITY,
-  RENDER_QUALITIES,
-  type RenderQuality,
-} from "../render-config";
+import { DEFAULT_QUALITY_PROFILE, type RenderQuality } from "../render-config";
 
 export const RenderQualityContext = createContext<RenderQuality>(
-  RENDER_QUALITIES[DEFAULT_RENDER_QUALITY]
+  DEFAULT_QUALITY_PROFILE
 );
 
 export function useRenderQuality(): RenderQuality {

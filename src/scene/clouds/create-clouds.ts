@@ -50,6 +50,7 @@ export function createClouds(
 
   let disposed = false;
   let assets: CloudAssets | null = null;
+  let quality: CloudsRenderSettings | null = null;
 
   const ready = loadCloudAssets().then((loaded) => {
     if (disposed) {
@@ -82,6 +83,8 @@ export function createClouds(
     },
 
     setQuality(settings) {
+      if (quality !== null && sameQuality(quality, settings)) return;
+      quality = settings;
       node.qualityPreset = settings.quality;
       node.temporalUpscale = settings.temporalUpscale;
     },
@@ -98,6 +101,13 @@ export function createClouds(
       assets?.dispose();
     },
   };
+}
+
+function sameQuality(
+  a: CloudsRenderSettings,
+  b: CloudsRenderSettings
+): boolean {
+  return a.quality === b.quality && a.temporalUpscale === b.temporalUpscale;
 }
 
 function applyClouds(node: CloudsNode, clouds: ResolvedClouds): void {

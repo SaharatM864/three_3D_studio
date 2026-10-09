@@ -28,24 +28,77 @@ export interface RenderQuality {
   ocean: OceanRenderSettings;
 }
 
-export const RENDER_QUALITIES: Record<RenderQualityId, RenderQuality> = {
-  high: {
-    dpr: [0.5, 2],
-    maxPixels: 1920 * 1080,
-    sunShadowMapSize: 2048,
-    clouds: { quality: "high", temporalUpscale: true },
-    ocean: { grid: { rings: 620, sectors: 1280, spacing: 0.35, soften: 41 } },
-  },
-  performance: {
-    dpr: [0.5, 1],
-    maxPixels: 1280 * 720,
-    sunShadowMapSize: 1024,
-    clouds: { quality: "medium", temporalUpscale: true },
-    ocean: { grid: { rings: 440, sectors: 768, spacing: 0.5, soften: 30 } },
-  },
+export const PIXEL_BUDGETS = {
+  "720p": 1280 * 720,
+  "1080p": 1920 * 1080,
+  "1440p": 2560 * 1440,
+  "2160p": 3840 * 2160,
 };
 
+export type PixelBudgetId = keyof typeof PIXEL_BUDGETS;
+
+export const OCEAN_GRIDS = {
+  fine: { rings: 620, sectors: 1280, spacing: 0.35, soften: 41 },
+  coarse: { rings: 440, sectors: 768, spacing: 0.5, soften: 30 },
+} satisfies Record<string, OceanGridSettings>;
+
+export type OceanGridId = keyof typeof OCEAN_GRIDS;
+
+export const MIN_PIXEL_RATIO = 0.5;
+
+export const MAX_PIXEL_RATIOS = [1, 1.5, 2] as const;
+
+export const SUN_SHADOW_MAP_SIZES = [1024, 2048, 4096] as const;
+
+export interface RenderQualitySettings {
+  maxPixelRatio: number;
+  pixelBudget: PixelBudgetId;
+  sunShadowMapSize: number;
+  clouds: CloudsQualityPreset;
+  cloudsTemporalUpscale: boolean;
+  oceanGrid: OceanGridId;
+}
+
+export const RENDER_QUALITIES: Record<RenderQualityId, RenderQualitySettings> =
+  {
+    high: {
+      maxPixelRatio: 2,
+      pixelBudget: "1080p",
+      sunShadowMapSize: 2048,
+      clouds: "high",
+      cloudsTemporalUpscale: true,
+      oceanGrid: "fine",
+    },
+    performance: {
+      maxPixelRatio: 1,
+      pixelBudget: "720p",
+      sunShadowMapSize: 1024,
+      clouds: "medium",
+      cloudsTemporalUpscale: true,
+      oceanGrid: "coarse",
+    },
+  };
+
 export const DEFAULT_RENDER_QUALITY: RenderQualityId = "high";
+
+export function resolveRenderQuality(
+  settings: RenderQualitySettings
+): RenderQuality {
+  return {
+    dpr: [MIN_PIXEL_RATIO, settings.maxPixelRatio],
+    maxPixels: PIXEL_BUDGETS[settings.pixelBudget],
+    sunShadowMapSize: settings.sunShadowMapSize,
+    clouds: {
+      quality: settings.clouds,
+      temporalUpscale: settings.cloudsTemporalUpscale,
+    },
+    ocean: { grid: OCEAN_GRIDS[settings.oceanGrid] },
+  };
+}
+
+export const DEFAULT_QUALITY_PROFILE = resolveRenderQuality(
+  RENDER_QUALITIES[DEFAULT_RENDER_QUALITY]
+);
 
 export const IDLE_SETTLE_FRAMES = 300;
 

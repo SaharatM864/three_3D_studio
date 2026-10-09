@@ -1,11 +1,12 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
+import { hasQueryFlag } from "@/lib/query-flags";
+
 import {
   CAMERA_DEFAULTS,
-  DEFAULT_RENDER_QUALITY,
-  RENDER_QUALITIES,
-  type RenderQualityId,
+  DEFAULT_QUALITY_PROFILE,
+  type RenderQuality,
 } from "../render-config";
 import { CanvasErrorBoundary } from "./canvas-error-boundary";
 import { createRenderer } from "./create-renderer";
@@ -15,7 +16,7 @@ import {
   RenderActivityContext,
   type RenderActivity,
 } from "./render-activity";
-import { readShowInspector, RendererInspector } from "./renderer-inspector";
+import { INSPECTOR_QUERY_FLAG, RendererInspector } from "./renderer-inspector";
 import { RenderQualityContext } from "./render-quality";
 import { useWebGPUSupport } from "./webgpu-support";
 import "./three-console";
@@ -23,8 +24,9 @@ import "./three-console";
 const RESIZE_OPTIONS = { scroll: true, debounce: { scroll: 50, resize: 100 } };
 
 export interface SceneCanvasProps {
-  quality?: RenderQualityId;
+  quality?: RenderQuality;
   maxPixels?: number;
+  inspector?: boolean;
   className?: string;
   frameloop?: "always" | "demand" | "never";
   fallback?: ReactNode;
@@ -32,22 +34,23 @@ export interface SceneCanvasProps {
 }
 
 export function SceneCanvas({
-  quality: qualityId = DEFAULT_RENDER_QUALITY,
+  quality = DEFAULT_QUALITY_PROFILE,
   maxPixels,
+  inspector = false,
   className,
   frameloop = "always",
   fallback,
   children,
 }: SceneCanvasProps) {
   const support = useWebGPUSupport();
-  const [showInspector] = useState(readShowInspector);
+  const [inspectorFlag] = useState(readInspectorFlag);
   const [cssSize, setCssSize] = useState<CssSize>(readWindowSize);
   const activity = useMemo(() => createRenderActivity(), []);
 
   if (support === "checking") return null;
   if (support === "unsupported") return <>{fallback}</>;
 
-  const quality = RENDER_QUALITIES[qualityId];
+  const showInspector = inspector || inspectorFlag;
   const dpr = resolvePixelRatio(
     quality,
     maxPixels ?? quality.maxPixels,
@@ -77,6 +80,10 @@ export function SceneCanvas({
       </Canvas>
     </CanvasErrorBoundary>
   );
+}
+
+function readInspectorFlag(): boolean {
+  return hasQueryFlag(INSPECTOR_QUERY_FLAG);
 }
 
 function readWindowSize(): CssSize {

@@ -1,13 +1,16 @@
 import { KeyboardControls, Stats } from "@react-three/drei";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ErrorScreen, LoadingScreen } from "@/components/status-screen";
 import { controlsMap } from "@/game/controls";
 import { PlaygroundScene } from "@/game/playground-scene";
+import { hasQueryFlag } from "@/lib/query-flags";
 import type { PlaygroundModule } from "@/projects/define";
 import { projectLoaders } from "@/projects/loaders";
 import type { ProjectId } from "@/projects/manifest";
 import { SceneCanvas } from "@/scene/canvas/scene-canvas";
+import { resolveRenderQuality } from "@/scene/render-config";
+import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
 import { useLazyModule } from "../use-lazy-module";
@@ -42,21 +45,28 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
   );
 }
 
-const STATS_QUERY_PARAM = "stats";
+const STATS_QUERY_FLAG = "stats";
 
-function readShowStats(): boolean {
-  return new URLSearchParams(window.location.search).has(STATS_QUERY_PARAM);
+function readStatsFlag(): boolean {
+  return hasQueryFlag(STATS_QUERY_FLAG);
 }
 
 function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
-  const renderQuality = usePlaygroundStore((s) => s.renderQuality);
-  const [showStats] = useState(readShowStats);
+  const qualitySettings = usePlaygroundSettingsStore((s) => s.quality);
+  const debug = usePlaygroundSettingsStore((s) => s.debug);
+  const [statsFlag] = useState(readStatsFlag);
+  const quality = useMemo(
+    () => resolveRenderQuality(qualitySettings),
+    [qualitySettings]
+  );
+  const showStats = debug.showStats || statsFlag;
 
   return (
     <KeyboardControls map={controlsMap}>
       <SceneCanvas
-        quality={renderQuality}
-        frameloop="demand"
+        quality={quality}
+        inspector={debug.showInspector}
+        frameloop={debug.pauseWhenIdle ? "demand" : "always"}
         fallback={
           <ErrorScreen
             title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"

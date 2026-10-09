@@ -6,9 +6,11 @@ import { lightingPresets } from "@/presets/lighting";
 import { applyOceanOverride } from "@/presets/ocean";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
+import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
 import { usePlaygroundStore } from "@/stores/playground-store";
 import { evaluateScene } from "@/timeline/evaluate";
 
+import { CameraFov } from "./camera-fov";
 import { InspectCamera } from "./inspect-camera";
 
 export interface PlaygroundSceneProps {
@@ -30,6 +32,8 @@ export function PlaygroundScene({
   const lightingPresetId = usePlaygroundStore((s) => s.lightingPresetId);
   const environmentPresetId = usePlaygroundStore((s) => s.environmentPresetId);
   const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
+  const view = usePlaygroundSettingsStore((s) => s.view);
+  const orbit = usePlaygroundSettingsStore((s) => s.orbit);
 
   const environment = useMemo(() => {
     const preset = environmentPresetId
@@ -51,8 +55,14 @@ export function PlaygroundScene({
 
   return (
     <>
-      <SceneContent spec={spec} evaluated={evaluated} components={components} />
-      <InspectCamera spawn={playground.spawn} />
+      <SceneContent
+        spec={spec}
+        evaluated={evaluated}
+        components={components}
+        exposureCompensation={view.exposureCompensation}
+      />
+      <CameraFov fov={view.fov} />
+      <InspectCamera spawn={playground.spawn} orbit={orbit} />
     </>
   );
 }

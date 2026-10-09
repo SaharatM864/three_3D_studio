@@ -4,11 +4,7 @@ import { InspectorBase } from "three/webgpu";
 import { installConsoleFilter } from "./three-console";
 import { useWebGPURenderer } from "./use-renderer";
 
-const INSPECTOR_QUERY_PARAM = "inspector";
-
-export function readShowInspector(): boolean {
-  return new URLSearchParams(window.location.search).has(INSPECTOR_QUERY_PARAM);
-}
+export const INSPECTOR_QUERY_FLAG = "inspector";
 
 export function RendererInspector() {
   const renderer = useWebGPURenderer();

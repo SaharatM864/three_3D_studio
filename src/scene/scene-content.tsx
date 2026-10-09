@@ -18,6 +18,7 @@ export interface SceneContentProps {
   spec: SceneSpec;
   evaluated: EvaluatedSceneContent;
   components?: SceneComponents;
+  exposureCompensation?: number;
 }
 
 // TODO(M1): register lights and objects with the render bridge so the clip
@@ -26,12 +27,14 @@ export function SceneContent({
   spec,
   evaluated,
   components,
+  exposureCompensation = 0,
 }: SceneContentProps) {
   const activity = useRenderActivity();
   const environment = useMemo(
     () => resolveEnvironment(spec.environment),
     [spec.environment]
   );
+  const exposure = environment.exposure * 2 ** exposureCompensation;
 
   useLayoutEffect(() => {
     activity.wake();
@@ -45,12 +48,9 @@ export function SceneContent({
       >
         <SkyEnvironment />
         <CelestialLight />
-        <ScenePipeline
-          exposure={environment.exposure}
-          clouds={environment.clouds}
-        />
+        <ScenePipeline exposure={exposure} clouds={environment.clouds} />
         {environment.ocean && (
-          <Ocean ocean={environment.ocean} exposure={environment.exposure} />
+          <Ocean ocean={environment.ocean} exposure={exposure} />
         )}
       </Atmosphere>
       <LightRig lights={spec.lights} values={evaluated.lights} />

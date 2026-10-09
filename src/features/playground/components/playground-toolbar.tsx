@@ -8,7 +8,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { getProjectMeta, type ProjectId } from "@/projects/manifest";
+
+import { floatingPanelClass } from "./panel-controls";
+import { SettingsDialog } from "./settings-dialog";
 
 export function PlaygroundToolbar({
   projectId,
@@ -22,7 +26,10 @@ export function PlaygroundToolbar({
   return (
     <div
       data-hidden={hidden || undefined}
-      className="absolute top-3 left-3 flex items-center gap-1 rounded-xl border bg-background/85 p-1 shadow-xl backdrop-blur transition-opacity data-hidden:pointer-events-none data-hidden:opacity-0"
+      className={cn(
+        "absolute top-3 left-3 flex items-center gap-1 p-1",
+        floatingPanelClass
+      )}
     >
       <Tooltip>
         <TooltipTrigger
@@ -50,6 +57,8 @@ export function PlaygroundToolbar({
         <Clapperboard />
         Studio
       </Link>
+      <Separator orientation="vertical" className="data-vertical:my-1.5" />
+      <SettingsDialog />
     </div>
   );
 }
