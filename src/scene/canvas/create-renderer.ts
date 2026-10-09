@@ -1,6 +1,7 @@
 import { WebGPURenderer } from "three/webgpu";
 
 import { registerAtmosphere } from "../atmosphere/create-atmosphere";
+import { CLOUDS_REQUIRED_LIMITS } from "../clouds/three-clouds";
 import { WebGPUUnavailableError } from "./webgpu-support";
 
 export async function createRenderer({
@@ -16,6 +17,7 @@ export async function createRenderer({
     canvas,
     antialias: false,
     powerPreference: "high-performance",
+    requiredLimits: CLOUDS_REQUIRED_LIMITS,
   });
 
   try {

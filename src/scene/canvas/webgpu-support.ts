@@ -1,6 +1,8 @@
-import { RenderBackendUnavailableError } from "../backend/render-backend";
+import { useEffect, useState } from "react";
 
-export class WebGPUUnavailableError extends RenderBackendUnavailableError {
+export type WebGPUSupport = "checking" | "supported" | "unsupported";
+
+export class WebGPUUnavailableError extends Error {
   constructor(options?: ErrorOptions) {
     super(
       "WebGPU is unavailable; the WebGL 2 fallback is not supported",
@@ -29,4 +31,20 @@ async function requestAdapter(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export function useWebGPUSupport(): WebGPUSupport {
+  const [state, setState] = useState<WebGPUSupport>("checking");
+
+  useEffect(() => {
+    let active = true;
+    void detectWebGPU().then((supported) => {
+      if (active) setState(supported ? "supported" : "unsupported");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return state;
 }

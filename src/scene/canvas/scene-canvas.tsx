@@ -1,9 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 
-import { RenderBackendContext } from "../backend/context";
-import { useRenderBackendLoader } from "../backend/load-backend";
-import type { RenderBackendId } from "../backend/render-backend";
 import {
   CAMERA_DEFAULTS,
   DEFAULT_RENDER_QUALITY,
@@ -11,11 +8,12 @@ import {
   type RenderQualityId,
 } from "../render-config";
 import { CanvasErrorBoundary } from "./canvas-error-boundary";
+import { createRenderer } from "./create-renderer";
 import { RenderQualityContext } from "./render-quality";
+import { useWebGPUSupport } from "./webgpu-support";
 import "./three-console";
 
 export interface SceneCanvasProps {
-  backend: RenderBackendId;
   quality?: RenderQualityId;
   className?: string;
   frameloop?: "always" | "never";
@@ -24,38 +22,31 @@ export interface SceneCanvasProps {
 }
 
 export function SceneCanvas({
-  backend: backendId,
   quality: qualityId = DEFAULT_RENDER_QUALITY,
   className,
   frameloop = "always",
   fallback,
   children,
 }: SceneCanvasProps) {
-  const state = useRenderBackendLoader(backendId);
+  const support = useWebGPUSupport();
 
-  if (state.status === "checking") return null;
-  if (state.status === "unsupported") return <>{fallback}</>;
-  if (state.status === "error") throw state.error;
+  if (support === "checking") return null;
+  if (support === "unsupported") return <>{fallback}</>;
 
-  const { backend } = state;
   const quality = RENDER_QUALITIES[qualityId];
 
   return (
-    <CanvasErrorBoundary key={backend.id} fallback={fallback}>
+    <CanvasErrorBoundary fallback={fallback}>
       <Canvas
         className={className}
-        gl={backend.createRenderer}
+        gl={createRenderer}
         frameloop={frameloop}
         flat
         shadows="percentage"
         dpr={quality.dpr}
         camera={CAMERA_DEFAULTS}
       >
-        <RenderBackendContext value={backend}>
-          <RenderQualityContext value={quality}>
-            {children}
-          </RenderQualityContext>
-        </RenderBackendContext>
+        <RenderQualityContext value={quality}>{children}</RenderQualityContext>
       </Canvas>
     </CanvasErrorBoundary>
   );

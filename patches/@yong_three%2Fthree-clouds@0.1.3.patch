@@ -1,0 +1,95 @@
+diff --git a/build/shared.js b/build/shared.js
+index 8b13084acb1c4f957ea94452659e2946cb68a0b7..48dd99653aaf6c2b521e9a0aa9fb37d52642be81 100644
+--- a/build/shared.js
++++ b/build/shared.js
+@@ -1,4 +1,4 @@
+-import { Vector3 as u, Vector2 as g, Matrix4 as f, Object3D as k, Box3 as G } from "three";
++import { Vector3 as u, Vector2 as g, Matrix4 as f, Object3D as k, Box3 as G, WebGPUCoordinateSystem as Wcs } from "three";
+ import { lerp as N } from "@takram/three-geospatial";
+ class F {
+   constructor(t = 0, e = 0, s = 0, a = 0) {
+@@ -194,8 +194,8 @@ class E {
+     return this;
+   }
+   setFromCamera(t, e) {
+-    const s = t.isOrthographicCamera === !0, a = t.projectionMatrixInverse;
+-    this.near[0].set(1, 1, -1), this.near[1].set(1, -1, -1), this.near[2].set(-1, -1, -1), this.near[3].set(-1, 1, -1);
++    const s = t.isOrthographicCamera === !0, a = t.projectionMatrixInverse, nz = t.coordinateSystem === Wcs ? 0 : -1;
++    this.near[0].set(1, 1, nz), this.near[1].set(1, -1, nz), this.near[2].set(-1, -1, nz), this.near[3].set(-1, 1, nz);
+     for (let i = 0; i < 4; ++i)
+       this.near[i].applyMatrix4(a);
+     this.far[0].set(1, 1, 1), this.far[1].set(1, -1, 1), this.far[2].set(-1, -1, 1), this.far[3].set(-1, 1, 1);
+diff --git a/build/webgpu.js b/build/webgpu.js
+index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c8539c5a66c7 100644
+--- a/build/webgpu.js
++++ b/build/webgpu.js
+@@ -1976,7 +1976,7 @@ class _s extends st {
+     const o = this.previousProjectionMatrix ?? e.projectionMatrix, a = this.previousViewMatrix ?? e.matrixWorldInverse;
+     if (this.temporalUpscale) {
+       const i = this.frame.value % 16, { resolution: l } = this, h = Co[i], u = (h.x - 0.5) / l.value.x * 4, m = (h.y - 0.5) / l.value.y * 4;
+-      this.temporalJitter.value.set(u, m), this.mipLevelScale.value = 0.25, this.inverseProjectionMatrix.value.copy(e.projectionMatrix), this.inverseProjectionMatrix.value.elements[8] += u * 2, this.inverseProjectionMatrix.value.elements[9] += m * 2, this.inverseProjectionMatrix.value.invert(), this.reprojectionMatrix.value.copy(o), this.reprojectionMatrix.value.elements[8] += u * 2, this.reprojectionMatrix.value.elements[9] += m * 2, this.reprojectionMatrix.value.multiply(a), this.viewReprojectionMatrix.value.copy(this.reprojectionMatrix.value).multiply(this.inverseViewMatrix.value);
++      this.temporalJitter.value.set(u, m), this.mipLevelScale.value = 0.25, this.inverseProjectionMatrix.value.copy(e.projectionMatrix), this.inverseProjectionMatrix.value.elements[8] += u * 2, this.inverseProjectionMatrix.value.elements[9] -= m * 2, this.inverseProjectionMatrix.value.invert(), this.reprojectionMatrix.value.copy(o), this.reprojectionMatrix.value.elements[8] += u * 2, this.reprojectionMatrix.value.elements[9] -= m * 2, this.reprojectionMatrix.value.multiply(a), this.viewReprojectionMatrix.value.copy(this.reprojectionMatrix.value).multiply(this.inverseViewMatrix.value);
+     } else
+       this.temporalJitter.value.setScalar(0), this.mipLevelScale.value = 1, this.inverseProjectionMatrix.value.copy(e.projectionMatrixInverse), this.reprojectionMatrix.value.copy(o).multiply(a), this.viewReprojectionMatrix.value.copy(this.reprojectionMatrix.value).multiply(this.inverseViewMatrix.value);
+     et(e), this.cameraNear.value = e.near, this.cameraFar.value = e.far;
+@@ -2211,7 +2211,7 @@ class _s extends st {
+               const Xe = q.mul(ee).add(K).toConst(), ft = Ro(
+                 K.mul(o),
+                 Xe.mul(o),
+-                Ne.mul(o),
++                y(Ne.mul(o), ee.mul(o).sub(Ne.mul(o)).max(0)),
+                 r
+               ).toConst(), Wt = ft.get("luminance"), Ht = ft.get("transmittance");
+               Y.rgb.assign(
+@@ -2356,7 +2356,7 @@ class gt extends st {
+     this.needsClearHistory = !0;
+   }
+   clearHistory(e) {
+-    e.setRenderTarget(this.resolveRT), e.clear(), e.setRenderTarget(this.historyRT), e.clear(), this.needsClearHistory = !1;
++    e.setClearColor(0, 0), e.setRenderTarget(this.resolveRT), e.clear(), e.setRenderTarget(this.historyRT), e.clear(), e.setClearColor(0, 1), this.needsClearHistory = !1;
+   }
+   swapBuffers() {
+     const { resolveRT: e, historyRT: t } = this;
+@@ -2713,7 +2713,7 @@ class cn extends st {
+       referenceRadius: t.curvature?.referenceRadius,
+       preserveLocalScale: t.curvature?.preserveLocalScale,
+       positionTransform: a
+-    }), this.shadowNode.shadowMaps.maxFar = 1e5, this.marchNode = new _s({
++    }), t.shadows?.maxFar !== void 0 && (this.shadowNode.shadowMaps.maxFar = t.shadows.maxFar), this.marchNode = new _s({
+       depthNode: e ?? null,
+       parameterUniforms: this.parameterUniforms,
+       layerUniforms: this.layerUniforms,
+@@ -2891,7 +2891,7 @@ class cn extends st {
+     return this.resolveNode.getTextureNode(e);
+   }
+   getShadowLengthNode() {
+-    return At(this.getTextureNode("shadowLength"), Pe);
++    return y(At(this.getTextureNode("shadowLength"), Pe), 0);
+   }
+   // Returns the fraction of direct sunlight reaching a scene surface. This
+   // is the WebGPU counterpart of AtmosphereShadow consumed by the WebGL
+diff --git a/types/webgpu/CloudsNode.d.ts b/types/webgpu/CloudsNode.d.ts
+index c95e4b321433d1f33bee22e57505c30717ab5fe6..6531adde492ec597cc4e019f6e7cd687e679216c 100644
+--- a/types/webgpu/CloudsNode.d.ts
++++ b/types/webgpu/CloudsNode.d.ts
+@@ -99,7 +99,7 @@ export declare class CloudsNode extends TempNode {
+     loadDefaultTextures(options?: DefaultTextureLoadOptions): this;
+     loadDefaultTexturesAsync(): Promise<this>;
+     getTextureNode(name?: 'output' | 'shadowLength'): TextureNode;
+-    getShadowLengthNode(): Node<'float'>;
++    getShadowLengthNode(): Node<'vec2'>;
+     getSunTransmittanceNode(positionECEF: Node<'vec3'>, builder: NodeBuilder): Node<'float'>;
+     private updateShadowMapCamera;
+     /** Explicitly dispatch the cloud shadow pipeline for integrations that own frame ordering. */
+diff --git a/types/webgpu/options.d.ts b/types/webgpu/options.d.ts
+index f0b4776ad1cc5c82c99dd33403b9e8a66fe20dd1..3b5a26874ca96dde1608e6e295da79c80fdfd21e 100644
+--- a/types/webgpu/options.d.ts
++++ b/types/webgpu/options.d.ts
+@@ -27,6 +27,7 @@ export interface CloudShadowOptions {
+     enabled?: boolean;
+     autoUpdate?: boolean;
+     dispatchMode?: 'automatic' | 'explicit';
++    maxFar?: number | null;
+ }
+ export interface CloudQualityOptions {
+     preset?: QualityPreset;

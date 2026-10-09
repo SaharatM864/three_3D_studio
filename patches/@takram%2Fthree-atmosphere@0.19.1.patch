@@ -1,0 +1,13 @@
+diff --git a/build/webgpu.js b/build/webgpu.js
+index 1ce72679646fb617bb62b52dc7f62bf3aebc208a..cb282cc8651504ede6fe7fe421463370d09afaf2 100644
+--- a/build/webgpu.js
++++ b/build/webgpu.js
+@@ -1571,7 +1571,7 @@ const oi = /* @__PURE__ */ new nt(), ii = /* @__PURE__ */ new mo();
+ class Sn extends gs {
+   constructor(t = new Ie(), e = new ni(t)) {
+     super(t), this.matrixWorldToECEF = O("mat4").setName("matrixWorldToECEF"), this.matrixECIToECEF = O("mat4").setName("matrixECIToECEF"), this.sunDirectionECEF = O("vec3").setName("sunDirectionECEF"), this.moonDirectionECEF = O("vec3").setName("moonDirectionECEF"), this.matrixMoonFixedToECEF = O("mat4").setName("matrixMoonFixedToECEF"), this.scatteringSampleCount = O(new zt(4, 14)), this.matrixECEFToWorld = O("mat4").setName("matrixECEFToWorld").onRenderUpdate((s, { value: o }) => {
+-      o.copy(this.matrixWorldToECEF.value).transpose();
++      o.copy(this.matrixWorldToECEF.value).invert();
+     }), this.cameraPositionECEF = O("vec3").setName("cameraPositionECEF").onRenderUpdate((s, { value: o }) => {
+       const i = this.camera ?? s.camera;
+       i != null && o.setFromMatrixPosition(i.matrixWorld).applyMatrix4(this.matrixWorldToECEF.value);

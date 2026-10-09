@@ -1,9 +1,6 @@
 import { AgXToneMapping } from "three";
 
-import type { RenderBackendPreference } from "./backend/render-backend";
 import type { CloudsQualityPreset } from "./clouds/quality";
-
-export const RENDER_BACKEND: RenderBackendPreference = "auto";
 
 export type RenderQualityId = "high" | "performance";
 

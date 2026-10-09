@@ -17,20 +17,18 @@ const mediabunnyImports = [
 ];
 
 const webglPostprocessingMessage =
-  "WebGL post-processing belongs to the temporary WebGL backend; import it through src/scene/webgl/takram.ts, or add TSL nodes in src/scene/pipeline/ (see docs/architecture.md).";
-
-const webglPostprocessingImports = [
-  { name: "postprocessing", message: webglPostprocessingMessage },
-  { name: "@react-three/postprocessing", message: webglPostprocessingMessage },
-];
+  "WebGL post-processing does not work with WebGPU; add TSL nodes in src/scene/pipeline/ instead (see docs/architecture.md).";
 
 const webglCloudsMessage =
-  "@takram/three-clouds is WebGL only (GLSL + postprocessing); import it through src/scene/webgl/takram.ts, cloud config lives in src/presets/clouds.ts (see docs/architecture.md).";
+  "This clouds entry is WebGL only (GLSL + postprocessing); WebGPU clouds go through src/scene/clouds/three-clouds.ts (see docs/architecture.md).";
 
 const webglImports = [
-  ...webglPostprocessingImports,
+  { name: "postprocessing", message: webglPostprocessingMessage },
+  { name: "@react-three/postprocessing", message: webglPostprocessingMessage },
   { name: "@takram/three-clouds", message: webglCloudsMessage },
   { name: "@takram/three-clouds/r3f", message: webglCloudsMessage },
+  { name: "@yong_three/three-clouds", message: webglCloudsMessage },
+  { name: "@yong_three/three-clouds/r3f", message: webglCloudsMessage },
 ];
 
 // @takram/* is alpha and typed against an older @types/three; only the
@@ -38,7 +36,13 @@ const webglImports = [
 const takramImports = {
   group: ["@takram/**"],
   message:
-    'Import @takram/* through "src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts" or "src/scene/webgl/takram.ts" (see docs/architecture.md).',
+    'Import @takram/* through "src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts" or "src/scene/clouds/three-clouds.ts" (see docs/architecture.md).',
+};
+
+const cloudsForkImports = {
+  group: ["@yong_three/**"],
+  message:
+    'Import the WebGPU clouds through "src/scene/clouds/three-clouds.ts" (see docs/architecture.md).',
 };
 
 // model/, timeline/ and presets/ stay pure TypeScript so preview and export
@@ -56,7 +60,7 @@ const eslintConfig = defineConfig([
         "error",
         {
           paths: [...mediabunnyImports, ...webglImports],
-          patterns: [takramImports],
+          patterns: [takramImports, cloudsForkImports],
         },
       ],
     },
@@ -82,6 +86,7 @@ const eslintConfig = defineConfig([
                 "three/**",
                 "@react-three/**",
                 "@takram/**",
+                "@yong_three/**",
                 "@/app/**",
                 "@/audio/**",
                 "@/compositing/**",
@@ -114,6 +119,7 @@ const eslintConfig = defineConfig([
                 'Projects must not import other projects; use "./" inside your own project (see docs/project-authoring.md).',
             },
             takramImports,
+            cloudsForkImports,
           ],
         },
       ],
@@ -124,14 +130,20 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": [
         "error",
-        { paths: [...mediabunnyImports, ...webglImports] },
+        {
+          paths: [...mediabunnyImports, ...webglImports],
+          patterns: [cloudsForkImports],
+        },
       ],
     },
   },
   {
-    files: ["src/scene/webgl/takram.ts"],
+    files: ["src/scene/clouds/three-clouds.ts"],
     rules: {
-      "no-restricted-imports": ["error", { paths: mediabunnyImports }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [...mediabunnyImports, ...webglImports] },
+      ],
     },
   },
   {

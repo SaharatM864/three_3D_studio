@@ -7,8 +7,6 @@ import { PlaygroundScene } from "@/game/playground-scene";
 import type { PlaygroundModule } from "@/projects/define";
 import { projectLoaders } from "@/projects/loaders";
 import type { ProjectId } from "@/projects/manifest";
-import { RENDER_BACKEND_LABELS } from "@/scene/backend/render-backend";
-import { useSelectedRenderBackend } from "@/scene/backend/select-backend";
 import { SceneCanvas } from "@/scene/canvas/scene-canvas";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
@@ -51,18 +49,16 @@ function readShowStats(): boolean {
 }
 
 function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
-  const backend = useSelectedRenderBackend(module.scene.environment);
   const renderQuality = usePlaygroundStore((s) => s.renderQuality);
   const [showStats] = useState(readShowStats);
 
   return (
     <KeyboardControls map={controlsMap}>
       <SceneCanvas
-        backend={backend}
         quality={renderQuality}
         fallback={
           <ErrorScreen
-            title={`เบราว์เซอร์นี้ไม่รองรับ ${RENDER_BACKEND_LABELS[backend]}`}
+            title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"
             error="เปิดหน้านี้ด้วย Chrome หรือ Edge เวอร์ชันล่าสุดบน desktop"
             className="h-full"
           />

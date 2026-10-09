@@ -10,14 +10,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ClipModule } from "@/projects/define";
-import { RENDER_BACKEND_LABELS } from "@/scene/backend/render-backend";
-import { useSelectedRenderBackend } from "@/scene/backend/select-backend";
 import { ClipCanvas } from "@/scene/clip-canvas";
 import { SceneRoot } from "@/scene/scene-root";
 
 export function Viewport({ clip }: { clip: ClipModule }) {
   const { width, height } = clip.spec.video;
-  const backend = useSelectedRenderBackend(clip.spec.environment);
 
   return (
     <div className="relative min-h-0 min-w-0 bg-muted/20 p-6">
@@ -31,11 +28,10 @@ export function Viewport({ clip }: { clip: ClipModule }) {
         >
           <ClipCanvas
             video={clip.spec.video}
-            backend={backend}
             className="size-full"
             fallback={
               <ErrorScreen
-                title={`เบราว์เซอร์นี้ไม่รองรับ ${RENDER_BACKEND_LABELS[backend]}`}
+                title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"
                 error="เปิดหน้านี้ด้วย Chrome หรือ Edge เวอร์ชันล่าสุดบน desktop"
                 className="relative z-10 h-full bg-black"
               />

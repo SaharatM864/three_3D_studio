@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from "react";
 
-import { RenderBackendUnavailableError } from "../backend/render-backend";
+import { WebGPUUnavailableError } from "./webgpu-support";
 
 interface CanvasErrorBoundaryProps {
   fallback?: ReactNode;
@@ -24,7 +24,7 @@ export class CanvasErrorBoundary extends Component<
   render() {
     const { error } = this.state;
     if (error === null) return this.props.children;
-    if (error instanceof RenderBackendUnavailableError) {
+    if (error instanceof WebGPUUnavailableError) {
       return this.props.fallback;
     }
     throw error;

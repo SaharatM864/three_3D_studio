@@ -10,6 +10,7 @@ import {
 } from "three/tsl";
 import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
 
+import { createClouds, type CloudsHandle } from "../clouds/create-clouds";
 import { TONE_MAPPING } from "../render-config";
 import type { Disposable } from "../use-disposable";
 import {
@@ -19,7 +20,13 @@ import {
   temporalAntialias,
 } from "./takram";
 
+export interface ScenePipelineOptions {
+  clouds: boolean;
+}
+
 export interface ScenePipelineHandle extends Disposable {
+  readonly ready: Promise<void>;
+  readonly clouds: CloudsHandle | null;
   render(): void;
   setExposure(exposure: number): void;
 }
@@ -27,14 +34,18 @@ export interface ScenePipelineHandle extends Disposable {
 export function createScenePipeline(
   renderer: WebGPURenderer,
   scene: Scene,
-  camera: Camera
+  camera: Camera,
+  options: ScenePipelineOptions
 ): ScenePipelineHandle {
   const exposureNode = uniform(1);
   const passNode = pass(scene, camera, { samples: 0 }).setMRT(
     mrt({ output, velocity: highpVelocity })
   );
-  // TODO(M6): aerialPerspective + clouds (src/scene/clouds) between the scene pass and lensFlare; see docs/architecture.md "Clouds".
-  const lensFlareNode = lensFlare(passNode.getTextureNode("output"));
+  const colorNode = passNode.getTextureNode("output");
+  const clouds = options.clouds
+    ? createClouds(passNode.getTextureNode("depth"))
+    : null;
+  const lensFlareNode = lensFlare(clouds?.composite(colorNode) ?? colorNode);
   const toneMappedNode = convertToTexture(
     toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)
   );
@@ -50,9 +61,21 @@ export function createScenePipeline(
   );
   pipeline.outputColorTransform = false;
 
+  const ready = clouds?.ready ?? Promise.resolve();
+  let isReady = clouds === null;
+  void ready.then(
+    () => {
+      isReady = true;
+    },
+    () => {}
+  );
+
   return {
+    ready,
+    clouds,
+
     render() {
-      pipeline.render();
+      if (isReady) pipeline.render();
     },
 
     setExposure(exposure) {
@@ -66,6 +89,7 @@ export function createScenePipeline(
       toneMappedNode.dispose();
       lensFlareNode.featuresNode.renderTarget?.dispose();
       lensFlareNode.dispose();
+      clouds?.dispose();
       passNode.dispose();
     },
   };

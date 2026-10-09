@@ -114,8 +114,7 @@ export default definePlayground(
   - Override any field: `location: { latitude, longitude, height }` (degrees, meters; default Bangkok), `dateTime` (ISO-8601 with an explicit offset, e.g. `"2026-03-21T09:00:00+07:00"`) and `exposure` (about 3–10).
   - The scene is a local frame placed at `location`: +X points north, +Y up, +Z east. The sun position follows `dateTime`, so change the time to move the sun.
   - `clouds` (optional) adds volumetric clouds; `clouds: {}` uses the defaults (coverage 0.3, three layers). Example: `showroom`.
-    - Clouds render only on the temporary WebGL backend for now, so a scene with `clouds` switches to WebGL automatically (`?renderer=webgpu` forces WebGPU without clouds). Scenes without clouds stay on WebGPU.
-    - On WebGL there is no TAA or lens flare, distant objects get aerial perspective, and metals look flatter (sky light is diffuse only). Don't tune materials against the WebGL look.
+    - Clouds render on WebGPU in the same pipeline as everything else. Light shafts and cloud shadows on objects aren't rendered yet, and the first load of a cloudy scene can take a while because the cloud shader compiles.
     - `coverage` is 0–1. `layers` (at most 4) replaces the default set: `{ channel: "r" | "g" | "b" | "a", altitude, height, densityScale?, shadow?, … }`.
     - `altitude` and `height` are meters above the WGS84 ellipsoid, not above the scene ground at `location.height`.
     - `localWeather.velocity`, `shape.velocity` and `shapeDetail.velocity` are texture offsets per second, not wind speed (e.g. `localWeather: { velocity: [0.001, 0] }`).
