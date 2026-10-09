@@ -55,6 +55,8 @@ export const RENDER_PRIORITY = 1;
 
 export const TONE_MAPPING = NeutralToneMapping;
 
+export const ATMOSPHERE_RAYMARCH_SCATTERING = false;
+
 export const SUN_SHADOW = {
   distance: 30,
   extent: 20,

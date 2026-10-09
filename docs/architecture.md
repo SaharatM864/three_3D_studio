@@ -142,19 +142,23 @@ features (playground-app / viewport)
   - อาร์กิวเมนต์ที่ 3 คือ normal ต้องเป็น `null` เสมอ ถ้าใส่ค่าจะเปิด post-process lighting ซึ่งซ้ำกับ `AtmosphereLight` (WEBGPU.md บน `main` ตัด normal ออกแล้ว ตอนอัปเกรดต้องแก้ signature)
   - วาดท้องฟ้า ดวงอาทิตย์ ดวงจันทร์ และดาวเองที่ pixel ที่ depth = far จึงไม่ตั้ง `scene.backgroundNode`
   - output ถูกบังคับ alpha = 1 เพราะ alpha มาจาก clear color ของ scene pass
-  - ใช้ `raymarchScattering` (ค่าเริ่มต้น) ซึ่งโหลด `stbn.bin` จาก media.githubusercontent.com ตอน runtime ต้องตรวจ license ตาม issue #117 และใน `@takram/three-geospatial` 0.9.1 ตั้ง `stbnTexture.url` เพื่อ self-host ไม่ได้ เพราะ `STBNTextureNode.clone()` ไม่ copy `url`
+  - ปิด `raymarchScattering` (ค่าเริ่มต้นของ takram WebGPU เป็น `true`) ด้วย `ATMOSPHERE_RAYMARCH_SCATTERING` ใน `render-config.ts` ให้ใช้ LUT lookup แบบ `AerialPerspectiveEffect` ของ WebGL
+    - raymarch เดิน 4–14 step ต่อ pixel และอ่าน LUT ทุก step ที่ full-res บนทุก pixel ที่เป็นพื้นผิว (รวมทะเล) ส่วน lookup อ่าน 4D scattering LUT ไม่กี่ครั้ง ค่านี้ยังมีผลกับ aerial perspective หน้าเมฆใน march ด้วย
+    - lookup ยกกล้องและจุดขึ้นเหนือพื้นราว 600 ม. (`safeBottomRadius`) แล้ว extrapolate ถ้าเห็น artifact ที่ขอบฟ้าหรือผิวทะเลไกลให้กลับเป็น `true`
+    - ตั้งได้ครั้งเดียวต่อ canvas ไม่แยกตาม tier เพราะ node ที่ compile แล้วจับ `AtmosphereContext` ไว้
+    - raymarch ใช้ `stbn.bin` จาก media.githubusercontent.com เมื่อเปิด จึงต้องตรวจ license ตาม issue #117 และใน `@takram/three-geospatial` 0.9.1 ตั้ง `stbnTexture.url` เพื่อ self-host ไม่ได้ เพราะ `STBNTextureNode.clone()` ไม่ copy `url` (เมฆยังโหลด STBN เองเสมอ)
 - **กลางคืน** (`atmosphere/night.ts`): กลางคืนคือดวงอาทิตย์ต่ำกว่า −1°
   - ดาว: `createAerialPerspective` แทน `skyNode.starsNode` ด้วย `StarsNode("/assets/atmosphere/stars.bin")` ก่อน build (default ของ 0.19.1 เปิดดาวและโหลดจาก GitHub) และ dispose `starsNode` เอง เพราะ `SkyNode` ไม่ dispose ให้
   - `showStars` ฝังใน shader เปลี่ยนแล้ว `setNightSky` คืน `true` ให้ pipeline ตั้ง `needsUpdate` ส่วน `starsNode.intensity` เป็น uniform ไล่จาก 0 ที่ −1° ถึง 1000 ที่ −12°
   - `CelestialLight` ใช้ `AtmosphereLight` ตัวเดียว (shadow map เดียว) สลับ `body` เป็น `'moon'` และเปิด `indirect` ตอนกลางคืน
   - takram คูณ `light.intensity` สองครั้งใน direct light (สีของ `AnalyticLightNode` และ uniform ของ `AtmosphereLightNode`) `setLinearIntensity` จึงตั้ง `intensity = G` และ `color = 1/G`
   - แสงจันทร์ของ takram เท่ากับ 2.5e-6 เท่าของดวงอาทิตย์ซึ่งมืดเกินช่วงของ fp16 จึงคูณ gain (`MOON_LIGHT_GAIN` × สัดส่วนสว่างของดวงจันทร์) และใช้ exposure กลางคืน ค่าเหล่านี้จูนด้วยตา
-  - ไม่เปิด `moonScattering` (ค่าเริ่มต้นของ takram เป็น `false`) เพราะผลแทบมองไม่เห็นจากค่า 2.5e-6 ที่ hard-code ในไลบรารี แต่ทำให้ raymarch ของ aerial perspective และ lookup ของท้องฟ้าหนักขึ้นสองเท่า
+  - ไม่เปิด `moonScattering` (ค่าเริ่มต้นของ takram เป็น `false`) เพราะผลแทบมองไม่เห็นจากค่า 2.5e-6 ที่ hard-code ในไลบรารี แต่ทำให้ aerial perspective และ lookup ของท้องฟ้าหนักขึ้นสองเท่า
   - เมฆยังได้แสงจากดวงอาทิตย์อย่างเดียว ตอนกลางคืนจึงเป็นสีดำ
 - **เงาเมฆบนวัตถุ** (experimental): `registerAtmosphere` ลงทะเบียน `ShadowedAtmosphereLightNode` (`atmosphere/shadowed-light-node.ts`) แทน `AtmosphereLightNode`
   - คูณ direct light ของดวงอาทิตย์ด้วย `sunTransmittance` ของเมฆ (`getSunTransmittanceNode` ของ fork) ส่วนดวงจันทร์ไม่คูณ
   - `ScenePipeline` ส่ง `CloudsHandle` ให้ `AtmosphereHandle.setSunTransmittance` ซึ่งสร้าง `renderer.contextNode` ใหม่ (key `getSunTransmittance`) เพื่อ rebuild material ทุกตัว เพราะ light node ถูก cache ต่อ light ตลอดอายุ
-  - shadow map ของเมฆ update หลัง scene pass จึงช้าหนึ่งเฟรม (เห็นตอนตัดกล้อง) และหลัง compile material จะมี noise สั้น ๆ เพราะ setup ของ `CloudShadowNode` ล้าง history
+  - shadow map ของเมฆ update หลัง scene pass จึงช้าหนึ่งเฟรม (เห็นตอนตัดกล้อง) ส่วน history ถูกล้างเฉพาะเมื่อ flag ของ kernel หรือขนาด shadow map เปลี่ยน ไม่ล้างตอน compile material แล้ว (patch ข้อ 9 ใน "Clouds")
   - texel ของ cascade 0 ราว 50 ม. (preset high) เงาบนฉากเล็กจึงเป็นการหรี่แสงแบบนุ่ม
 - **ยังไม่ได้ทำ**:
   - light shafts จากเงาวัตถุ (`shadowLength(csm, viewZUnit)`) ใช้ร่วมกับ shafts ของเมฆไม่ได้ เพราะ shadow length รับได้ช่วงเดียว
@@ -228,8 +232,16 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
     5. Bayer projection jitter กลับเครื่องหมาย y ให้ตรงกับ `screenUV` แบบ top-left
     6. resolve history ล้างเป็น alpha 0 (เดิม 1 ทำให้จอดำแวบหลัง reset)
     7. `FrustumCorners` ใช้ near z = 1 และ far z = 0 เมื่อ `camera.reversedDepth` (ของเราเอง ยังไม่มีใน fork ถ้าไม่แก้ cascade เงาเมฆจะกลับด้านและไม่มีเงาใกล้กล้อง)
+    8. irradiance cache ของ march (`createSunSkyIrradianceCache`, ใน build คือ `ga`) ถูก `.toConst()` ที่ต้น `Fn` ของ march (ของเราเอง)
+       - WebGL คำนวณค่านี้ใน `clouds.vert` แต่ fork สร้าง node ไว้นอก `Fn` TSL จึง emit ตรงที่ใช้ครั้งแรก (`addFlowCodeHierarchy`) ซึ่งอยู่ใน `Loop` ของ march
+       - ผลคือ `getSplitScalarIlluminance` 2 ครั้งถูกคำนวณทุก sample ในโหมด `accurateSunSkyLight: false` (low/medium) ซึ่งควรเป็นโหมดที่อ่าน texel น้อยกว่า
+       - hoist `cloudsIrradiance` เฉพาะเมื่อ `accurateSunSkyLight` ปิด และ hoist `groundIrradiance` เมื่อมี haze หรือ `accurateSunSkyLight` ปิด ถ้า `Fn` ถูก build ซ้ำด้วย object เดิมจะ `toStack()` VarNode ตัวเดิมแทนการห่อซ้ำ
+    9. `CloudShadowNode.setup` ทิ้ง compute kernel และ cache key เฉพาะเมื่อ `AtmosphereContext` เปลี่ยน (ของเราเอง)
+       - เดิมทิ้งทุกครั้งที่ material ที่อ่านเงาเมฆ build ซึ่งคือ lit material ทุกตัว (`ShadowedAtmosphereLightNode`) ทำให้ kernel compile ใหม่และ history ของ BSM ถูกล้าง
+       - flag ที่ฝังใน kernel ยังถูกตรวจด้วย `customCacheKey()` ใน `update()` ส่วน texture ผูกผ่าน TextureNode ที่เปลี่ยน `.value` จึงไม่ต้อง build kernel ใหม่
     - แก้เฉพาะ `build/webgpu.js`, `build/shared.js` (minified) และ `types/webgpu/*.d.ts` ไม่แก้ `.cjs`
     - `bun patch --commit` ใส่ไฟล์ `.bun-tag-*` เข้า patch ด้วย ให้ลบ hunk นั้นออกก่อน commit
+    - ข้อ 8 และ 9 สร้าง hunk ด้วย `git diff --no-index` เทียบ `build/webgpu.js` ต้นฉบับใน cache ของ bun กับไฟล์ที่แก้ แล้วตรวจด้วย `git apply --check`
   - `@takram/three-atmosphere@0.19.1`: `matrixECEFToWorld` ใช้ `invert()` แทน `transpose()` ตาม upstream commit `127792e87f` ที่ยังไม่ release
     - world frame แบบ North-Up-East มี translation และเมฆใช้ matrix นี้กับจุด (reprojection และ cloud shadow) ส่วนโค้ดของ atmosphere เองใช้กับทิศทาง (w = 0) จึงได้ผลเท่าเดิม
   - เมื่ออัปเกรดแพ็กเกจใดให้ตรวจว่า upstream แก้แล้วหรือยัง ถ้าแก้แล้วให้ลบไฟล์ patch และ entry ใน `patchedDependencies` ถ้ายังให้ทำ patch ใหม่ (`bun patch <pkg>` → แก้ไฟล์ใน `node_modules` → `bun patch --commit <path>`)
@@ -316,7 +328,7 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
 
 ### Performance
 
-ต้นทุนหลักอยู่ที่จำนวน pixel ไม่ใช่ draw call: pipeline มี pass เต็มจอราว 10 ชุด (scene MRT, aerial perspective raymarch, cloud resolve, RTT ของ lens flare, tone mapping, TAA + depth copy) ซึ่งโตตาม dpr² ส่วนฉากตอนนี้มีไม่เกิน 13 mesh
+ต้นทุนหลักอยู่ที่จำนวน pixel ไม่ใช่ draw call: pipeline มี pass เต็มจอราว 10 ชุด (scene MRT, aerial perspective, cloud resolve, RTT ของ lens flare, tone mapping, TAA + depth copy) ซึ่งโตตาม dpr² ส่วนฉากตอนนี้มีไม่เกิน 13 mesh
 
 - **Quality profile** (`RenderQuality` ใน `render-config.ts`) เป็นที่เดียวที่กำหนดค่าตามคุณภาพ ค่าที่ขึ้นกับคุณภาพอันใหม่ให้เพิ่มเป็น field ที่นี่ ห้ามกระจายไว้ใน component
 
@@ -344,7 +356,7 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - ไม่เปิด `moonScattering` (ดู "กลางคืน")
   - `PlaygroundScene` memo environment แยกจาก lights การสลับ lighting preset จึงไม่ reset ชั้นเมฆ
   - เมฆที่ไม่มี velocity ตั้ง offset ครั้งเดียวตอน `setClouds` ไม่คำนวณทุกเฟรม
-  - material ของ primitive สร้างครั้งเดียวต่อ `spec.material` แล้วอัปเดตค่าด้วย `applyMaterialValues` (`setValues` และตั้ง `needsUpdate` เฉพาะเมื่อ `transparent` เปลี่ยน) เพราะการ build material ใหม่ต้อง compile shader และ `CloudShadowNode.setup` ล้าง history ของ BSM
+  - material ของ primitive สร้างครั้งเดียวต่อ `spec.material` แล้วอัปเดตค่าด้วย `applyMaterialValues` (`setValues` และตั้ง `needsUpdate` เฉพาะเมื่อ `transparent` เปลี่ยน) เพราะการ build material ใหม่ต้อง compile shader
 - **วัดผล**: เติม `?inspector` ใน URL ของหน้าที่มี canvas (playground และ Studio) เพื่อเปิด Inspector ของ three (GPU ms ทีละ pass และ compute, draw calls, memory) วัดใน production build
   - `RendererInspector` (`canvas/renderer-inspector.tsx`) dynamic import Inspector เฉพาะเมื่อมี flag แล้วเรียก `installConsoleFilter()` (`canvas/three-console.ts`) ซ้ำ เพราะ `Inspector.setRenderer` ตั้ง console function ทับ
   - ฉากอ้างอิง: showroom เต็มจอ กรณี day/`high`, day/`performance` และ preset night
@@ -356,7 +368,9 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - อะไรที่ทำให้ภาพเปลี่ยนนอก React props และกล้อง เช่น physics ของ G1 หรือ animation ใน `useFrame` ของ playground ต้องเรียก `useRenderActivity().wake()` ทุกเฟรมที่เปลี่ยน
   - M4: self-host decoder ของ Draco, meshopt และ KTX2 (ค่าเริ่มต้นของ drei ชี้ CDN), texture ใหญ่ใช้ KTX2 พร้อม mipmap, geometry ซ้ำหลายชิ้นใช้ `InstancedMesh` (ใช้กับ `highpVelocity` ได้) และตั้ง `castShadow` เฉพาะวัตถุที่เงามีผลต่อภาพ
 - **ยังไม่ทำ** (รอผลวัดจาก `?inspector`):
-  - วัด GPU ms ของ compute ของทะเล, scene pass ที่มีทะเล และ aerial perspective (pixel ทะเลเป็น surface จึงเข้า raymarch แทน sky lookup) ทั้ง `high` และ `performance` แล้วลงตาราง
+  - วัด GPU ms ของ compute ของทะเล, scene pass ที่มีทะเล, aerial perspective, cloud march, cloud resolve, BSM compute, lens flare (รวม glare ซึ่งมีเฉพาะ WebGPU) และ TAA ทั้ง `high` และ `performance` โดยเปิดและปิดทะเล แล้วลงตาราง (ก่อนและหลัง patch ข้อ 8–9 กับ lookup ของ aerial perspective)
+  - เมฆ `high` ช้ากว่า WebGL ที่ light shafts: BSM ของ fork เป็น `Storage3DTexture` (อ่านแบบ 3D linear 8 texel) ส่วน WebGL เป็น 2D array และ shadow-length march อ่าน BSM ได้ถึงราว 300+ ครั้งต่อ pixel ของ march ถ้าตัวเลขยืนยัน ให้ลดตามข้อถัดไปหรือ patch ให้ BSM เป็น `StorageArrayTexture`
+  - tier `performance` ใช้เมฆ `medium` ถ้ายังไม่ลื่นให้ลองเป็น `low`
   - ทะเล: `getSplitIlluminance` สองครั้งใน `sky-light.ts` และ `cameraWaterHeight` (4 texture sample) ให้ค่าเดียวกันทั้งเฟรมแต่คำนวณต่อ pixel ถ้าตัวเลขชี้ว่า scene pass ของทะเลหนัก ให้ย้ายไป compute ครั้งเดียวต่อเฟรม และ gate branch ใต้น้ำ (`underwater.ts` ซึ่งใช้ `mix` จึงคำนวณทุก pixel) ด้วย `If` ตาม flag ฝั่ง CPU
   - light shafts ของเมฆ `high`: shadow-length march สูงสุด 500 ครั้งต่อ pixel ของ march (`maxShadowLengthIterationCount`) ลองลดจำนวนครั้งหรือเพิ่ม `minShadowLengthStepSize` ห้ามตัด `maxShadowLengthRayDistance` (ดู "คุณภาพ" ของ Clouds)
   - ปิด lens flare ใน tier `performance`

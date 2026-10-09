@@ -24,10 +24,20 @@ index 8b13084acb1c4f957ea94452659e2946cb68a0b7..a4b7e4f2ef36633c6030a2a4e37d2795
        const n = this.far[i];
        n.applyMatrix4(a);
 diff --git a/build/webgpu.js b/build/webgpu.js
-index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c8539c5a66c7 100644
+index 5a21202f84d240cb8096d54a93014bac202232b5..dbc41fe94fb80115462461b91b43835ab73d5341 100644
 --- a/build/webgpu.js
 +++ b/build/webgpu.js
-@@ -1976,7 +1976,7 @@ class _s extends st {
+@@ -1408,7 +1408,8 @@ class ks extends st {
+     }
+   }
+   setup(e) {
+-    return this.atmosphereContext = Mt(e), this.disposeComputeNodes(), this.computeCacheKey = void 0, super.setup(e);
++    const t = Mt(e);
++    return t !== this.atmosphereContext && (this.atmosphereContext = t, this.disposeComputeNodes(), this.computeCacheKey = void 0), super.setup(e);
+   }
+   dispose() {
+     this.disposeComputeNodes(), this.clearComputeNode?.dispose(), this.clearComputeNode = void 0, this.currentTexture.dispose(), this.depthVelocityTexture.dispose(), this.resolveTextureA.dispose(), this.resolveTextureB.dispose(), super.dispose();
+@@ -1976,7 +1977,7 @@ class _s extends st {
      const o = this.previousProjectionMatrix ?? e.projectionMatrix, a = this.previousViewMatrix ?? e.matrixWorldInverse;
      if (this.temporalUpscale) {
        const i = this.frame.value % 16, { resolution: l } = this, h = Co[i], u = (h.x - 0.5) / l.value.x * 4, m = (h.y - 0.5) / l.value.y * 4;
@@ -36,7 +46,16 @@ index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c853
      } else
        this.temporalJitter.value.setScalar(0), this.mipLevelScale.value = 1, this.inverseProjectionMatrix.value.copy(e.projectionMatrixInverse), this.reprojectionMatrix.value.copy(o).multiply(a), this.viewReprojectionMatrix.value.copy(this.reprojectionMatrix.value).multiply(this.inverseViewMatrix.value);
      et(e), this.cameraNear.value = e.near, this.cameraFar.value = e.far;
-@@ -2211,7 +2211,7 @@ class _s extends st {
+@@ -2101,6 +2102,8 @@ class _s extends st {
+       minShadowLengthStepSize: this.minShadowLengthStepSize,
+       sampleShadowOpticalDepth: M
+     }) : null, X = Je(() => {
++      for (const [Hc, Kc] of [[V, this.haze || !this.accurateSunSkyLight ? ["sun", "sky"] : []], [j, this.accurateSunSkyLight ? [] : ["minSun", "minSky", "maxSun", "maxSky"]]])
++        for (const Bc of Kc) Hc[Bc] = Hc[Bc].isVarNode === !0 ? Hc[Bc].toStack() : Hc[Bc].toConst();
+       const K = D.add(l).toConst(), q = w.normalize().toConst(), ie = _(r, q).toConst(), ce = _o(
+         K,
+         q,
+@@ -2211,7 +2214,7 @@ class _s extends st {
                const Xe = q.mul(ee).add(K).toConst(), ft = Ro(
                  K.mul(o),
                  Xe.mul(o),
@@ -45,7 +64,7 @@ index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c853
                  r
                ).toConst(), Wt = ft.get("luminance"), Ht = ft.get("transmittance");
                Y.rgb.assign(
-@@ -2356,7 +2356,7 @@ class gt extends st {
+@@ -2356,7 +2359,7 @@ class gt extends st {
      this.needsClearHistory = !0;
    }
    clearHistory(e) {
@@ -54,7 +73,7 @@ index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c853
    }
    swapBuffers() {
      const { resolveRT: e, historyRT: t } = this;
-@@ -2713,7 +2713,7 @@ class cn extends st {
+@@ -2713,7 +2716,7 @@ class cn extends st {
        referenceRadius: t.curvature?.referenceRadius,
        preserveLocalScale: t.curvature?.preserveLocalScale,
        positionTransform: a
@@ -63,7 +82,7 @@ index 5a21202f84d240cb8096d54a93014bac202232b5..5d3129c2ba932c4fbae9477a58f0c853
        depthNode: e ?? null,
        parameterUniforms: this.parameterUniforms,
        layerUniforms: this.layerUniforms,
-@@ -2891,7 +2891,7 @@ class cn extends st {
+@@ -2891,7 +2894,7 @@ class cn extends st {
      return this.resolveNode.getTextureNode(e);
    }
    getShadowLengthNode() {

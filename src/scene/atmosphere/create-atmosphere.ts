@@ -2,6 +2,7 @@ import type { Camera } from "three";
 import { context } from "three/tsl";
 import type { WebGPURenderer } from "three/webgpu";
 
+import { ATMOSPHERE_RAYMARCH_SCATTERING } from "../render-config";
 import type { Disposable } from "../use-disposable";
 import type { CelestialFrame } from "./geo-frame";
 import {
@@ -30,6 +31,7 @@ export function registerAtmosphere(renderer: WebGPURenderer): void {
 
 export function createAtmosphere(): AtmosphereHandle {
   const atmosphere = new AtmosphereContext();
+  atmosphere.raymarchScattering = ATMOSPHERE_RAYMARCH_SCATTERING;
   let sunTransmittance: SunTransmittanceSource | null = null;
   let provided: ProvidedContext | null = null;
 
