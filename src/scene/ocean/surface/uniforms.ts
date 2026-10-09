@@ -4,6 +4,8 @@ import type { UniformNode } from "three/webgpu";
 
 import type { ResolvedOcean } from "@/presets/ocean";
 
+import { resolveWaterOptics } from "../underwater/optics";
+
 const LUMINANCE_GAIN_PER_EXPOSURE = 1 / 1.2;
 
 type FloatUniform = UniformNode<"float", number>;
@@ -27,9 +29,9 @@ export interface SurfaceUniforms {
   underwaterActive: FloatUniform;
   cameraPosition: Vec3Uniform;
   extinction: Vec3Uniform;
-  backscatter: Vec3Uniform;
   downwelling: Vec3Uniform;
-  tint: Vec3Uniform;
+  albedo: Vec3Uniform;
+  whiteBalance: FloatUniform;
   caustics: FloatUniform;
 }
 
@@ -52,9 +54,9 @@ export function createSurfaceUniforms(): SurfaceUniforms {
     underwaterActive: uniform(0),
     cameraPosition: uniform(new Vector3()),
     extinction: uniform(new Vector3()),
-    backscatter: uniform(new Vector3()),
     downwelling: uniform(new Vector3()),
-    tint: uniform(new Vector3(1, 1, 1)),
+    albedo: uniform(new Vector3()),
+    whiteBalance: uniform(0),
     caustics: uniform(1),
   };
 }
@@ -72,10 +74,11 @@ export function applySurfaceOcean(
   uniforms.foamRelief.value = ocean.foam.relief;
   uniforms.foamMilk.value = ocean.foam.milk;
   const { underwater } = ocean;
-  uniforms.extinction.value.fromArray(underwater.extinction);
-  uniforms.backscatter.value.fromArray(underwater.backscatter);
-  uniforms.downwelling.value.fromArray(underwater.downwelling);
-  uniforms.tint.value.fromArray(underwater.tint);
+  const optics = resolveWaterOptics(underwater);
+  uniforms.extinction.value.fromArray(optics.extinction);
+  uniforms.downwelling.value.fromArray(optics.downwelling);
+  uniforms.albedo.value.fromArray(optics.albedo);
+  uniforms.whiteBalance.value = underwater.whiteBalance;
   uniforms.caustics.value = underwater.caustics;
 }
 

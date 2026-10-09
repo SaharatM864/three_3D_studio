@@ -143,7 +143,6 @@ export function createSurfaceMaterial({
       view,
       viewDistance,
       waterHeight,
-      sea,
       uniforms,
       light,
     }).mul(light.outputScale);

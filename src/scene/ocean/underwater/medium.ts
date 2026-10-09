@@ -1,5 +1,6 @@
 import type { Camera } from "three";
 import {
+  clamp,
   dot,
   exp2,
   float,
@@ -7,31 +8,33 @@ import {
   getViewPosition,
   If,
   length,
+  log,
+  log2,
   max,
+  min,
   mix,
   normalize,
   reference,
   saturate,
   select,
-  smoothstep,
   uv,
   vec3,
   vec4,
 } from "three/tsl";
 import type { Node, TextureNode } from "three/webgpu";
 
-import { createSkyLight } from "../surface/sky-light";
+import { createSkyLight, luminance } from "../surface/sky-light";
 import type { SurfaceUniforms } from "../surface/uniforms";
 import { expVec3 } from "../surface/vector-math";
-import { seaColors } from "../surface/water-body";
 import {
   EXPOSURE_RAMP,
   LENS_DISTANCE,
   LENS_SOFTNESS,
   SKY_DISTANCE,
-  UNDERWATER_EV_DEEP,
-  UNDERWATER_EV_DEPTH,
-  UNDERWATER_EV_SURFACE,
+  UNDERWATER_EV_ADAPT,
+  UNDERWATER_EV_BASE,
+  UNDERWATER_EV_MAX,
+  WB_GAIN_MAX,
 } from "./constants";
 import type { WaterProbe } from "./probe";
 import { createWaterLighting } from "./radiance";
@@ -88,22 +91,34 @@ export function createUnderwaterMedium(
           const submerged = saturate(
             waterline.sub(lens.y).div(LENS_SOFTNESS).add(0.5)
           );
-          const exposure = mix(
-            float(UNDERWATER_EV_SURFACE),
-            float(UNDERWATER_EV_DEEP),
-            smoothstep(0, UNDERWATER_EV_DEPTH, cameraDepth)
-          ).mul(
-            saturate(probe.height.sub(origin.y).div(EXPOSURE_RAMP).add(0.5))
-          );
 
           const light = createSkyLight(builder, uniforms.luminanceGain);
           const water = createWaterLighting({
             light,
-            sea: seaColors(uniforms.palette),
-            tint: uniforms.tint,
+            albedo: uniforms.albedo,
             downwelling: uniforms.downwelling,
             cameraDepth,
           });
+          const illuminance = max(
+            luminance(water.depthTransmittance),
+            float(1e-6)
+          ).toVar();
+          const whiteBalance = clamp(
+            expVec3(
+              uniforms.downwelling
+                .mul(cameraDepth)
+                .add(log(illuminance))
+                .mul(uniforms.whiteBalance)
+            ),
+            vec3(1 / WB_GAIN_MAX),
+            vec3(WB_GAIN_MAX)
+          );
+          const exposure = min(
+            log2(illuminance).mul(-UNDERWATER_EV_ADAPT).add(UNDERWATER_EV_BASE),
+            float(UNDERWATER_EV_MAX)
+          ).mul(
+            saturate(probe.height.sub(origin.y).div(EXPOSURE_RAMP).add(0.5))
+          );
           const lit = scene.rgb.mul(
             expVec3(
               uniforms.downwelling
@@ -111,18 +126,17 @@ export function createUnderwaterMedium(
                 .negate()
             )
           );
-          const direct = lit.mul(
-            expVec3(uniforms.extinction.mul(distance).negate())
-          );
+          const transmittance = expVec3(
+            uniforms.extinction.mul(distance).negate()
+          ).toVar();
+          const direct = lit.mul(transmittance);
           const scattered = water
             .radiance(direction)
             .mul(light.outputScale)
-            .mul(
-              vec3(1).sub(expVec3(uniforms.backscatter.mul(distance).negate()))
-            );
-          const color = mix(above.rgb, direct.add(scattered), submerged).mul(
-            exp2(exposure)
-          );
+            .mul(vec3(1).sub(transmittance));
+          const color = mix(above.rgb, direct.add(scattered), submerged)
+            .mul(whiteBalance)
+            .mul(exp2(exposure));
           result.assign(vec4(color, 1));
         });
 

@@ -41,13 +41,10 @@ export interface UnderwaterPreset {
 
 export const OCEAN_COLORS: readonly OceanColor[] = ["open-ocean", "tropical"];
 
-const POSEIDON_EXTINCTION = [0.4497, 0.1769, 0.2825] as const;
-
 export const DEFAULT_UNDERWATER: OceanUnderwater = {
-  extinction: POSEIDON_EXTINCTION,
-  backscatter: POSEIDON_EXTINCTION,
-  downwelling: POSEIDON_EXTINCTION,
-  tint: [1, 1, 1],
+  absorption: [0.2, 0.06, 0.025],
+  scattering: [0.055, 0.06, 0.073],
+  whiteBalance: 0.5,
   caustics: 1,
 };
 
@@ -103,32 +100,26 @@ export const underwaterPresets = {
     underwater: {},
   },
   clear: {
-    label: "Clear",
+    label: "Clear tropical",
     underwater: {
-      extinction: [0.25, 0.07, 0.035],
-      backscatter: [0.25, 0.07, 0.035],
-      downwelling: [0.25, 0.07, 0.035],
-      tint: [0.85, 1, 1.15],
+      absorption: [0.195, 0.052, 0.015],
+      scattering: [0.025, 0.03, 0.037],
       caustics: 1.2,
     },
   },
   coastal: {
-    label: "Coastal",
+    label: "Coastal (green)",
     underwater: {
-      extinction: [0.55, 0.3, 0.45],
-      backscatter: [0.55, 0.3, 0.45],
-      downwelling: [0.55, 0.3, 0.45],
-      tint: [0.9, 1.1, 0.8],
+      absorption: [0.37, 0.14, 0.23],
+      scattering: [0.28, 0.3, 0.37],
       caustics: 0.7,
     },
   },
   murky: {
     label: "Murky",
     underwater: {
-      extinction: [0.9, 0.7, 0.9],
-      backscatter: [0.9, 0.7, 0.9],
-      downwelling: [0.9, 0.7, 0.9],
-      tint: [1, 1, 0.7],
+      absorption: [0.56, 0.4, 0.73],
+      scattering: [0.92, 1, 1.22],
       caustics: 0.3,
     },
   },
@@ -167,7 +158,7 @@ export function resolveOcean(spec: OceanSpec): ResolvedOcean {
   return ocean;
 }
 
-function resolveUnderwater(
+export function resolveUnderwater(
   preset: OceanUnderwaterSpec | undefined,
   spec: OceanUnderwaterSpec | undefined
 ): OceanUnderwater {
@@ -179,10 +170,9 @@ function resolveUnderwater(
   const pick = <K extends keyof OceanUnderwater>(key: K): OceanUnderwater[K] =>
     spec?.[key] ?? preset?.[key] ?? water[key] ?? DEFAULT_UNDERWATER[key];
   return {
-    extinction: pick("extinction"),
-    backscatter: pick("backscatter"),
-    downwelling: pick("downwelling"),
-    tint: pick("tint"),
+    absorption: pick("absorption"),
+    scattering: pick("scattering"),
+    whiteBalance: pick("whiteBalance"),
     caustics: pick("caustics"),
   };
 }
@@ -200,14 +190,25 @@ export function applyOceanOverride(
   };
 }
 
+export interface UnderwaterOverride {
+  presetId: UnderwaterPresetId | null;
+  whiteBalance: number | null;
+}
+
 export function applyUnderwaterOverride(
   spec: EnvironmentSpec,
-  override: UnderwaterPresetId
+  { presetId, whiteBalance }: UnderwaterOverride
 ): EnvironmentSpec {
   if (spec.ocean === undefined) return spec;
+  const underwater: OceanUnderwaterSpec | undefined =
+    presetId === null ? spec.ocean.underwater : { presetId };
   return {
     ...spec,
-    ocean: { ...spec.ocean, underwater: { presetId: override } },
+    ocean: {
+      ...spec.ocean,
+      underwater:
+        whiteBalance === null ? underwater : { ...underwater, whiteBalance },
+    },
   };
 }
 
@@ -239,8 +240,9 @@ const SURFACE_BOUNDS = {
   timeScale: [0, 3],
 } satisfies Record<string, Bounds>;
 
-const ATTENUATION_BOUNDS: Bounds = [0.001, 5];
-const TINT_BOUNDS: Bounds = [0, 2];
+const ABSORPTION_BOUNDS: Bounds = [0.001, 5];
+const SCATTERING_BOUNDS: Bounds = [0, 5];
+export const WHITE_BALANCE_BOUNDS: Bounds = [0, 1];
 const CAUSTICS_BOUNDS: Bounds = [0, 2];
 
 const SEED_MAX = 0xffffffff;
@@ -265,23 +267,21 @@ function validateOcean(ocean: ResolvedOcean): void {
 function validateUnderwater(underwater: OceanUnderwater): void {
   const name = "ocean.underwater";
   assertVector(
-    `${name}.extinction`,
-    underwater.extinction,
+    `${name}.absorption`,
+    underwater.absorption,
     3,
-    ATTENUATION_BOUNDS
+    ABSORPTION_BOUNDS
   );
   assertVector(
-    `${name}.backscatter`,
-    underwater.backscatter,
+    `${name}.scattering`,
+    underwater.scattering,
     3,
-    ATTENUATION_BOUNDS
+    SCATTERING_BOUNDS
   );
-  assertVector(
-    `${name}.downwelling`,
-    underwater.downwelling,
-    3,
-    ATTENUATION_BOUNDS
+  assertInRange(
+    `${name}.whiteBalance`,
+    underwater.whiteBalance,
+    WHITE_BALANCE_BOUNDS
   );
-  assertVector(`${name}.tint`, underwater.tint, 3, TINT_BOUNDS);
   assertInRange(`${name}.caustics`, underwater.caustics, CAUSTICS_BOUNDS);
 }

@@ -245,10 +245,9 @@ export interface OceanFoam {
 }
 
 export interface OceanUnderwater {
-  extinction: Vec3;
-  backscatter: Vec3;
-  downwelling: Vec3;
-  tint: Vec3;
+  absorption: Vec3;
+  scattering: Vec3;
+  whiteBalance: number;
   caustics: number;
 }
 

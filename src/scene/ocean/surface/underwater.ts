@@ -24,7 +24,6 @@ import { FAR_SINK, FAR_SINK_RANGE, N_WATER } from "./constants";
 import { fresnelDielectric } from "./reflection";
 import type { SkyLight } from "./sky-light";
 import type { SurfaceUniforms } from "./uniforms";
-import type { SeaColors } from "./water-body";
 
 export interface UnderwaterInputs {
   surface: Node<"vec3">;
@@ -33,7 +32,6 @@ export interface UnderwaterInputs {
   view: Node<"vec3">;
   viewDistance: Node<"float">;
   waterHeight: Node<"float">;
-  sea: SeaColors;
   uniforms: SurfaceUniforms;
   light: SkyLight;
 }
@@ -45,7 +43,6 @@ export function shadeUnderwater({
   view,
   viewDistance,
   waterHeight,
-  sea,
   uniforms,
   light,
 }: UnderwaterInputs): Node<"vec3"> {
@@ -67,8 +64,7 @@ export function shadeUnderwater({
         .toVar();
       const water = createWaterLighting({
         light,
-        sea,
-        tint: uniforms.tint,
+        albedo: uniforms.albedo,
         downwelling: uniforms.downwelling,
         cameraDepth: float(0),
       });

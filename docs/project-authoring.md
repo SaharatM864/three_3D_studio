@@ -127,7 +127,12 @@ export default definePlayground(
     - `wind` and `swell` take `speed` (m/s, 0.5–30), `direction` (0–360 degrees the waves travel toward: 0 = +X north, 90 = +Z east), `fetch` (meters, up to 1 000 000) and `scale` (wave amount, 0–2). For a calmer sea lower `scale`, never `speed` to 0.
     - `choppiness` (0–2.5) sharpens crests, `foam` tunes whitecaps, `color` is `"open-ocean"` or `"tropical"`, `timeScale` (0–3) slows or freezes the waves. The limits match the range Poseidon was tuned in; above `choppiness` 2.2 crests fold into pyramids and wind above about 13 m/s turns the sea white. Defaults and limits are in `src/presets/ocean.ts`.
     - The water reflects the sky and the sun of the environment, but not clouds or objects.
-    - `underwater` tunes the water seen from below. `presetId` picks the water: `ocean` (the default), `clear`, `coastal` or `murky`. Fields override the preset: `extinction`, `backscatter` and `downwelling` (RGB per meter, 0.001–5; red should be the largest), `tint` (RGB, 0–2) and `caustics` (0–2). Example: `ocean: { presetId: "calm", underwater: { presetId: "clear" } }`.
+    - `underwater` tunes the water seen from below. `presetId` picks the water: `ocean` (open ocean, blue, the default), `clear` (clear tropical), `coastal` (green) or `murky`. Fields override the preset:
+      - `absorption` (0.001–5) and `scattering` (0–5) are RGB per meter at 600/550/450 nm. Extinction, depth falloff and the water colour are all computed from these two.
+      - For blue water keep blue absorption the lowest. If blue absorption is higher than green, a deep seabed turns pure green.
+      - `whiteBalance` (0–1, default 0.5) is how much the camera corrects the colour lost between the surface and the camera.
+      - `caustics` is 0–2.
+      - Example: `ocean: { presetId: "calm", underwater: { presetId: "clear" } }`.
     - The waterline crosses the lens when the camera is within about 25 cm of the surface, so the frame splits into above and below. Underwater objects are hidden from a camera above the water, because the surface is opaque from above.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.

@@ -282,10 +282,19 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - `direction` เป็นองศาของทิศที่คลื่นวิ่งไป ใช้ `(cos θ, sin θ)` บน XZ ตรงกับแกน +X เหนือ, +Z ตะวันออก จึงไม่ต้องแปลง
   - ค่าที่ผูกกับ shader (N 256, 3 cascade, lengthScales [1024, 144, 24], boundaryFactor 6, รูปร่าง spectrum และ chop) อยู่ใน `simulation/config.ts` ไม่อยู่ใน spec
   - clip ที่ตั้ง `environment.ocean` จะแทนของ scene ทั้งก้อน (`composeClip` merge แค่ระดับบนสุด) ส่วน playground แทนด้วย `applyOceanOverride` จาก section "ทะเล" ใน environment panel (คง `underwater` ของ project ไว้) และ `applyUnderwaterOverride` จาก section "ใต้น้ำ"
-  - `underwater` (`OceanUnderwater`) เป็นค่าทางแสงของน้ำ: `extinction`, `backscatter`, `downwelling` (RGB ต่อเมตร), `tint` (RGB) และ `caustics` (0–2)
-    - `presetId` เลือกจาก `underwaterPresets`: `ocean` (ค่าของ Poseidon ซึ่งเป็นค่าเริ่มต้น), `clear`, `coastal` และ `murky`
+  - `underwater` (`OceanUnderwater`) เป็น inherent optical properties ของน้ำ: `absorption` a และ `scattering` b (RGB ต่อเมตรที่ 600/550/450 nm), `whiteBalance` (0–1) และ `caustics` (0–2)
+    - `resolveWaterOptics` (`underwater/optics.ts`, pure) คำนวณค่าที่ shader ใช้จาก a และ b ที่เดียว ค่าจึงขัดกันเองไม่ได้
+      - `extinction` c = a + b ใช้ทั้งการลดทอนตามทางมองและม่านน้ำ
+      - `downwelling` Kd = `DOWNWELLING_SCALE` (1.2 ≈ 1.04/μ₀) × (a + `BACKSCATTER_RATIO` (0.019 ของ Petzold) × b)
+      - `albedo` ω = b / c เป็นสีของม่านน้ำ
+    - `presetId` เลือกจาก `underwaterPresets` ค่าตั้งให้ Kd ตรงตาราง Jerlov ภายใน ±2%:
+      - `ocean` (ค่าเริ่มต้น): Jerlov IB ทะเลเปิดสีน้ำเงิน ทัศนวิสัยราว 38 ม.
+      - `clear`: Jerlov I ทะเลเขตร้อนที่ใส ราว 56 ม.
+      - `coastal`: Jerlov 1C/3C น้ำชายฝั่งสีเขียว Kd เท่าค่าเฉลี่ย `MU_CLEAR`/`MU_TURBID` ของ Poseidon ราว 10 ม.
+      - `murky`: ราว Jerlov 7C ราว 3 ม.
+    - `MU_CLEAR`/`MU_TURBID` เป็นค่าน้ำชายฝั่งที่ Poseidon ใช้กับ SSS ของสันคลื่นระยะ 0.6–3 ม. เท่านั้น ห้ามใช้เป็นค่าเริ่มต้นของน้ำใต้ทะเล เพราะน้ำเงินถูกดูดกลืนมากกว่าเขียว พื้นที่ลึก 12 ม. จะเหลือแต่สีเขียว
     - merge default ← preset ← field ของ sea-state preset ← spec ทุกค่าเป็น uniform จึงเปลี่ยนได้ทันทีโดยไม่ reset foam
-    - ค่าเริ่มต้นของ `ocean` คือค่าเฉลี่ยของ `MU_CLEAR`/`MU_TURBID` (diffuse attenuation ของ Jerlov 1C/3C ที่ 600/550/450 nm) ซึ่ง Poseidon ใช้เป็น extinction ใต้น้ำ ภาพใต้น้ำแบบเดิมจึงไม่เปลี่ยนสี ส่วนค่าของ preset อื่นเป็นจุดเริ่มสำหรับจูนบน GPU
+    - playground แทน `presetId` และ `whiteBalance` ด้วย `applyUnderwaterOverride` (slider "สมดุลแสงขาว" ใน section "ใต้น้ำ")
 - **สิ่งที่เปลี่ยนจาก Poseidon**:
   - ตัด GUI (`lil-gui`), HUD, fly camera, capture, FFT self-test, sky panorama, sky dome และ fog ทิ้ง ไม่มี state ระดับโมดูล (`params`, uniform ของ chop/ลม, texture ของ sky ย้ายเป็นต่อ instance) ยกเว้น pixel ของ detail texture ที่ cache ไว้เพราะเป็นข้อมูลคงที่
   - เพิ่ม `reset` ของ foam history (ใช้ `select` จึงล้าง NaN ได้), `dispose()` และเก็บ reference ของ scratch buffer กับ history texture
@@ -337,19 +346,20 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - **Medium** (`underwater/medium.ts`): `UnderwaterMedium.apply({ above, scene, depth, camera, reversedDepth })` ต่อหลังเมฆและ aerial perspective ก่อน `lensFlare` จึงอยู่ใน RTT input ของ lens flare ไม่มี pass เต็มจอเพิ่ม
     - ทำงานใน `If(underwaterActive && probe.h + LENS_DISTANCE > กล้อง)` ถ้าไม่เข้าเงื่อนไขจะคืน `above` ตรง ๆ
     - reconstruct ตำแหน่งด้วย `getViewPosition` กับ `reference("projectionMatrixInverse")` ของกล้องฉาก (jitter ของ TAA ตรงกับ depth) ส่วน pixel ท้องฟ้า (`depth <= 0` เมื่อ reversed) ใช้ระยะ `SKY_DISTANCE`
-    - สี = `scene · e^(−downwelling·max(0, −y)) · e^(−extinction·d) + B∞(dir) · (1 − e^(−backscatter·d))` เทอมแรกคือแสงที่ลดตามความลึกของ pixel (ระดับน้ำเฉลี่ย y = 0) ครอบคลุมแดด, IBL และ LightRig ในที่เดียว
+    - สี = `scene · e^(−Kd·max(0, −y)) · e^(−c·d) + B∞(dir) · (1 − e^(−c·d))` เทอมแรกคือแสงที่ลดตามความลึกของ pixel (ระดับน้ำเฉลี่ย y = 0) ครอบคลุมแดด, IBL และ LightRig ในที่เดียว เทอมที่สองใช้ c ตัวเดียวกันเพราะเป็นคำตอบ single-scattering ของน้ำเนื้อเดียวกัน
     - ฝั่งใต้น้ำใช้ `scene` (output ของ scene pass ก่อน aerial และเมฆ) haze ของอากาศ ท้องฟ้า และพื้นของ takram จึงไม่โผล่ใต้น้ำ
     - **เส้นน้ำบนเลนส์**: เทียบจุด `กล้อง + dir · LENS_DISTANCE` (0.25 ม.) กับระนาบ `probe.h + slope · Δxz` ได้ mask ต่อ pixel กล้องที่ผิวน้ำจึงเห็นภาพแบ่งบน/ล่างที่เลื่อนตามคลื่น ไม่ใช้ temporal smoothing หรือ hysteresis เพราะเป็น history
-    - **Exposure**: คูณ `2^EV` โดย EV ไล่จาก `UNDERWATER_EV_SURFACE` ที่ผิวถึง `UNDERWATER_EV_DEEP` ที่ความลึก `UNDERWATER_EV_DEPTH` และค่อย ๆ เปิดในช่วง `EXPOSURE_RAMP` รอบผิว เป็น closed form ตามความลึกกล้อง ไม่ใช่ eye adaptation ตามเวลา
-  - **สีน้ำ** (`underwater/radiance.ts`, `createWaterLighting`): `B∞(dir)` = (ambient + แดดที่กระเจิง) × `tint` × `e^(−downwelling·ความลึกกล้อง)`
-    - ambient = สีเนื้อน้ำของ palette (deepBody ที่ `massT` 0.5) × 0.35 × `ambientLevel` (asymptote เดิมของ Poseidon) × `2^(1.5·dir.y)` (มองขึ้นสว่าง มองลงมืด)
-    - แดดที่กระเจิงเป็น Henyey-Greenstein (g 0.8) รอบทิศดวงอาทิตย์ที่หักเหแล้ว
+    - **White balance**: เหมือนนักดำน้ำถือแผ่นขาวไว้ที่ระดับกล้อง illuminant = `e^(−Kd·ความลึกกล้อง)` gain = `(illuminant / lum)^(−whiteBalance)` clamp ไว้ที่ `1/WB_GAIN_MAX`–`WB_GAIN_MAX` คูณทั้งเฟรมเหมือนค่าของกล้อง ที่ผิวน้ำ gain เป็น 1 เอง แก้ได้แค่สีที่หายไประหว่างผิวกับกล้อง ส่วนวัตถุที่ลึกหรือไกลกว่ายังเป็นสีฟ้าตามธรรมชาติ
+    - **Exposure**: คูณ `2^EV` โดย EV = min(`UNDERWATER_EV_BASE` + `UNDERWATER_EV_ADAPT` · log2(1 / lum(illuminant)), `UNDERWATER_EV_MAX`) และค่อย ๆ เปิดในช่วง `EXPOSURE_RAMP` รอบผิว EV จึงตามความขุ่นของน้ำ (`ocean` ได้ราว +1 ที่ 5 ม. และ +2.75 ที่ 30 ม. ส่วน `murky` ชน +3 ตั้งแต่ 5 ม.) เป็น closed form ตามความลึกกล้อง ไม่ใช่ eye adaptation ตามเวลา
+  - **สีน้ำ** (`underwater/radiance.ts`, `createWaterLighting`): `B∞(dir)` = (ambient + แดดที่กระเจิง) × `e^(−Kd·ความลึกกล้อง)` สีมาจาก albedo ω ของน้ำ ไม่ใช่ palette เหนือน้ำของ Poseidon สีพื้นกับสีม่านน้ำจึงมาจากสเปกตรัมเดียวกัน
+    - ambient = ω × (`sunColor`·max(sun.y, 0) + `ambient` ของท้องฟ้า) × `BACKSCATTER_LEVEL` × `2^(1.5·dir.y)` (มองขึ้นสว่าง มองลงมืด)
+    - แดดที่กระเจิง = ω × `sunColor` × `SUN_LOBE_GAIN` × Henyey-Greenstein (g 0.8) รอบทิศดวงอาทิตย์ที่หักเหแล้ว
     - material ใช้ฟังก์ชันเดียวกันที่ความลึก 0 (radiance ที่ผิว) แล้วให้ medium ลดตามระยะ ส่วน medium ใช้ความลึกจริงของกล้องแล้วคูณ `outputScale` กลับเป็นหน่วยของฉาก
   - **Caustics** (`underwater/caustics.ts`): `WaterLightSource` ที่ light node คูณกับ direct light ของ material ที่มีแสงทุกตัว ทำงานเฉพาะจุดที่ y < 0 ขณะ `underwaterActive`
     - ฉายจุดขึ้นไปหาผิวตามทิศแดดที่หักเห หา Laplacian ของความสูงจาก central difference ของ slope ใน cascade 144 ม. และ 24 ม. (8 tap, mip เพิ่มตามความลึก) แล้วใช้ differential area `1 / |1 + path·(1 − 1/n)·∇²h|`
     - จางด้วย `e^(−CAUSTIC_FADE·depth)`, `ocean.underwater.caustics` และมุมเงยของดวงอาทิตย์ เวลามาจาก cascade ของ FFT จึงหยุดเมื่อ `timeScale` เป็น 0
     - การลดแสงตามความลึกทำใน medium ไม่ใช่ที่นี่
-  - ยังไม่ได้ตรวจบน GPU: ค่าใน `underwater/constants.ts` (`BACKSCATTER_LEVEL`, `SUN_LOBE_GAIN`, EV, `WINDOW_SUN_*`, `CAUSTIC_*`), preset ใน `underwaterPresets` และ `getViewPosition` กับ reversed depth
+  - ยังไม่ได้ตรวจบน GPU: ค่าใน `underwater/constants.ts` (`BACKSCATTER_LEVEL`, `SUN_LOBE_GAIN`, `UNDERWATER_EV_*`, `WINDOW_SUN_*`, `CAUSTIC_*`) และ `getViewPosition` กับ reversed depth ถ้าม่านน้ำมืดหรือสว่างเกินให้จูน `BACKSCATTER_LEVEL` และ `UNDERWATER_EV_BASE` ก่อน ส่วน a และ b ของ preset มาจากตาราง Jerlov แล้ว
   - เมฆและ aerial perspective ยังคำนวณตอนกล้องอยู่ใต้น้ำแม้ภาพถูกแทน ให้ตัดสินใจหลังได้ตัวเลขจาก `?inspector`
   - เปิด/ปิดทะเลจะ rebuild pipeline ทั้งชุด (เหมือนเปิด/ปิดเมฆ) เพราะ medium ต่อเข้า node graph ตอนสร้าง
 - **License**: ข้อความ MIT ของ Poseidon และที่มาอยู่ใน `src/scene/ocean/LICENSE` ไม่ได้ใช้ asset ของ Poseidon

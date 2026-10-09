@@ -16,6 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { SettingRange } from "@/game/settings";
 import { cn } from "@/lib/utils";
 import type { SceneSpec } from "@/model/types";
 import {
@@ -28,8 +29,11 @@ import {
   isOceanPresetId,
   isUnderwaterPresetId,
   oceanPresets,
+  resolveUnderwater,
   underwaterPresets,
+  WHITE_BALANCE_BOUNDS,
   type OceanOverride,
+  type UnderwaterPresetId,
 } from "@/presets/ocean";
 import { presetIds } from "@/presets/registry";
 import { usePlaygroundStore } from "@/stores/playground-store";
@@ -40,6 +44,7 @@ import {
   PresetItem,
   PresetToggleGroup,
 } from "./panel-controls";
+import { SliderSetting } from "./settings-fields";
 
 const PROJECT_VALUE = "project";
 const OCEAN_OFF: OceanOverride = "off";
@@ -48,6 +53,12 @@ const lightingIds = presetIds(lightingPresets);
 const environmentIds = presetIds(environmentPresets);
 const oceanIds = presetIds(oceanPresets);
 const underwaterIds = presetIds(underwaterPresets);
+
+const WHITE_BALANCE_RANGE: SettingRange = {
+  min: WHITE_BALANCE_BOUNDS[0],
+  max: WHITE_BALANCE_BOUNDS[1],
+  step: 0.05,
+};
 
 function isOceanOverride(value: string): value is OceanOverride {
   return value === OCEAN_OFF || isOceanPresetId(value);
@@ -69,6 +80,14 @@ function projectUnderwaterLabel({ environment: { ocean } }: SceneSpec): string {
   return presetId !== undefined && isUnderwaterPresetId(presetId)
     ? underwaterPresets[presetId].label
     : underwaterPresets.ocean.label;
+}
+
+function projectWhiteBalance(
+  { environment: { ocean } }: SceneSpec,
+  presetId: UnderwaterPresetId | null
+): number {
+  const underwater = presetId === null ? ocean?.underwater : { presetId };
+  return resolveUnderwater(undefined, underwater).whiteBalance;
 }
 
 const materialEntries = Object.entries(materialPresets) as [
@@ -107,6 +126,12 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   const setOceanOverride = usePlaygroundStore((s) => s.setOceanOverride);
   const underwaterPresetId = usePlaygroundStore((s) => s.underwaterPresetId);
   const setUnderwaterPreset = usePlaygroundStore((s) => s.setUnderwaterPreset);
+  const underwaterWhiteBalance = usePlaygroundStore(
+    (s) => s.underwaterWhiteBalance
+  );
+  const setUnderwaterWhiteBalance = usePlaygroundStore(
+    (s) => s.setUnderwaterWhiteBalance
+  );
   const hasOcean =
     oceanOverride === null
       ? scene.environment.ocean !== undefined
@@ -235,6 +260,16 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                   </PresetItem>
                 ))}
               </PresetToggleGroup>
+              <SliderSetting
+                label="สมดุลแสงขาว"
+                value={
+                  underwaterWhiteBalance ??
+                  projectWhiteBalance(scene, underwaterPresetId)
+                }
+                range={WHITE_BALANCE_RANGE}
+                format={(value) => `${Math.round(value * 100)}%`}
+                onChange={setUnderwaterWhiteBalance}
+              />
             </PanelSection>
           )}
 

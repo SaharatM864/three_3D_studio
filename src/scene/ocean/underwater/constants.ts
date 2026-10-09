@@ -6,13 +6,18 @@ export const LENS_DISTANCE = 0.25;
 export const LENS_SOFTNESS = 0.012;
 export const EXPOSURE_RAMP = 0.3;
 
-export const UNDERWATER_EV_SURFACE = 1;
-export const UNDERWATER_EV_DEEP = 2.5;
-export const UNDERWATER_EV_DEPTH = 30;
+export const UNDERWATER_EV_BASE = 0.5;
+export const UNDERWATER_EV_ADAPT = 0.7;
+export const UNDERWATER_EV_MAX = 3;
+
+export const WB_GAIN_MAX = 4;
+
+export const DOWNWELLING_SCALE = 1.2;
+export const BACKSCATTER_RATIO = 0.019;
 
 export const SKY_DISTANCE = 1e4;
 
-export const BACKSCATTER_LEVEL = 0.35;
+export const BACKSCATTER_LEVEL = 0.1;
 export const ELEVATION_STOPS = 1.5;
 export const SUN_LOBE_G = 0.8;
 export const SUN_LOBE_GAIN = 0.03;

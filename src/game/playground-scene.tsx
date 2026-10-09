@@ -33,6 +33,9 @@ export function PlaygroundScene({
   const environmentPresetId = usePlaygroundStore((s) => s.environmentPresetId);
   const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
   const underwaterPresetId = usePlaygroundStore((s) => s.underwaterPresetId);
+  const underwaterWhiteBalance = usePlaygroundStore(
+    (s) => s.underwaterWhiteBalance
+  );
   const view = usePlaygroundSettingsStore((s) => s.view);
   const orbit = usePlaygroundSettingsStore((s) => s.orbit);
 
@@ -43,14 +46,18 @@ export function PlaygroundScene({
     const ocean = oceanOverride
       ? applyOceanOverride(preset, oceanOverride)
       : preset;
-    return underwaterPresetId
-      ? applyUnderwaterOverride(ocean, underwaterPresetId)
-      : ocean;
+    return underwaterPresetId === null && underwaterWhiteBalance === null
+      ? ocean
+      : applyUnderwaterOverride(ocean, {
+          presetId: underwaterPresetId,
+          whiteBalance: underwaterWhiteBalance,
+        });
   }, [
     scene.environment,
     environmentPresetId,
     oceanOverride,
     underwaterPresetId,
+    underwaterWhiteBalance,
   ]);
   const spec = useMemo<SceneSpec>(
     () => ({
