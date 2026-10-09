@@ -208,10 +208,9 @@ export function shadeSunSpecular(
     .mul(saturate(dot(normal, sunDirection)))
     .toVar();
 
-  const sunColor = light.sunColor;
   const base = mix(
-    sunColor,
-    vec3(luminance(sunColor)),
+    light.sunColor,
+    vec3(light.sunLevel),
     float(SPEC_WHITE)
   ).toVar();
   const tint = mix(

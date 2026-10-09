@@ -96,11 +96,11 @@ export function seaColors(palette: Node<"float">): SeaColors {
   };
 }
 
-export function softPositive(x: Node<"float">, k: number): Node<"float"> {
+function softPositive(x: Node<"float">, k: number): Node<"float"> {
   return x.add(sqrt(x.mul(x).add(k * k))).mul(0.5);
 }
 
-export function hgForward(g: number, cosTheta: Node<"float">): Node<"float"> {
+function hgForward(g: number, cosTheta: Node<"float">): Node<"float"> {
   const r = float((1 - g) * (1 - g))
     .div(max(float(1 + g * g).sub(cosTheta.mul(2 * g)), float(1e-4)))
     .toVar();
@@ -234,7 +234,7 @@ export function shadeWaterBody({
   body.mulAssign(
     mix(
       shadowTint,
-      mix(light.sunColor, vec3(light.ambientLevel), float(0.28)).mul(1.26),
+      mix(light.sunColor, vec3(light.sunLevel), float(0.28)).mul(1.26),
       saturate(sunWrap.add(thin.mul(0.35)))
     )
   );

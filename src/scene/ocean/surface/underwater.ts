@@ -10,7 +10,7 @@ import {
 } from "three/tsl";
 import type { Node } from "three/webgpu";
 
-import { N_WATER } from "./constants";
+import { FAR_SINK, FAR_SINK_RANGE, N_WATER } from "./constants";
 import { fresnelDielectric } from "./reflection";
 import type { SkyLight } from "./sky-light";
 import { expVec3, mixVec3 } from "./vector-math";
@@ -56,8 +56,13 @@ export function shadeUnderwater({
   const extinction = expVec3(
     body.absorption.mul(viewDistance).negate()
   ).toVar();
+  const farSink = mix(
+    float(1),
+    float(FAR_SINK),
+    saturate(viewDistance.div(FAR_SINK_RANGE))
+  );
   return mix(
-    shaded,
+    shaded.mul(farSink),
     mixVec3(deepBody.mul(0.35), shaded, extinction),
     submerged
   );

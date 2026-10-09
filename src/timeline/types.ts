@@ -52,15 +52,9 @@ export interface EvaluatedCloudMotion {
   shapeDetailOffset: Vec3;
 }
 
-export interface OceanStepPolicy {
-  stepSeconds: number;
-  prerollSteps: number;
-  prerollStride: number;
-  maxCatchUpSteps: number;
-}
+export type OceanClock = { kind: "realtime" } | { kind: "clip"; fps: number };
 
-export interface OceanStepPlan {
-  reset: boolean;
-  firstStep: number;
-  lastStep: number;
+export interface OceanMotion {
+  timeScale: number;
+  prerollSeconds: number;
 }

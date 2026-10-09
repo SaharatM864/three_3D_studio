@@ -4,11 +4,10 @@ import type { OceanGridSettings } from "../../render-config";
 
 export interface RadialGrid {
   geometry: BufferGeometry;
-  outerRadius: number;
   innerSpacing: number;
 }
 
-export function radialGridRadii({
+function radialGridRadii({
   rings,
   spacing,
   soften,
@@ -74,5 +73,5 @@ export function createRadialGrid(settings: OceanGridSettings): RadialGrid {
   geometry.setIndex(new BufferAttribute(indices, 1));
   geometry.boundingSphere = new Sphere(new Vector3(), radii[rings]);
 
-  return { geometry, outerRadius: radii[rings], innerSpacing: spacing };
+  return { geometry, innerSpacing: spacing };
 }

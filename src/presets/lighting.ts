@@ -1,5 +1,7 @@
 import type { LightSpec } from "@/model/types";
 
+import { hasPreset } from "./registry";
+
 export interface LightingPreset {
   label: string;
   lights: readonly LightSpec[];
@@ -62,3 +64,7 @@ export const lightingPresets = {
 } satisfies Record<string, LightingPreset>;
 
 export type LightingPresetId = keyof typeof lightingPresets;
+
+export function isLightingPresetId(id: string): id is LightingPresetId {
+  return hasPreset(lightingPresets, id);
+}

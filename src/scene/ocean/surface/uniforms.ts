@@ -10,6 +10,8 @@ type FloatUniform = UniformNode<"float", number>;
 
 export interface SurfaceUniforms {
   originXZ: UniformNode<"vec2", Vector2>;
+  projection: UniformNode<"mat4", Matrix4>;
+  previousProjection: UniformNode<"mat4", Matrix4>;
   previousView: UniformNode<"mat4", Matrix4>;
   time: FloatUniform;
   luminanceGain: FloatUniform;
@@ -26,6 +28,8 @@ export interface SurfaceUniforms {
 export function createSurfaceUniforms(): SurfaceUniforms {
   return {
     originXZ: uniform(new Vector2()),
+    projection: uniform(new Matrix4()),
+    previousProjection: uniform(new Matrix4()),
     previousView: uniform(new Matrix4()),
     time: uniform(0),
     luminanceGain: uniform(1),

@@ -34,6 +34,9 @@ export const GRAZE_RANGE = 4000;
 export const GRAZE_AMOUNT = 0.15;
 export const REFL_CEIL = 0.86;
 
+export const FAR_SINK = 0.78;
+export const FAR_SINK_RANGE = 4000;
+
 export const RIPPLE_TILE = 0.55;
 export const RIPPLE_STEP = 2.5 / DETAIL_TEXTURE_SIZE;
 export const RIPPLE_GAIN = 2.6;

@@ -225,8 +225,11 @@ export interface CloudsSpec {
 export type OceanColor = "open-ocean" | "tropical";
 
 export interface OceanWaves {
+  /** Wind speed in m/s. */
   speed: number;
-  direction: number; // degrees, bearing the waves travel toward (0 = +X north, 90 = +Z east)
+  /** Degrees the waves travel toward, 0 = +X north, 90 = +Z east. */
+  direction: number;
+  /** Fetch in metres. */
   fetch: number;
   scale: number;
 }

@@ -6,9 +6,11 @@ import {
   uint,
   vec2,
 } from "three/tsl";
-import type { ComputeNode, StorageBufferNode } from "three/webgpu";
+import type { ComputeNode, Node, StorageBufferNode } from "three/webgpu";
 
-import { complexMul } from "./spectrum";
+import { complexMul } from "./complex";
+
+type Axis = "horizontal" | "vertical";
 
 export interface FFTPasses {
   horizontal: readonly ComputeNode[];
@@ -35,10 +37,11 @@ export function createFFT(size: number): FFT {
   fillButterfly(butterfly.value.array as Float32Array, size);
   butterfly.value.needsUpdate = true;
 
-  function horizontalStep(
+  function butterflyStep(
     field: StorageBufferNode<"vec2">,
     scratch: StorageBufferNode<"vec2">,
-    stage: number
+    stage: number,
+    axis: Axis
   ): ComputeNode {
     const source = stage % 2 === 0 ? field : scratch;
     const target = stage % 2 === 0 ? scratch : field;
@@ -46,29 +49,18 @@ export function createFFT(size: number): FFT {
       const id = instanceIndex;
       const x = id.mod(uint(size));
       const y = id.div(uint(size));
-      const data = butterfly.element(uint(stage * size).add(x));
+      const data = butterfly.element(
+        uint(stage * size).add(axis === "horizontal" ? x : y)
+      );
       const twiddle = vec2(data.x, data.y.negate());
-      const a = source.element(y.mul(size).add(uint(data.z)));
-      const b = source.element(y.mul(size).add(uint(data.w)));
-      target.element(id).assign(a.add(complexMul(twiddle, b)));
-    })().compute(size * size);
-  }
-
-  function verticalStep(
-    field: StorageBufferNode<"vec2">,
-    scratch: StorageBufferNode<"vec2">,
-    stage: number
-  ): ComputeNode {
-    const source = stage % 2 === 0 ? field : scratch;
-    const target = stage % 2 === 0 ? scratch : field;
-    return Fn(() => {
-      const id = instanceIndex;
-      const x = id.mod(uint(size));
-      const y = id.div(uint(size));
-      const data = butterfly.element(uint(stage * size).add(y));
-      const twiddle = vec2(data.x, data.y.negate());
-      const a = source.element(uint(data.z).mul(size).add(x));
-      const b = source.element(uint(data.w).mul(size).add(x));
+      const sample = (index: Node<"uint">) =>
+        source.element(
+          axis === "horizontal"
+            ? y.mul(size).add(index)
+            : index.mul(size).add(x)
+        );
+      const a = sample(uint(data.z));
+      const b = sample(uint(data.w));
       target.element(id).assign(a.add(complexMul(twiddle, b)));
     })().compute(size * size);
   }
@@ -89,8 +81,8 @@ export function createFFT(size: number): FFT {
       const horizontal: ComputeNode[] = [];
       const vertical: ComputeNode[] = [];
       for (let stage = 0; stage < logSize; stage++) {
-        horizontal.push(horizontalStep(field, scratch, stage));
-        vertical.push(verticalStep(field, scratch, stage));
+        horizontal.push(butterflyStep(field, scratch, stage, "horizontal"));
+        vertical.push(butterflyStep(field, scratch, stage, "vertical"));
       }
       return { horizontal, vertical, permute: permute(field) };
     },

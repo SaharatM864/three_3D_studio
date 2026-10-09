@@ -18,7 +18,27 @@ const FBM_SEED = 1234567;
 const CELL_SEED_COARSE = 0x9e3779b9;
 const CELL_SEED_FINE = 0x85ebca6b;
 
-export function createDetailTexture(size = DETAIL_TEXTURE_SIZE): DataTexture {
+let detailPixels: Uint8Array | null = null;
+
+export function createDetailTexture(): DataTexture {
+  detailPixels ??= generateDetailPixels(DETAIL_TEXTURE_SIZE);
+  const texture = new DataTexture(
+    detailPixels,
+    DETAIL_TEXTURE_SIZE,
+    DETAIL_TEXTURE_SIZE,
+    RGBAFormat,
+    UnsignedByteType
+  );
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function generateDetailPixels(size: number): Uint8Array {
   const random = lcg(FBM_SEED);
   const noise = new Float32Array(size * size);
   for (let index = 0; index < noise.length; index++) noise[index] = random();
@@ -46,21 +66,7 @@ export function createDetailTexture(size = DETAIL_TEXTURE_SIZE): DataTexture {
       data[offset + 3] = quantise(fbm(u * 2, v * 2) * 255);
     }
   }
-
-  const texture = new DataTexture(
-    data,
-    size,
-    size,
-    RGBAFormat,
-    UnsignedByteType
-  );
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.magFilter = LinearFilter;
-  texture.minFilter = LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
+  return data;
 }
 
 function lcg(seed: number): () => number {

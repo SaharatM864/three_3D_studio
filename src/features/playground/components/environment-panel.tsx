@@ -22,16 +22,15 @@ import type { SceneSpec } from "@/model/types";
 import {
   environmentPresets,
   isEnvironmentPresetId,
-  type EnvironmentPresetId,
 } from "@/presets/environments";
-import { lightingPresets, type LightingPresetId } from "@/presets/lighting";
+import { isLightingPresetId, lightingPresets } from "@/presets/lighting";
 import { materialPresets, type MaterialPreset } from "@/presets/materials";
 import {
   isOceanPresetId,
   oceanPresets,
   type OceanOverride,
-  type OceanPresetId,
 } from "@/presets/ocean";
+import { hasPreset, presetIds } from "@/presets/registry";
 import {
   DEFAULT_RENDER_QUALITY,
   RENDER_QUALITIES,
@@ -47,15 +46,10 @@ const RENDER_QUALITY_LABELS: Record<RenderQualityId, string> = {
   performance: "ลื่น",
 };
 
-const renderQualityIds = Object.keys(RENDER_QUALITIES) as RenderQualityId[];
-
-function isRenderQualityId(value: string): value is RenderQualityId {
-  return value in RENDER_QUALITIES;
-}
-
-const lightingIds = Object.keys(lightingPresets) as LightingPresetId[];
-const environmentIds = Object.keys(environmentPresets) as EnvironmentPresetId[];
-const oceanIds = Object.keys(oceanPresets) as OceanPresetId[];
+const renderQualityIds = presetIds(RENDER_QUALITIES);
+const lightingIds = presetIds(lightingPresets);
+const environmentIds = presetIds(environmentPresets);
+const oceanIds = presetIds(oceanPresets);
 
 function isOceanOverride(value: string): value is OceanOverride {
   return value === OCEAN_OFF || isOceanPresetId(value);
@@ -68,14 +62,11 @@ function projectOceanLabel({ environment: { ocean } }: SceneSpec): string {
   }
   return "กำหนดเอง";
 }
+
 const materialEntries = Object.entries(materialPresets) as [
   string,
   MaterialPreset,
 ][];
-
-function isLightingPresetId(value: string): value is LightingPresetId {
-  return value in lightingPresets;
-}
 
 function swatchStyle({ material }: MaterialPreset): CSSProperties {
   const color = typeof material.color === "string" ? material.color : "#888";
@@ -138,18 +129,12 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
       {open && (
         <div className="flex flex-col gap-4 border-t p-3">
           <PanelSection icon={Lightbulb} title="แสง">
-            <ToggleGroup
-              aria-label="ชุดแสง"
-              variant="outline"
-              size="sm"
-              spacing={1}
-              className="w-full flex-wrap"
-              value={[lightingPresetId ?? PROJECT_VALUE]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next === undefined) return;
-                setLightingPreset(isLightingPresetId(next) ? next : null);
-              }}
+            <PresetToggleGroup
+              label="ชุดแสง"
+              value={lightingPresetId ?? PROJECT_VALUE}
+              onValueChange={(next) =>
+                setLightingPreset(isLightingPresetId(next) ? next : null)
+              }
             >
               <PresetItem value={PROJECT_VALUE}>
                 ของ project
@@ -162,22 +147,16 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                   {lightingPresets[id].label}
                 </PresetItem>
               ))}
-            </ToggleGroup>
+            </PresetToggleGroup>
           </PanelSection>
 
           <PanelSection icon={Mountain} title="สภาพแวดล้อม">
-            <ToggleGroup
-              aria-label="สภาพแวดล้อม"
-              variant="outline"
-              size="sm"
-              spacing={1}
-              className="w-full flex-wrap"
-              value={[environmentPresetId ?? PROJECT_VALUE]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next === undefined) return;
-                setEnvironmentPreset(isEnvironmentPresetId(next) ? next : null);
-              }}
+            <PresetToggleGroup
+              label="สภาพแวดล้อม"
+              value={environmentPresetId ?? PROJECT_VALUE}
+              onValueChange={(next) =>
+                setEnvironmentPreset(isEnvironmentPresetId(next) ? next : null)
+              }
             >
               <PresetItem value={PROJECT_VALUE}>
                 <ColorDot color={projectPreset?.swatch} />
@@ -194,22 +173,16 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                   {environmentPresets[id].label}
                 </PresetItem>
               ))}
-            </ToggleGroup>
+            </PresetToggleGroup>
           </PanelSection>
 
           <PanelSection icon={Waves} title="ทะเล">
-            <ToggleGroup
-              aria-label="ทะเล"
-              variant="outline"
-              size="sm"
-              spacing={1}
-              className="w-full flex-wrap"
-              value={[oceanOverride ?? PROJECT_VALUE]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next === undefined) return;
-                setOceanOverride(isOceanOverride(next) ? next : null);
-              }}
+            <PresetToggleGroup
+              label="ทะเล"
+              value={oceanOverride ?? PROJECT_VALUE}
+              onValueChange={(next) =>
+                setOceanOverride(isOceanOverride(next) ? next : null)
+              }
             >
               <PresetItem value={PROJECT_VALUE}>
                 ของ project
@@ -223,7 +196,7 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                   {oceanPresets[id].label}
                 </PresetItem>
               ))}
-            </ToggleGroup>
+            </PresetToggleGroup>
           </PanelSection>
 
           <PanelSection icon={Palette} title="วัสดุ">
@@ -245,18 +218,11 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
           </PanelSection>
 
           <PanelSection icon={Gauge} title="คุณภาพการแสดงผล">
-            <ToggleGroup
-              aria-label="คุณภาพการแสดงผล"
-              variant="outline"
-              size="sm"
-              spacing={1}
-              className="w-full flex-wrap"
-              value={[renderQuality]}
-              onValueChange={(values) => {
-                const next = values[0];
-                if (next !== undefined && isRenderQualityId(next)) {
-                  setRenderQuality(next);
-                }
+            <PresetToggleGroup
+              label="คุณภาพการแสดงผล"
+              value={renderQuality}
+              onValueChange={(next) => {
+                if (hasPreset(RENDER_QUALITIES, next)) setRenderQuality(next);
               }}
             >
               {renderQualityIds.map((id) => (
@@ -264,7 +230,7 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
                   {RENDER_QUALITY_LABELS[id]}
                 </PresetItem>
               ))}
-            </ToggleGroup>
+            </PresetToggleGroup>
             {renderQuality !== DEFAULT_RENDER_QUALITY && (
               <p className="text-[11px] text-muted-foreground">
                 ลดคุณภาพเมฆและความละเอียดเพื่อความลื่น ภาพจะต่างจาก Studio
@@ -295,6 +261,35 @@ function PanelSection({
       </h3>
       {children}
     </section>
+  );
+}
+
+function PresetToggleGroup({
+  label,
+  value,
+  onValueChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <ToggleGroup
+      aria-label={label}
+      variant="outline"
+      size="sm"
+      spacing={1}
+      className="w-full flex-wrap"
+      value={[value]}
+      onValueChange={(values) => {
+        const next = values[0];
+        if (next !== undefined) onValueChange(next);
+      }}
+    >
+      {children}
+    </ToggleGroup>
   );
 }
 

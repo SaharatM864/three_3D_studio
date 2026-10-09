@@ -2,6 +2,7 @@ import type { ColorValue, EnvironmentSpec, GeoLocation } from "@/model/types";
 
 import { resolveClouds, type ResolvedClouds } from "./clouds";
 import { resolveOcean, type ResolvedOcean } from "./ocean";
+import { getPreset, hasPreset } from "./registry";
 
 export interface EnvironmentPreset {
   label: string;
@@ -51,7 +52,7 @@ export const environmentPresets = {
 export type EnvironmentPresetId = keyof typeof environmentPresets;
 
 export function isEnvironmentPresetId(id: string): id is EnvironmentPresetId {
-  return Object.hasOwn(environmentPresets, id);
+  return hasPreset(environmentPresets, id);
 }
 
 export function resolveEnvironment(spec: EnvironmentSpec): ResolvedEnvironment {
@@ -105,8 +106,5 @@ export function environmentEpochMs(dateTime: string): number {
 }
 
 function presetEnvironment(id: string): Omit<EnvironmentSpec, "presetId"> {
-  if (!isEnvironmentPresetId(id)) {
-    throw new Error(`Unknown environment preset "${id}"`);
-  }
-  return environmentPresets[id].environment;
+  return getPreset(environmentPresets, id, "environment").environment;
 }

@@ -1,72 +1,99 @@
-import type { ResolvedOcean } from "@/presets/ocean";
+import type { OceanClock, OceanMotion } from "./types";
 
-import type { OceanStepPlan, OceanStepPolicy } from "./types";
+const MAX_STEP_SECONDS = 0.1;
 
+const CLIP_CATCH_UP_SECONDS = 1;
 const STEP_EPSILON = 1e-6;
 
-export function oceanStepAt(
-  timeSeconds: number,
-  { stepSeconds }: OceanStepPolicy
-): number {
-  return Math.floor(timeSeconds / stepSeconds + STEP_EPSILON);
+export type OceanStepVisitor = (
+  time: number,
+  dt: number,
+  reset: boolean
+) => void;
+
+export interface OceanStepper {
+  reset(): void;
+  advance(
+    timeSeconds: number,
+    motion: OceanMotion,
+    visit: OceanStepVisitor
+  ): boolean;
 }
 
-export function planOceanSteps(
-  lastStep: number | null,
-  timeSeconds: number,
-  policy: OceanStepPolicy
-): OceanStepPlan | null {
-  const target = oceanStepAt(timeSeconds, policy);
-  if (lastStep === target) return null;
-  if (
-    lastStep !== null &&
-    target > lastStep &&
-    target - lastStep <= policy.maxCatchUpSteps
-  ) {
-    return { reset: false, firstStep: lastStep + 1, lastStep: target };
-  }
+export function createOceanStepper(clock: OceanClock): OceanStepper {
+  return clock.kind === "realtime"
+    ? createRealtimeStepper()
+    : createClipStepper(clock.fps);
+}
+
+function createRealtimeStepper(): OceanStepper {
+  let last: number | null = null;
+
   return {
-    reset: true,
-    firstStep: target - policy.prerollSteps,
-    lastStep: target,
+    reset() {
+      last = null;
+    },
+
+    advance(timeSeconds, { timeScale }, visit) {
+      const time = timeSeconds * timeScale;
+      const previous = last;
+      if (previous === time) return false;
+      last = time;
+      if (previous === null || time < previous) {
+        visit(time, 0, true);
+      } else {
+        visit(
+          time,
+          Math.min(time - previous, MAX_STEP_SECONDS * timeScale),
+          false
+        );
+      }
+      return true;
+    },
   };
 }
 
-export function forEachOceanStep(
-  { reset, firstStep, lastStep }: OceanStepPlan,
-  { prerollStride }: OceanStepPolicy,
-  visit: (step: number, span: number) => void
-): void {
-  let step = firstStep;
-  visit(step, reset ? prerollStride : 1);
-  if (reset) {
-    while (step + prerollStride <= lastStep) {
-      step += prerollStride;
-      visit(step, prerollStride);
-    }
-  }
-  while (step < lastStep) {
-    step += 1;
-    visit(step, 1);
-  }
-}
+function createClipStepper(fps: number): OceanStepper {
+  const stepSeconds = 1 / fps;
+  const stride = Math.max(
+    1,
+    Math.floor(MAX_STEP_SECONDS / stepSeconds + STEP_EPSILON)
+  );
+  const catchUpSteps = Math.round(CLIP_CATCH_UP_SECONDS * fps);
+  let last: number | null = null;
 
-export function oceanSimulationTime(
-  step: number,
-  { stepSeconds }: OceanStepPolicy,
-  { timeScale }: ResolvedOcean
-): number {
-  return step * stepSeconds * timeScale;
-}
+  return {
+    reset() {
+      last = null;
+    },
 
-export function oceanSimulationDelta(
-  span: number,
-  { stepSeconds }: OceanStepPolicy,
-  { timeScale }: ResolvedOcean
-): number {
-  return span * stepSeconds * timeScale;
-}
+    advance(timeSeconds, { timeScale, prerollSeconds }, visit) {
+      const target = Math.floor(timeSeconds * fps + STEP_EPSILON);
+      const previous = last;
+      if (previous === target) return false;
+      last = target;
+      const scale = stepSeconds * timeScale;
 
-export function hasOceanMotion({ timeScale }: ResolvedOcean): boolean {
-  return timeScale > 0;
+      let step: number;
+      if (
+        previous !== null &&
+        target > previous &&
+        target - previous <= catchUpSteps
+      ) {
+        step = previous;
+      } else {
+        step = target - Math.ceil(prerollSeconds * fps - STEP_EPSILON);
+        visit(step * scale, 0, true);
+        while (step + stride <= target) {
+          step += stride;
+          visit(step * scale, stride * scale, false);
+        }
+      }
+      while (step < target) {
+        step += 1;
+        visit(step * scale, scale, false);
+      }
+      return true;
+    },
+  };
 }

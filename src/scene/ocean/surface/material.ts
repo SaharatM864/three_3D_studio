@@ -139,7 +139,7 @@ export function createSurfaceMaterial({
       light,
     }).mul(light.outputScale);
   })();
-  material.mrtNode = mrt({ velocity: surfaceVelocity(uniforms.previousView) });
+  material.mrtNode = mrt({ velocity: surfaceVelocity(uniforms) });
 
   return material;
 }

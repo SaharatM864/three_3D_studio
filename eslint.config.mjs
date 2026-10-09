@@ -56,115 +56,74 @@ const oceanInternalImports = {
 const pureModuleMessage =
   "src/model, src/timeline and src/presets must stay framework-free (see docs/architecture.md).";
 
+const pureModuleImports = [
+  { name: "react", message: pureModuleMessage },
+  { name: "react-dom", message: pureModuleMessage },
+  { name: "three", message: pureModuleMessage },
+];
+
+const pureModulePatterns = {
+  group: [
+    "react/**",
+    "react-dom/**",
+    "three/**",
+    "@react-three/**",
+    "@takram/**",
+    "@yong_three/**",
+    "@/app/**",
+    "@/audio/**",
+    "@/compositing/**",
+    "@/components/**",
+    "@/export/**",
+    "@/features/**",
+    "@/game/**",
+    "@/projects/**",
+    "@/scene/**",
+    "@/stores/**",
+  ],
+  message: pureModuleMessage,
+};
+
+const crossProjectImports = {
+  group: ["@/projects/*/**"],
+  message:
+    'Projects must not import other projects; use "./" inside your own project (see docs/project-authoring.md).',
+};
+
+function restrictImports({ files, paths = [], patterns = [] }) {
+  return {
+    ...(files && { files }),
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...mediabunnyImports, ...webglImports, ...paths],
+          patterns: [...patterns, oceanInternalImports],
+        },
+      ],
+    },
+  };
+}
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
-  {
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [...mediabunnyImports, ...webglImports],
-          patterns: [takramImports, cloudsForkImports, oceanInternalImports],
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/scene/ocean/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [...mediabunnyImports, ...webglImports],
-          patterns: [takramImports, cloudsForkImports],
-        },
-      ],
-    },
-  },
-  {
+  restrictImports({ patterns: [takramImports, cloudsForkImports] }),
+  restrictImports({
     files: ["src/model/**", "src/timeline/**", "src/presets/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            ...mediabunnyImports,
-            ...webglImports,
-            { name: "react", message: pureModuleMessage },
-            { name: "react-dom", message: pureModuleMessage },
-            { name: "three", message: pureModuleMessage },
-          ],
-          patterns: [
-            {
-              group: [
-                "react/**",
-                "react-dom/**",
-                "three/**",
-                "@react-three/**",
-                "@takram/**",
-                "@yong_three/**",
-                "@/app/**",
-                "@/audio/**",
-                "@/compositing/**",
-                "@/components/**",
-                "@/export/**",
-                "@/features/**",
-                "@/game/**",
-                "@/projects/**",
-                "@/scene/**",
-                "@/stores/**",
-              ],
-              message: pureModuleMessage,
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
+    paths: pureModuleImports,
+    patterns: [pureModulePatterns],
+  }),
+  restrictImports({
     files: ["src/projects/*/**"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [...mediabunnyImports, ...webglImports],
-          patterns: [
-            {
-              group: ["@/projects/*/**"],
-              message:
-                'Projects must not import other projects; use "./" inside your own project (see docs/project-authoring.md).',
-            },
-            takramImports,
-            cloudsForkImports,
-            oceanInternalImports,
-          ],
-        },
-      ],
-    },
-  },
-  {
+    patterns: [crossProjectImports, takramImports, cloudsForkImports],
+  }),
+  restrictImports({
     files: ["src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [...mediabunnyImports, ...webglImports],
-          patterns: [cloudsForkImports],
-        },
-      ],
-    },
-  },
-  {
-    files: ["src/scene/clouds/three-clouds.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        { paths: [...mediabunnyImports, ...webglImports] },
-      ],
-    },
-  },
+    patterns: [cloudsForkImports],
+  }),
+  restrictImports({ files: ["src/scene/clouds/three-clouds.ts"] }),
   {
     files: ["src/export/mediabunny.ts", "src/export/aac-fallback.ts"],
     rules: {

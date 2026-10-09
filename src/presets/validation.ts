@@ -19,7 +19,7 @@ export function assertVector(
 
 export function assertFields<K extends string>(
   name: string,
-  values: Readonly<Record<K, number>>,
+  values: Readonly<Record<NoInfer<K>, number>>,
   bounds: Readonly<Record<K, Bounds>>
 ): void {
   for (const key of Object.keys(bounds) as K[]) {

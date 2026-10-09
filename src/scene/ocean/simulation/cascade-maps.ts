@@ -7,6 +7,7 @@ import {
   max,
   min,
   mix,
+  select,
   sqrt,
   texture,
   textureStore,
@@ -26,15 +27,15 @@ import {
 
 import type { Disposable } from "../../use-disposable";
 import type { Cascade } from "./cascade";
+import { foamLifetimeScale } from "./config";
 
 const BLUR_WEIGHT_MAX = 0.3;
 const TAU_FLOOR = 1e-3;
 const FOAM_TAU_STEPS = 1500;
 const FOAM_MAX = 8;
 const FOAM_INJECT_GAIN = 1.048;
-const FOAM_REFERENCE_LENGTH = 144;
 
-export interface FoamUniforms {
+export interface AssembleUniforms {
   lambda: UniformNode<"float", number>;
   dt: UniformNode<"float", number>;
   foamDecay: UniformNode<"float", number>;
@@ -51,10 +52,10 @@ export interface CascadeMaps extends Disposable {
 
 export function createCascadeMaps(
   cascade: Cascade,
-  { lambda, dt, foamDecay, foamSpread, drift, reset }: FoamUniforms
+  { lambda, dt, foamDecay, foamSpread, drift, reset }: AssembleUniforms
 ): CascadeMaps {
   const { size, lengthScale, fields } = cascade;
-  const tauScale = Math.sqrt(lengthScale / FOAM_REFERENCE_LENGTH);
+  const tauScale = foamLifetimeScale(lengthScale);
   const displacement = mapTexture(size);
   const derivatives = mapTexture(size);
   const history = [historyTexture(size), historyTexture(size)] as const;
@@ -94,8 +95,10 @@ export function createCascadeMaps(
         .add(tap(-0.5, -0.5))
         .mul(0.25);
       const blurWeight = min(dt.mul(foamSpread), float(BLUR_WEIGHT_MAX));
-      const previous = mix(tap(0, 0), tent, blurWeight).mul(
-        float(1).sub(reset)
+      const previous = select(
+        reset.greaterThan(0.5),
+        float(0),
+        mix(tap(0, 0), tent, blurWeight)
       );
       const tau = max(
         min(foamDecay.mul(tauScale), dt.mul(FOAM_TAU_STEPS)),

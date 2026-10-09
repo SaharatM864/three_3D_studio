@@ -29,6 +29,7 @@ import type {
   UniformNode,
 } from "three/webgpu";
 
+import { complexMul } from "./complex";
 import type {
   SimulationParameters,
   SwellParameters,
@@ -74,30 +75,36 @@ const SWELL_REF_WIND = 10.5;
 
 export function createSpectrumUniforms(): SpectrumUniforms {
   return {
-    g: uniform(9.81),
-    depth: uniform(500),
-    chopFalloff: uniform(0.4),
-    chopFloor: uniform(0.2),
-    chopLean: uniform(0.5),
-    windX: uniform(Math.SQRT1_2),
-    windZ: uniform(Math.SQRT1_2),
+    g: uniform(0),
+    depth: uniform(0),
+    chopFalloff: uniform(0),
+    chopFloor: uniform(0),
+    chopLean: uniform(0),
+    windX: uniform(0),
+    windZ: uniform(0),
     local: createWaveSystemUniforms(),
     swell: createWaveSystemUniforms(),
   };
 }
 
-export function applySpectrumParameters(
+export function applyLiveSpectrumParameters(
   uniforms: SpectrumUniforms,
   parameters: SimulationParameters
 ): void {
-  uniforms.g.value = parameters.g;
-  uniforms.depth.value = parameters.depth;
   uniforms.chopFalloff.value = parameters.chopFalloff;
   uniforms.chopFloor.value = parameters.chopFloor;
   uniforms.chopLean.value = parameters.chopLean;
   const windDirection = (parameters.local.windDirection * Math.PI) / 180;
   uniforms.windX.value = Math.cos(windDirection);
   uniforms.windZ.value = Math.sin(windDirection);
+}
+
+export function applyInitialSpectrumParameters(
+  uniforms: SpectrumUniforms,
+  parameters: SimulationParameters
+): void {
+  uniforms.g.value = parameters.g;
+  uniforms.depth.value = parameters.depth;
   fillWaveSystem(uniforms.local, parameters.local, parameters.g, 1);
   fillWaveSystem(
     uniforms.swell,
@@ -243,10 +250,6 @@ export function buildTimeDependent({
   })().compute(size * size);
 }
 
-export function complexMul(a: Node<"vec2">, b: Node<"vec2">): Node<"vec2"> {
-  return vec2(a.x.mul(b.x).sub(a.y.mul(b.y)), a.x.mul(b.y).add(a.y.mul(b.x)));
-}
-
 function createWaveSystemUniforms(): WaveSystemUniforms {
   return {
     scale: uniform(0),
@@ -258,7 +261,7 @@ function createWaveSystemUniforms(): WaveSystemUniforms {
     gamma: uniform(0),
     shortWavesFade: uniform(0),
     tailFalloff: uniform(0),
-    tailFloor: uniform(1),
+    tailFloor: uniform(0),
   };
 }
 

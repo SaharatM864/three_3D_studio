@@ -1,4 +1,4 @@
-import { AgXToneMapping } from "three";
+import { NeutralToneMapping } from "three";
 
 import type { CloudsQualityPreset } from "./clouds/quality";
 
@@ -53,7 +53,7 @@ export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 1e5 };
 
 export const RENDER_PRIORITY = 1;
 
-export const TONE_MAPPING = AgXToneMapping;
+export const TONE_MAPPING = NeutralToneMapping;
 
 export const SUN_SHADOW = {
   distance: 30,

@@ -22,10 +22,10 @@ import { LUMA } from "./constants";
 const HORIZON_FOLD = 0.03;
 const SUN_CALIBRATION = 0.8;
 const SUN_REFERENCE = 1.4;
-const AMBIENT_REFERENCE = 0.45;
+const AMBIENT_REFERENCE = 0.242;
 const LEVEL_MAX = 2;
 const SPECULAR_BOOST = 12;
-const SPECULAR_ELEVATION: readonly [number, number] = [0.08, 0.45];
+const SPECULAR_ELEVATION: readonly [number, number] = [0.2, 0.78];
 
 export interface SkyLight {
   sky(direction: Node<"vec3">): Node<"vec3">;

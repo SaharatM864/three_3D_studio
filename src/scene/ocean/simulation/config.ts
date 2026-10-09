@@ -4,7 +4,13 @@ export const OCEAN_FFT_SIZE = 256;
 
 export const OCEAN_LENGTH_SCALES = [1024, 144, 24] as const;
 
-export const OCEAN_BOUNDARY_FACTOR = 6;
+const BOUNDARY_FACTOR = 6;
+
+const FOAM_REFERENCE_LENGTH = 144;
+
+const CUTOFF_MIN = 1e-4;
+const CUTOFF_MAX = 9999;
+const FOAM_SETTLE_LIFETIMES = 3;
 
 export interface WaveSystemParameters {
   scale: number;
@@ -89,6 +95,28 @@ export function toSimulationParameters(
     foamSpread: ocean.foam.spread,
     seed: ocean.seed,
   };
+}
+
+export function oceanBandCutoffs(index: number): [low: number, high: number] {
+  const boundary = (cascade: number) =>
+    ((2 * Math.PI) / OCEAN_LENGTH_SCALES[cascade]) * BOUNDARY_FACTOR;
+  const last = OCEAN_LENGTH_SCALES.length - 1;
+  return [
+    index === 0 ? CUTOFF_MIN : boundary(index),
+    index === last ? CUTOFF_MAX : boundary(index + 1),
+  ];
+}
+
+export function foamLifetimeScale(lengthScale: number): number {
+  return Math.sqrt(lengthScale / FOAM_REFERENCE_LENGTH);
+}
+
+export function foamPrerollSeconds(foamDecay: number): number {
+  return (
+    FOAM_SETTLE_LIFETIMES *
+    foamDecay *
+    foamLifetimeScale(Math.max(...OCEAN_LENGTH_SCALES))
+  );
 }
 
 export function spectrumKey({

@@ -6,9 +6,10 @@ export const PLINTH_SPACING = 2.5;
 
 export const DECK_HEIGHT = 2;
 
+export const DECK_DEPTH = 14;
+
 const DECK_DRAFT = 4;
 const DECK_WIDTH = 18;
-const DECK_DEPTH = 10;
 
 const materialIds = Object.keys(materialPresets) as MaterialPresetId[];
 

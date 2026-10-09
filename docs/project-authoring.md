@@ -121,9 +121,10 @@ export default definePlayground(
     - Keep `scattering` and `haze` at their defaults unless the shot needs it. Defaults and limits are in `src/presets/clouds.ts`.
   - `ocean` (optional) adds an FFT ocean that reaches the horizon; `ocean: {}` uses the defaults. Example: `showroom`.
     - `presetId` picks a sea state: `calm`, `moderate` (the default values) or `rough`. Fields you set override the preset per group, e.g. `ocean: { presetId: "calm", color: "tropical" }`.
-    - Mean sea level is world y = 0. Keep objects above the waves (`showroom` raises its floor into a deck with `DECK_HEIGHT`) and keep the camera above the water.
-    - `wind` and `swell` take `speed` (m/s, at least 0.5), `direction` (degrees the waves travel toward: 0 = +X north, 90 = +Z east), `fetch` (meters) and `scale` (wave amount). For a calmer sea lower `scale`, never `speed` to 0.
-    - `choppiness` sharpens crests, `foam` tunes whitecaps, `color` is `"open-ocean"` or `"tropical"`, `timeScale` slows or freezes the waves. Defaults and limits are in `src/presets/ocean.ts`.
+    - The water surface is world y = 0, which is sea level when `location.height` is 0 (every environment preset). Keep objects above the waves (`showroom` raises its floor into a deck with `DECK_HEIGHT`) and keep the camera above the water.
+    - The ocean reaches about 20 km. A clip camera with `far` set must keep it at 20 000 or more, or the sea is cut off before the horizon.
+    - `wind` and `swell` take `speed` (m/s, 0.5–30), `direction` (0–360 degrees the waves travel toward: 0 = +X north, 90 = +Z east), `fetch` (meters, up to 1 000 000) and `scale` (wave amount, 0–2). For a calmer sea lower `scale`, never `speed` to 0.
+    - `choppiness` (0–2.5) sharpens crests, `foam` tunes whitecaps, `color` is `"open-ocean"` or `"tropical"`, `timeScale` (0–3) slows or freezes the waves. The limits match the range Poseidon was tuned in; above `choppiness` 2.2 crests fold into pyramids and wind above about 13 m/s turns the sea white. Defaults and limits are in `src/presets/ocean.ts`.
     - The water reflects the sky and the sun of the environment, but not clouds or objects.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.

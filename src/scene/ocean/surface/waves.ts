@@ -57,10 +57,7 @@ export interface WaveForm {
   crestRelief: Node<"float">;
 }
 
-export function amplitudeEnvelope(
-  detail: Texture,
-  uv: Node<"vec2">
-): Node<"float"> {
+function amplitudeEnvelope(detail: Texture, uv: Node<"vec2">): Node<"float"> {
   const broad = texture(detail, uv.div(2400), 0).b;
   const near = texture(detail, uv.div(770).add(0.37), 0).a;
   return broad

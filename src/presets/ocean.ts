@@ -6,14 +6,8 @@ import type {
   OceanWaves,
 } from "@/model/types";
 
-import {
-  ANY,
-  assertFields,
-  assertInRange,
-  NON_NEGATIVE,
-  UNIT,
-  type Bounds,
-} from "./validation";
+import { getPreset, hasPreset } from "./registry";
+import { assertFields, assertInRange, type Bounds } from "./validation";
 
 export interface ResolvedOcean {
   wind: OceanWaves;
@@ -70,9 +64,9 @@ export const oceanPresets = {
   rough: {
     label: "Rough",
     ocean: {
-      wind: { speed: 16, scale: 0.5 },
-      swell: { speed: 16, scale: 0.42 },
-      choppiness: 2.4,
+      wind: { speed: 13, scale: 0.5 },
+      swell: { scale: 0.42 },
+      choppiness: 2.2,
     },
   },
 } satisfies Record<string, OceanPreset>;
@@ -82,7 +76,7 @@ export type OceanPresetId = keyof typeof oceanPresets;
 export type OceanOverride = OceanPresetId | "off";
 
 export function isOceanPresetId(id: string): id is OceanPresetId {
-  return Object.hasOwn(oceanPresets, id);
+  return hasPreset(oceanPresets, id);
 }
 
 export function resolveOcean(spec: OceanSpec): ResolvedOcean {
@@ -116,43 +110,47 @@ export function applyOceanOverride(
 }
 
 function presetOcean(id: string): Omit<OceanSpec, "presetId"> {
-  if (!isOceanPresetId(id)) {
-    throw new Error(`Unknown ocean preset "${id}"`);
-  }
-  return oceanPresets[id].ocean;
+  return getPreset(oceanPresets, id, "ocean").ocean;
 }
 
 const WAVES_BOUNDS: Record<keyof OceanWaves, Bounds> = {
-  speed: [0.5, 100],
-  direction: ANY,
-  fetch: [1, Infinity],
-  scale: NON_NEGATIVE,
+  speed: [0.5, 30],
+  direction: [0, 360],
+  fetch: [1, 1e6],
+  scale: [0, 2],
 };
 
 const FOAM_BOUNDS: Record<keyof OceanFoam, Bounds> = {
-  threshold: [-1, 2],
-  scale: NON_NEGATIVE,
-  decay: NON_NEGATIVE,
-  spread: NON_NEGATIVE,
-  brightness: NON_NEGATIVE,
-  relief: NON_NEGATIVE,
-  milk: UNIT,
+  threshold: [-0.5, 1.5],
+  scale: [0.2, 8],
+  decay: [0.5, 14],
+  spread: [0, 4],
+  brightness: [0.2, 1.4],
+  relief: [0, 0.4],
+  milk: [0, 0.8],
 };
+
+const SURFACE_BOUNDS = {
+  choppiness: [0, 2.5],
+  detail: [0, 0.5],
+  subsurface: [0, 3],
+  timeScale: [0, 3],
+} satisfies Record<string, Bounds>;
+
+const SEED_MAX = 0xffffffff;
 
 function validateOcean(ocean: ResolvedOcean): void {
   assertFields("ocean.wind", ocean.wind, WAVES_BOUNDS);
   assertFields("ocean.swell", ocean.swell, WAVES_BOUNDS);
   assertFields("ocean.foam", ocean.foam, FOAM_BOUNDS);
-  assertInRange("ocean.choppiness", ocean.choppiness, NON_NEGATIVE);
-  assertInRange("ocean.detail", ocean.detail, NON_NEGATIVE);
-  assertInRange("ocean.subsurface", ocean.subsurface, NON_NEGATIVE);
-  assertInRange("ocean.timeScale", ocean.timeScale, NON_NEGATIVE);
+  assertFields("ocean", ocean, SURFACE_BOUNDS);
   if (!OCEAN_COLORS.includes(ocean.color)) {
     throw new Error(
       `Invalid ocean.color "${ocean.color}": use one of ${OCEAN_COLORS.join(", ")}`
     );
   }
-  if (!Number.isSafeInteger(ocean.seed)) {
+  if (!Number.isInteger(ocean.seed)) {
     throw new Error(`Invalid ocean.seed ${ocean.seed}: expected an integer`);
   }
+  assertInRange("ocean.seed", ocean.seed, [0, SEED_MAX]);
 }

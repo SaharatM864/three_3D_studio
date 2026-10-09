@@ -2,18 +2,15 @@ import { BufferGeometry, Matrix4, Mesh, type Camera } from "three";
 import type { WebGPURenderer } from "three/webgpu";
 
 import type { ResolvedOcean } from "@/presets/ocean";
-import {
-  forEachOceanStep,
-  hasOceanMotion,
-  oceanSimulationDelta,
-  oceanSimulationTime,
-  planOceanSteps,
-} from "@/timeline/ocean";
-import type { OceanStepPolicy } from "@/timeline/types";
+import { createOceanStepper, type OceanStepVisitor } from "@/timeline/ocean";
+import type { OceanClock, OceanMotion } from "@/timeline/types";
 
 import type { OceanGridSettings, OceanRenderSettings } from "../render-config";
 import type { Disposable } from "../use-disposable";
-import { spectrumKey, toSimulationParameters } from "./simulation/config";
+import {
+  foamPrerollSeconds,
+  toSimulationParameters,
+} from "./simulation/config";
 import { createOceanSimulation } from "./simulation/ocean-simulation";
 import { createDetailTexture } from "./surface/detail-texture";
 import { createSurfaceMaterial } from "./surface/material";
@@ -24,15 +21,9 @@ import {
   createSurfaceUniforms,
 } from "./surface/uniforms";
 
-export const OCEAN_STEP_POLICY: OceanStepPolicy = {
-  stepSeconds: 1 / 60,
-  prerollSteps: 300,
-  prerollStride: 10,
-  maxCatchUpSteps: 8,
-};
+const OCEAN_RENDER_ORDER = 1;
 
 export interface OceanHandle extends Disposable {
-  readonly ready: Promise<void>;
   readonly mesh: Mesh;
   setOcean(ocean: ResolvedOcean): void;
   setQuality(settings: OceanRenderSettings): void;
@@ -42,9 +33,10 @@ export interface OceanHandle extends Disposable {
 
 export function createOcean(
   renderer: WebGPURenderer,
-  policy: OceanStepPolicy = OCEAN_STEP_POLICY
+  clock: OceanClock
 ): OceanHandle {
   const simulation = createOceanSimulation(renderer);
+  const stepper = createOceanStepper(clock);
   const detail = createDetailTexture();
   const uniforms = createSurfaceUniforms();
   const material = createSurfaceMaterial({
@@ -55,44 +47,37 @@ export function createOcean(
   const mesh = new Mesh(new BufferGeometry(), material);
   mesh.name = "Ocean";
   mesh.frustumCulled = false;
+  mesh.renderOrder = OCEAN_RENDER_ORDER;
   mesh.visible = false;
 
   const lastView = new Matrix4();
+  const lastProjection = new Matrix4();
+  const motion: OceanMotion = { timeScale: 0, prerollSeconds: 0 };
   let grid: RadialGrid | null = null;
   let gridSettings: OceanGridSettings | null = null;
-  let ocean: ResolvedOcean | null = null;
-  let spectrum: string | null = null;
-  let spectrumReady = false;
-  let lastStep: number | null = null;
+  let simulationKey: string | null = null;
   let hasView = false;
   let disposed = false;
 
-  let resolveReady: () => void = () => {};
-  let rejectReady: (error: unknown) => void = () => {};
-  const ready = new Promise<void>((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
-  ready.catch(() => {});
+  const visitStep: OceanStepVisitor = (time, dt, reset) => {
+    if (reset) simulation.reset();
+    simulation.step(time, dt);
+    uniforms.time.value = time;
+  };
 
-  function stepSimulation(step: number, span: number): void {
-    if (ocean === null) return;
-    simulation.step(
-      oceanSimulationTime(step, policy, ocean),
-      oceanSimulationDelta(span, policy, ocean)
-    );
-  }
-
-  function updateView(camera: Camera): void {
+  function updateView(camera: Camera, spacing: number): void {
     camera.updateMatrixWorld();
     if (!hasView) {
       lastView.copy(camera.matrixWorldInverse);
+      lastProjection.copy(camera.projectionMatrix);
       hasView = true;
     }
     uniforms.previousView.value.copy(lastView);
+    uniforms.previousProjection.value.copy(lastProjection);
+    uniforms.projection.value.copy(camera.projectionMatrix);
     lastView.copy(camera.matrixWorldInverse);
+    lastProjection.copy(camera.projectionMatrix);
 
-    const spacing = grid?.innerSpacing ?? 1;
     const x = Math.round(camera.matrixWorld.elements[12] / spacing) * spacing;
     const z = Math.round(camera.matrixWorld.elements[14] / spacing) * spacing;
     mesh.position.set(x, 0, z);
@@ -100,30 +85,19 @@ export function createOcean(
   }
 
   return {
-    ready,
     mesh,
 
-    setOcean(next) {
-      ocean = next;
-      applySurfaceOcean(uniforms, next);
-      const parameters = toSimulationParameters(next);
-      const key = spectrumKey(parameters);
-      const rebuilt = simulation.setParameters(parameters);
-      if (key === spectrum) return;
-      spectrum = key;
-      rebuilt.then(
-        () => {
-          if (disposed || spectrum !== key) return;
-          lastStep = null;
-          if (!spectrumReady) {
-            spectrumReady = true;
-            resolveReady();
-          }
-        },
-        (error: unknown) => {
-          if (!spectrumReady) rejectReady(error);
-        }
-      );
+    setOcean(ocean) {
+      applySurfaceOcean(uniforms, ocean);
+      const parameters = toSimulationParameters(ocean);
+      simulation.setParameters(parameters);
+      motion.timeScale = ocean.timeScale;
+      motion.prerollSeconds = foamPrerollSeconds(ocean.foam.decay);
+      const key = JSON.stringify([parameters, ocean.timeScale]);
+      if (key !== simulationKey) {
+        simulationKey = key;
+        stepper.reset();
+      }
     },
 
     setQuality({ grid: settings }) {
@@ -140,18 +114,9 @@ export function createOcean(
     },
 
     update(camera, timeSeconds) {
-      if (disposed || !spectrumReady || ocean === null || grid === null) {
-        return false;
-      }
-      updateView(camera);
-      const time = hasOceanMotion(ocean) ? timeSeconds : 0;
-      const plan = planOceanSteps(lastStep, time, policy);
-      if (plan === null) return false;
-
-      if (plan.reset) simulation.reset();
-      forEachOceanStep(plan, policy, stepSimulation);
-      lastStep = plan.lastStep;
-      uniforms.time.value = oceanSimulationTime(plan.lastStep, policy, ocean);
+      if (disposed || simulationKey === null || grid === null) return false;
+      updateView(camera, grid.innerSpacing);
+      if (!stepper.advance(timeSeconds, motion, visitStep)) return false;
       mesh.visible = true;
       return true;
     },
