@@ -14,7 +14,6 @@ export const lightingPresets = {
         kind: "directional",
         position: [5, 6, 5],
         intensity: 2.5,
-        castShadow: true,
       },
       { id: "fill", kind: "directional", position: [-6, 3, 3], intensity: 0.8 },
       { id: "rim", kind: "directional", position: [0, 5, -6], intensity: 1.5 },
@@ -30,7 +29,6 @@ export const lightingPresets = {
         position: [-8, 2.5, 4],
         color: "#ffb46b",
         intensity: 3,
-        castShadow: true,
       },
       {
         id: "sky",

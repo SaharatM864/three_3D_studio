@@ -1,4 +1,4 @@
-import type { Camera, Scene } from "three";
+import { Vector2, type Camera, type Scene } from "three";
 import {
   convertToTexture,
   mrt,
@@ -72,6 +72,18 @@ export function createScenePipeline(
   );
   pipeline.outputColorTransform = false;
 
+  const drawingBufferSize = new Vector2();
+  const featuresSize = new Vector2();
+
+  function fitLensFlareFeatures(): void {
+    renderer.getDrawingBufferSize(drawingBufferSize);
+    const width = Math.ceil(drawingBufferSize.x / 2) * 2;
+    const height = Math.ceil(drawingBufferSize.y / 2) * 2;
+    if (featuresSize.x === width && featuresSize.y === height) return;
+    featuresSize.set(width, height);
+    lensFlareNode.featuresNode.setSize(width, height);
+  }
+
   const ready = clouds?.ready ?? Promise.resolve();
   let isReady = clouds === null;
   void ready.then(
@@ -86,7 +98,9 @@ export function createScenePipeline(
     clouds,
 
     render() {
-      if (isReady) pipeline.render();
+      if (!isReady) return;
+      fitLensFlareFeatures();
+      pipeline.render();
     },
 
     setExposure(exposure) {
@@ -103,6 +117,8 @@ export function createScenePipeline(
       toneMappedNode.renderTarget?.dispose();
       toneMappedNode.dispose();
       lensFlareNode.featuresNode.renderTarget?.dispose();
+      lensFlareNode.inputNode.renderTarget?.dispose();
+      lensFlareNode.inputNode.dispose();
       lensFlareNode.dispose();
       aerial.dispose();
       clouds?.dispose();

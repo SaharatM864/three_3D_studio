@@ -120,6 +120,8 @@ export default definePlayground(
     - `localWeather.velocity`, `shape.velocity` and `shapeDetail.velocity` are texture offsets per second, not wind speed (e.g. `localWeather: { velocity: [0.001, 0] }`).
     - Keep `scattering` and `haze` at their defaults unless the shot needs it. Defaults and limits are in `src/presets/clouds.ts`.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
+  - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.
+  - Set `castShadow` on objects only when their shadow is visible in the shot.
 - **Presets** (`src/presets/`): fields you set override the preset, e.g. `material: { presetId: "brushed-metal", color: "#..." }`.
 - **Objects:** `kind` is one of `primitive` (`box`, `sphere`, `plane`, `cylinder`, `torus`), `model` (GLB `src`, optional `animation`), `text`, or `custom`.
 - **Randomness:** `seed` feeds `createSeededRandom()` (`src/timeline/random.ts`).
@@ -146,6 +148,10 @@ These keep preview and export identical. Breaking them produces clips that diffe
    - Ask before changing engine code (`src/scene`, `src/timeline`, `src/model`, `src/export`, …) or adding dependencies.
    - Never import `mediabunny` directly.
 7. **Data stays serializable.** `spec` and the clip/playground definitions must contain only JSON values (no functions, class instances or three.js objects). Computed numbers like `Math.PI / 2` and data built with `map` are fine.
+8. **Keep the playground awake when it moves.** The playground stops rendering about 5 seconds after the camera and scene stop changing.
+   - A playground-only component that changes the picture inside `useFrame` (moving objects, physics) must call `useRenderActivity().wake()` (`src/scene/canvas/render-activity.ts`) on every frame it changes something.
+   - Camera controls, React props and moving clouds already keep it awake.
+   - Never allocate in `useFrame` (`new Vector3()`, arrays, closures); reuse scratch objects.
 
 ## MVP limits
 

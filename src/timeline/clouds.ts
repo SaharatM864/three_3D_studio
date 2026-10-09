@@ -14,6 +14,16 @@ export function evaluateCloudMotion(
   };
 }
 
+export function hasCloudMotion({
+  localWeather,
+  shape,
+  shapeDetail,
+}: ResolvedClouds): boolean {
+  return [localWeather, shape, shapeDetail].some(({ velocity }) =>
+    velocity.some((value) => value !== 0)
+  );
+}
+
 function advanceVec2(
   { offset, velocity }: CloudTextureTransform<Vec2>,
   timeSeconds: number

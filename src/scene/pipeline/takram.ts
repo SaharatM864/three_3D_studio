@@ -15,7 +15,7 @@ export const highpVelocity = takramHighpVelocity as unknown as Node<"vec3">;
 
 export const lensFlare = takramLensFlare as unknown as (
   input: Node
-) => Node<"vec4"> & Disposable & { featuresNode: RTTNode };
+) => Node<"vec4"> & Disposable & { featuresNode: RTTNode; inputNode: RTTNode };
 
 export const temporalAntialias = takramTemporalAntialias as unknown as (
   input: TextureNode,

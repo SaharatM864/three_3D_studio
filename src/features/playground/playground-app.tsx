@@ -56,6 +56,7 @@ function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
     <KeyboardControls map={controlsMap}>
       <SceneCanvas
         quality={renderQuality}
+        frameloop="demand"
         fallback={
           <ErrorScreen
             title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"

@@ -27,3 +27,15 @@ export function materialParameters(
     transparent: opacity < 1,
   };
 }
+
+export function applyMaterialValues(
+  material: Material,
+  spec: MaterialSpec | undefined,
+  values: EvaluatedMaterial | undefined
+): void {
+  const parameters = materialParameters(spec, values);
+  if (material.transparent !== parameters.transparent) {
+    material.needsUpdate = true;
+  }
+  material.setValues(parameters);
+}

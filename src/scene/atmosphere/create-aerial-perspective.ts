@@ -31,8 +31,6 @@ export function createAerialPerspective(
       skyNode.starsNode.intensity.value = starsIntensity;
       if (skyNode.showStars === active) return false;
       skyNode.showStars = active;
-      skyNode.moonScattering = active;
-      node.moonScattering = active;
       return true;
     },
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import {
   BoxGeometry,
   CylinderGeometry,
@@ -13,6 +13,7 @@ import type { EvaluatedObject } from "@/timeline/types";
 
 import type { SceneComponents } from "../custom-components";
 import { createMaterial } from "../materials/create-material";
+import { applyMaterialValues } from "../materials/material-parameters";
 import { useDisposable } from "../use-disposable";
 
 export interface SceneObjectProps {
@@ -50,17 +51,28 @@ function Primitive({
   const { color, metalness, roughness, emissiveIntensity, opacity } =
     values.material ?? {};
   const material = useMemo(
-    () =>
-      createMaterial(spec.material, {
-        color,
-        metalness,
-        roughness,
-        emissiveIntensity,
-        opacity,
-      }),
-    [spec.material, color, metalness, roughness, emissiveIntensity, opacity]
+    () => createMaterial(spec.material, undefined),
+    [spec.material]
   );
   useDisposable(material);
+
+  useLayoutEffect(() => {
+    applyMaterialValues(material, spec.material, {
+      color,
+      metalness,
+      roughness,
+      emissiveIntensity,
+      opacity,
+    });
+  }, [
+    material,
+    spec.material,
+    color,
+    metalness,
+    roughness,
+    emissiveIntensity,
+    opacity,
+  ]);
 
   const { position, rotation, scale } = values.transform;
 

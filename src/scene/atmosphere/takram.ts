@@ -1,5 +1,6 @@
 import {
   aerialPerspective as takramAerialPerspective,
+  type AtmosphereContext as TakramAtmosphereContext,
   AtmosphereLightNode as TakramAtmosphereLightNode,
   getAtmosphereContext as takramGetAtmosphereContext,
   skyEnvironment as takramSkyEnvironment,
@@ -32,13 +33,11 @@ export interface StarsNode extends Disposable {
 
 export interface SkyNode extends Disposable {
   showStars: boolean;
-  moonScattering: boolean;
   starsNode: StarsNode;
 }
 
 export type AerialPerspectiveNode = Node<"vec4"> &
   Disposable & {
-    moonScattering: boolean;
     readonly skyNode: SkyNode;
   };
 
@@ -69,3 +68,17 @@ export const StarsNode = TakramStarsNode as unknown as new (
 
 export const skyEnvironment =
   takramSkyEnvironment as unknown as () => Node<"vec3"> & Disposable;
+
+interface LUTUpdateTarget {
+  addEventListener(type: "update", listener: () => void): void;
+  removeEventListener(type: "update", listener: () => void): void;
+}
+
+export function onLUTUpdate(
+  atmosphere: TakramAtmosphereContext,
+  listener: () => void
+): () => void {
+  const target = atmosphere.lutNode as unknown as LUTUpdateTarget;
+  target.addEventListener("update", listener);
+  return () => target.removeEventListener("update", listener);
+}

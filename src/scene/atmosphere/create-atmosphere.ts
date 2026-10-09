@@ -9,13 +9,14 @@ import {
   SUN_TRANSMITTANCE_CONTEXT_KEY,
   type SunTransmittanceSource,
 } from "./shadowed-light-node";
-import { AtmosphereContext, AtmosphereLight } from "./takram";
+import { AtmosphereContext, AtmosphereLight, onLUTUpdate } from "./takram";
 
 export interface AtmosphereHandle extends Disposable {
   provide(renderer: WebGPURenderer): () => void;
   setCamera(camera: Camera): void;
   setCelestialFrame(frame: CelestialFrame): void;
   setSunTransmittance(source: SunTransmittanceSource | null): void;
+  onLUTUpdate(listener: () => void): () => void;
 }
 
 interface ProvidedContext {
@@ -68,6 +69,10 @@ export function createAtmosphere(): AtmosphereHandle {
       if (source === sunTransmittance) return;
       sunTransmittance = source;
       apply();
+    },
+
+    onLUTUpdate(listener) {
+      return onLUTUpdate(atmosphere, listener);
     },
 
     dispose() {

@@ -24,7 +24,9 @@ export function ClipCanvas({
       className={className}
       style={{ aspectRatio: `${video.width} / ${video.height}` }}
     >
-      <SceneCanvas fallback={fallback}>{children}</SceneCanvas>
+      <SceneCanvas maxPixels={video.width * video.height} fallback={fallback}>
+        {children}
+      </SceneCanvas>
     </div>
   );
 }

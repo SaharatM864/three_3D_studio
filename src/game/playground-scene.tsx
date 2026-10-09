@@ -29,17 +29,22 @@ export function PlaygroundScene({
   const lightingPresetId = usePlaygroundStore((s) => s.lightingPresetId);
   const environmentPresetId = usePlaygroundStore((s) => s.environmentPresetId);
 
+  const environment = useMemo(
+    () =>
+      environmentPresetId
+        ? applyEnvironmentPreset(scene.environment, environmentPresetId)
+        : scene.environment,
+    [scene.environment, environmentPresetId]
+  );
   const spec = useMemo<SceneSpec>(
     () => ({
       ...scene,
-      environment: environmentPresetId
-        ? applyEnvironmentPreset(scene.environment, environmentPresetId)
-        : scene.environment,
+      environment,
       lights: lightingPresetId
         ? lightingPresets[lightingPresetId].lights
         : scene.lights,
     }),
-    [scene, lightingPresetId, environmentPresetId]
+    [scene, environment, lightingPresetId]
   );
   const evaluated = useMemo(() => evaluateScene(spec, 0), [spec]);
 

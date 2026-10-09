@@ -20,18 +20,22 @@ function isStackTrace(value: unknown): value is StackTrace {
   );
 }
 
-const forward = getConsoleFunction() as ConsoleFunction | null;
+export function installConsoleFilter(): void {
+  const forward = getConsoleFunction() as ConsoleFunction | null;
 
-setConsoleFunction((type, message, ...params) => {
-  if (type === "warn" && message === R3F_CLOCK_DEPRECATION) return;
-  if (forward) {
-    forward(type, message, ...params);
-    return;
-  }
-  const [trace] = params;
-  if (type !== "log" && isStackTrace(trace)) {
-    console[type](trace.getError(message));
-  } else {
-    console[type](message, ...params);
-  }
-});
+  setConsoleFunction((type, message, ...params) => {
+    if (type === "warn" && message === R3F_CLOCK_DEPRECATION) return;
+    if (forward) {
+      forward(type, message, ...params);
+      return;
+    }
+    const [trace] = params;
+    if (type !== "log" && isStackTrace(trace)) {
+      console[type](trace.getError(message));
+    } else {
+      console[type](message, ...params);
+    }
+  });
+}
+
+installConsoleFilter();

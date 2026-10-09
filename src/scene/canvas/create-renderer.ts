@@ -17,6 +17,8 @@ export async function createRenderer({
   const renderer = new WebGPURenderer({
     canvas,
     antialias: false,
+    alpha: false,
+    depth: false,
     powerPreference: "high-performance",
     reversedDepthBuffer: true,
     requiredLimits: CLOUDS_REQUIRED_LIMITS,

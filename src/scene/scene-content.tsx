@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 
 import type { SceneSpec } from "@/model/types";
 import { environmentEpochMs, resolveEnvironment } from "@/presets/environments";
@@ -7,6 +7,7 @@ import type { EvaluatedSceneContent } from "@/timeline/types";
 import { Atmosphere } from "./atmosphere/atmosphere";
 import { CelestialLight } from "./atmosphere/celestial-light";
 import { SkyEnvironment } from "./atmosphere/sky-environment";
+import { useRenderActivity } from "./canvas/render-activity";
 import type { SceneComponents } from "./custom-components";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
@@ -25,10 +26,15 @@ export function SceneContent({
   evaluated,
   components,
 }: SceneContentProps) {
+  const activity = useRenderActivity();
   const environment = useMemo(
     () => resolveEnvironment(spec.environment),
     [spec.environment]
   );
+
+  useLayoutEffect(() => {
+    activity.wake();
+  }, [activity, spec, evaluated]);
 
   return (
     <>
