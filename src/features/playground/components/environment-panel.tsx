@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   ChevronUp,
+  Droplets,
   Lightbulb,
   Mountain,
   Palette,
@@ -25,7 +26,9 @@ import { isLightingPresetId, lightingPresets } from "@/presets/lighting";
 import { materialPresets, type MaterialPreset } from "@/presets/materials";
 import {
   isOceanPresetId,
+  isUnderwaterPresetId,
   oceanPresets,
+  underwaterPresets,
   type OceanOverride,
 } from "@/presets/ocean";
 import { presetIds } from "@/presets/registry";
@@ -44,6 +47,7 @@ const OCEAN_OFF: OceanOverride = "off";
 const lightingIds = presetIds(lightingPresets);
 const environmentIds = presetIds(environmentPresets);
 const oceanIds = presetIds(oceanPresets);
+const underwaterIds = presetIds(underwaterPresets);
 
 function isOceanOverride(value: string): value is OceanOverride {
   return value === OCEAN_OFF || isOceanPresetId(value);
@@ -55,6 +59,16 @@ function projectOceanLabel({ environment: { ocean } }: SceneSpec): string {
     return oceanPresets[ocean.presetId].label;
   }
   return "กำหนดเอง";
+}
+
+function projectUnderwaterLabel({ environment: { ocean } }: SceneSpec): string {
+  const underwater = ocean?.underwater;
+  if (underwater === undefined) return underwaterPresets.ocean.label;
+  const { presetId, ...fields } = underwater;
+  if (Object.keys(fields).length > 0) return "กำหนดเอง";
+  return presetId !== undefined && isUnderwaterPresetId(presetId)
+    ? underwaterPresets[presetId].label
+    : underwaterPresets.ocean.label;
 }
 
 const materialEntries = Object.entries(materialPresets) as [
@@ -91,6 +105,12 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
   );
   const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
   const setOceanOverride = usePlaygroundStore((s) => s.setOceanOverride);
+  const underwaterPresetId = usePlaygroundStore((s) => s.underwaterPresetId);
+  const setUnderwaterPreset = usePlaygroundStore((s) => s.setUnderwaterPreset);
+  const hasOcean =
+    oceanOverride === null
+      ? scene.environment.ocean !== undefined
+      : oceanOverride !== OCEAN_OFF;
 
   const projectEnvironment = scene.environment.presetId;
   const projectPreset =
@@ -193,6 +213,30 @@ export function EnvironmentPanel({ scene }: { scene: SceneSpec }) {
               ))}
             </PresetToggleGroup>
           </PanelSection>
+
+          {hasOcean && (
+            <PanelSection icon={Droplets} title="ใต้น้ำ">
+              <PresetToggleGroup
+                label="น้ำใต้ทะเล"
+                value={underwaterPresetId ?? PROJECT_VALUE}
+                onValueChange={(next) =>
+                  setUnderwaterPreset(isUnderwaterPresetId(next) ? next : null)
+                }
+              >
+                <PresetItem value={PROJECT_VALUE}>
+                  ของ project
+                  <span className="text-muted-foreground">
+                    {projectUnderwaterLabel(scene)}
+                  </span>
+                </PresetItem>
+                {underwaterIds.map((id) => (
+                  <PresetItem key={id} value={id}>
+                    {underwaterPresets[id].label}
+                  </PresetItem>
+                ))}
+              </PresetToggleGroup>
+            </PanelSection>
+          )}
 
           <PanelSection icon={Palette} title="วัสดุ">
             <div className="grid grid-cols-6 gap-2">

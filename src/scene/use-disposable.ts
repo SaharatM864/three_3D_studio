@@ -4,10 +4,11 @@ export interface Disposable {
   dispose(): void;
 }
 
-export function useDisposable(resource: Disposable): void {
+export function useDisposable(resource: Disposable | null): void {
   const active = useRef<Disposable | null>(null);
 
   useEffect(() => {
+    if (resource === null) return;
     active.current = resource;
     return () => {
       active.current = null;

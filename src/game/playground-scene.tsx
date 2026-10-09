@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { PlaygroundSpec, SceneSpec } from "@/model/types";
 import { applyEnvironmentPreset } from "@/presets/environments";
 import { lightingPresets } from "@/presets/lighting";
-import { applyOceanOverride } from "@/presets/ocean";
+import { applyOceanOverride, applyUnderwaterOverride } from "@/presets/ocean";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
 import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
@@ -32,6 +32,7 @@ export function PlaygroundScene({
   const lightingPresetId = usePlaygroundStore((s) => s.lightingPresetId);
   const environmentPresetId = usePlaygroundStore((s) => s.environmentPresetId);
   const oceanOverride = usePlaygroundStore((s) => s.oceanOverride);
+  const underwaterPresetId = usePlaygroundStore((s) => s.underwaterPresetId);
   const view = usePlaygroundSettingsStore((s) => s.view);
   const orbit = usePlaygroundSettingsStore((s) => s.orbit);
 
@@ -39,8 +40,18 @@ export function PlaygroundScene({
     const preset = environmentPresetId
       ? applyEnvironmentPreset(scene.environment, environmentPresetId)
       : scene.environment;
-    return oceanOverride ? applyOceanOverride(preset, oceanOverride) : preset;
-  }, [scene.environment, environmentPresetId, oceanOverride]);
+    const ocean = oceanOverride
+      ? applyOceanOverride(preset, oceanOverride)
+      : preset;
+    return underwaterPresetId
+      ? applyUnderwaterOverride(ocean, underwaterPresetId)
+      : ocean;
+  }, [
+    scene.environment,
+    environmentPresetId,
+    oceanOverride,
+    underwaterPresetId,
+  ]);
   const spec = useMemo<SceneSpec>(
     () => ({
       ...scene,

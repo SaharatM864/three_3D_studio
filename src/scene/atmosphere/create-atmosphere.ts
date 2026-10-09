@@ -8,7 +8,9 @@ import type { CelestialFrame } from "./geo-frame";
 import {
   ShadowedAtmosphereLightNode,
   SUN_TRANSMITTANCE_CONTEXT_KEY,
+  WATER_LIGHT_CONTEXT_KEY,
   type SunTransmittanceSource,
+  type WaterLightSource,
 } from "./shadowed-light-node";
 import { AtmosphereContext, AtmosphereLight, onLUTUpdate } from "./takram";
 
@@ -17,6 +19,7 @@ export interface AtmosphereHandle extends Disposable {
   setCamera(camera: Camera): void;
   setCelestialFrame(frame: CelestialFrame): void;
   setSunTransmittance(source: SunTransmittanceSource | null): void;
+  setWaterLight(source: WaterLightSource | null): void;
   onLUTUpdate(listener: () => void): () => void;
 }
 
@@ -33,15 +36,18 @@ export function createAtmosphere(): AtmosphereHandle {
   const atmosphere = new AtmosphereContext();
   atmosphere.raymarchScattering = ATMOSPHERE_RAYMARCH_SCATTERING;
   let sunTransmittance: SunTransmittanceSource | null = null;
+  let waterLight: WaterLightSource | null = null;
   let provided: ProvidedContext | null = null;
 
   function apply(): void {
     if (provided === null) return;
     const source = sunTransmittance;
+    const water = waterLight;
     provided.renderer.contextNode = context({
       ...provided.base.value,
       getAtmosphere: () => atmosphere,
       [SUN_TRANSMITTANCE_CONTEXT_KEY]: () => source,
+      [WATER_LIGHT_CONTEXT_KEY]: () => water,
     });
   }
 
@@ -70,6 +76,12 @@ export function createAtmosphere(): AtmosphereHandle {
     setSunTransmittance(source) {
       if (source === sunTransmittance) return;
       sunTransmittance = source;
+      apply();
+    },
+
+    setWaterLight(source) {
+      if (source === waterLight) return;
+      waterLight = source;
       apply();
     },
 

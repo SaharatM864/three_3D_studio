@@ -57,7 +57,10 @@ export interface WaveForm {
   crestRelief: Node<"float">;
 }
 
-function amplitudeEnvelope(detail: Texture, uv: Node<"vec2">): Node<"float"> {
+export function amplitudeEnvelope(
+  detail: Texture,
+  uv: Node<"vec2">
+): Node<"float"> {
   const broad = texture(detail, uv.div(2400), 0).b;
   const near = texture(detail, uv.div(770).add(0.37), 0).a;
   return broad
@@ -204,21 +207,4 @@ export function sampleWaveForm(
     if (index === 0) swellHeight.assign(here);
   });
   return { swellHeight, crestRelief };
-}
-
-export function cameraWaterHeight(
-  cascades: readonly OceanCascadeMaps[],
-  detail: Texture,
-  originXZ: Node<"vec2">
-): Node<"float"> {
-  const envelope = amplitudeEnvelope(detail, originXZ).toVar();
-  const height = float(0).toVar();
-  for (const cascade of cascades.slice(0, 2)) {
-    height.addAssign(
-      texture(cascade.displacement, originXZ.div(cascade.lengthScale), 0).y.mul(
-        envelope
-      )
-    );
-  }
-  return height;
 }

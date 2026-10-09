@@ -7,13 +7,14 @@ export const UNIT: Bounds = [0, 1];
 export function assertVector(
   name: string,
   vector: readonly number[],
-  length: number
+  length: number,
+  bounds: Bounds = ANY
 ): void {
   if (!Array.isArray(vector) || vector.length !== length) {
     throw new Error(`Invalid ${name}: expected ${length} numbers`);
   }
   vector.forEach((value, index) =>
-    assertInRange(`${name}[${index}]`, value, ANY)
+    assertInRange(`${name}[${index}]`, value, bounds)
   );
 }
 

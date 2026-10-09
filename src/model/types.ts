@@ -244,6 +244,18 @@ export interface OceanFoam {
   milk: number;
 }
 
+export interface OceanUnderwater {
+  extinction: Vec3;
+  backscatter: Vec3;
+  downwelling: Vec3;
+  tint: Vec3;
+  caustics: number;
+}
+
+export interface OceanUnderwaterSpec extends Partial<OceanUnderwater> {
+  presetId?: string;
+}
+
 export interface OceanSpec {
   presetId?: string;
   wind?: Partial<OceanWaves>;
@@ -255,6 +267,7 @@ export interface OceanSpec {
   subsurface?: number;
   timeScale?: number;
   seed?: number;
+  underwater?: OceanUnderwaterSpec;
 }
 
 export interface EnvironmentSpec {

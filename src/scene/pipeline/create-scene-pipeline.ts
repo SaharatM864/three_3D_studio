@@ -13,6 +13,7 @@ import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
 import { createAerialPerspective } from "../atmosphere/create-aerial-perspective";
 import type { NightSky } from "../atmosphere/night";
 import { createClouds, type CloudsHandle } from "../clouds/create-clouds";
+import type { UnderwaterMedium } from "../ocean/create-ocean";
 import { TONE_MAPPING } from "../render-config";
 import type { Disposable } from "../use-disposable";
 import {
@@ -24,6 +25,7 @@ import {
 
 export interface ScenePipelineOptions {
   clouds: boolean;
+  water: UnderwaterMedium | null;
 }
 
 export interface ScenePipelineHandle extends Disposable {
@@ -54,8 +56,15 @@ export function createScenePipeline(
     depthNode,
     clouds?.shadowLength ?? null
   );
+  const above = clouds?.composite(aerial.node) ?? aerial.node;
   const lensFlareNode = lensFlare(
-    clouds?.composite(aerial.node) ?? aerial.node
+    options.water?.apply({
+      above,
+      scene: colorNode,
+      depth: depthNode,
+      camera,
+      reversedDepth: renderer.reversedDepthBuffer,
+    }) ?? above
   );
   const toneMappedNode = convertToTexture(
     toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)

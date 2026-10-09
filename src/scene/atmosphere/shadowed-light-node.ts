@@ -10,7 +10,13 @@ export interface SunTransmittanceSource {
   ): Node<"float">;
 }
 
+export interface WaterLightSource {
+  waterLight(positionWorld: Node<"vec3">, builder: NodeBuilder): Node<"float">;
+}
+
 export const SUN_TRANSMITTANCE_CONTEXT_KEY = "getSunTransmittance";
+
+export const WATER_LIGHT_CONTEXT_KEY = "getWaterLight";
 
 export class ShadowedAtmosphereLightNode extends AtmosphereLightNode {
   private readonly sunWeight = uniform(1);
@@ -23,32 +29,39 @@ export class ShadowedAtmosphereLightNode extends AtmosphereLightNode {
 
   override setupDirect(builder: NodeBuilder) {
     const data = super.setupDirect(builder);
-    const source = getSunTransmittanceSource(builder);
-    if (data === undefined || source === null) return data;
-
-    const atmosphere = getAtmosphereContext(builder);
-    const positionECEF = atmosphere.matrixWorldToECEF.mul(
-      vec4(positionWorld, 1)
-    ).xyz;
-    const transmittance = source.sunTransmittance(
-      atmosphere.correctAltitude
-        ? positionECEF.add(atmosphere.altitudeCorrectionECEF)
-        : positionECEF,
-      builder
+    if (data === undefined) return data;
+    const source = getContextSource<SunTransmittanceSource>(
+      builder,
+      SUN_TRANSMITTANCE_CONTEXT_KEY
     );
-    const lightColor = data.lightColor as Node<"vec3">;
-    return {
-      ...data,
-      lightColor: lightColor.mul(mix(1, transmittance, this.sunWeight)),
-    };
+    const water = getContextSource<WaterLightSource>(
+      builder,
+      WATER_LIGHT_CONTEXT_KEY
+    );
+    if (source === null && water === null) return data;
+
+    let lightColor = data.lightColor as Node<"vec3">;
+    if (source !== null) {
+      const atmosphere = getAtmosphereContext(builder);
+      const positionECEF = atmosphere.matrixWorldToECEF.mul(
+        vec4(positionWorld, 1)
+      ).xyz;
+      const transmittance = source.sunTransmittance(
+        atmosphere.correctAltitude
+          ? positionECEF.add(atmosphere.altitudeCorrectionECEF)
+          : positionECEF,
+        builder
+      );
+      lightColor = lightColor.mul(mix(1, transmittance, this.sunWeight));
+    }
+    if (water !== null) {
+      lightColor = lightColor.mul(water.waterLight(positionWorld, builder));
+    }
+    return { ...data, lightColor };
   }
 }
 
-function getSunTransmittanceSource(
-  builder: NodeBuilder
-): SunTransmittanceSource | null {
-  const getSource = builder.getContext()[SUN_TRANSMITTANCE_CONTEXT_KEY];
-  return typeof getSource === "function"
-    ? (getSource() as SunTransmittanceSource | null)
-    : null;
+function getContextSource<T>(builder: NodeBuilder, key: string): T | null {
+  const getSource = builder.getContext()[key];
+  return typeof getSource === "function" ? (getSource() as T | null) : null;
 }

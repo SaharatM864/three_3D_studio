@@ -12,7 +12,12 @@ import {
   vec2,
   vec3,
 } from "three/tsl";
-import { DoubleSide, MeshBasicNodeMaterial, type Texture } from "three/webgpu";
+import {
+  DoubleSide,
+  MeshBasicNodeMaterial,
+  type Node,
+  type Texture,
+} from "three/webgpu";
 
 import type { OceanCascadeMaps } from "../simulation/ocean-simulation";
 import { SAT_BOOST } from "./constants";
@@ -29,7 +34,6 @@ import type { SurfaceUniforms } from "./uniforms";
 import { surfaceVelocity } from "./velocity";
 import { seaColors, shadeWaterBody } from "./water-body";
 import {
-  cameraWaterHeight,
   displacedPosition,
   sampleWaveForm,
   sampleWaveSurface,
@@ -40,12 +44,14 @@ export interface SurfaceMaterialOptions {
   cascades: readonly OceanCascadeMaps[];
   detail: Texture;
   uniforms: SurfaceUniforms;
+  waterHeight: Node<"float">;
 }
 
 export function createSurfaceMaterial({
   cascades,
   detail,
   uniforms,
+  waterHeight,
 }: SurfaceMaterialOptions): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial();
   material.side = DoubleSide;
@@ -64,6 +70,7 @@ export function createSurfaceMaterial({
     const form = sampleWaveForm(waves, surface);
     const view = normalize(cameraPosition.sub(positionWorld)).toVar();
     const viewDistance = length(cameraPosition.sub(positionWorld)).toVar();
+    const sea = seaColors(uniforms.palette);
     const geometry: ViewGeometry = {
       normal: surface.normal,
       view,
@@ -78,7 +85,7 @@ export function createSurfaceMaterial({
       time: uniforms.time,
       normal: surface.normal,
       view,
-      sea: seaColors(uniforms.palette),
+      sea,
       subsurface: uniforms.subsurface,
       form,
       light,
@@ -132,10 +139,12 @@ export function createSurfaceMaterial({
     return shadeUnderwater({
       surface: foamed,
       normal: surface.normal,
+      roughness: surface.roughness,
       view,
       viewDistance,
-      cameraWaterHeight: cameraWaterHeight(cascades, detail, uniforms.originXZ),
-      body,
+      waterHeight,
+      sea,
+      uniforms,
       light,
     }).mul(light.outputScale);
   })();

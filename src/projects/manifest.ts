@@ -23,6 +23,12 @@ export const projectManifest = [
     description:
       "แท่นโชว์วัสดุทุก preset ไว้เดินดูแสง สี และวัสดุ พร้อมคลิปกล้องเลื่อนผ่าน",
   },
+  {
+    id: "underwater",
+    title: "Underwater",
+    description:
+      "ฉากทดสอบใต้ทะเล พื้นทราย หิน เสาท่า และลูกบอลแดงขาวไว้ดูการดูดกลืนแสง พร้อมคลิปกล้องลอยขึ้นทะลุผิวน้ำ",
+  },
 ] as const satisfies readonly ProjectMeta[];
 
 export type ProjectId = (typeof projectManifest)[number]["id"];

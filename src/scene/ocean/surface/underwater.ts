@@ -2,68 +2,103 @@ import {
   cameraPosition,
   dot,
   float,
+  If,
   mix,
   normalize,
+  pow,
+  reflect,
   refract,
   saturate,
   vec3,
 } from "three/tsl";
 import type { Node } from "three/webgpu";
 
+import {
+  SUBMERGE_RAMP,
+  WINDOW_SUN_GAIN,
+  WINDOW_SUN_SHARP,
+  WINDOW_SUN_SOFT,
+} from "../underwater/constants";
+import { createWaterLighting } from "../underwater/radiance";
 import { FAR_SINK, FAR_SINK_RANGE, N_WATER } from "./constants";
 import { fresnelDielectric } from "./reflection";
 import type { SkyLight } from "./sky-light";
-import { expVec3, mixVec3 } from "./vector-math";
-import type { WaterBody } from "./water-body";
+import type { SurfaceUniforms } from "./uniforms";
+import type { SeaColors } from "./water-body";
 
 export interface UnderwaterInputs {
   surface: Node<"vec3">;
   normal: Node<"vec3">;
+  roughness: Node<"float">;
   view: Node<"vec3">;
   viewDistance: Node<"float">;
-  cameraWaterHeight: Node<"float">;
-  body: WaterBody;
+  waterHeight: Node<"float">;
+  sea: SeaColors;
+  uniforms: SurfaceUniforms;
   light: SkyLight;
 }
 
 export function shadeUnderwater({
   surface,
   normal,
+  roughness,
   view,
   viewDistance,
-  cameraWaterHeight,
-  body,
+  waterHeight,
+  sea,
+  uniforms,
   light,
 }: UnderwaterInputs): Node<"vec3"> {
-  const deepBody = body.deepBody.mul(light.ambientLevel).toVar();
-  const submerged = saturate(
-    cameraWaterHeight.sub(cameraPosition.y).mul(3).add(0.5)
-  ).toVar();
-  const under = saturate(dot(normal, view).negate().mul(8))
-    .mul(submerged)
-    .toVar();
-  const normalBelow = normal.negate().toVar();
-  const cosUp = saturate(dot(normalBelow, view)).toVar();
-  const fresnelUp = fresnelDielectric(cosUp, N_WATER).toVar();
-  const refracted = refract(view.negate(), normalBelow, float(N_WATER)).toVar();
-  const window = light.sky(normalize(refracted.add(vec3(0, 1e-5, 0)))).toVar();
-  const underLit = mix(
-    window,
-    deepBody.mul(float(0.3).add(body.facing.mul(0.5))),
-    fresnelUp
-  ).toVar();
-  const shaded = mix(surface, underLit, under).toVar();
-  const extinction = expVec3(
-    body.absorption.mul(viewDistance).negate()
-  ).toVar();
   const farSink = mix(
     float(1),
     float(FAR_SINK),
     saturate(viewDistance.div(FAR_SINK_RANGE))
+  ).toVar();
+  const result = surface.mul(farSink).toVar();
+  const submerged = saturate(
+    waterHeight.sub(cameraPosition.y).mul(SUBMERGE_RAMP).add(0.5)
+  ).toVar();
+
+  If(
+    uniforms.underwaterActive.greaterThan(0.5).and(submerged.greaterThan(0)),
+    () => {
+      const under = saturate(dot(normal, view).negate().mul(8))
+        .mul(submerged)
+        .toVar();
+      const water = createWaterLighting({
+        light,
+        sea,
+        tint: uniforms.tint,
+        downwelling: uniforms.downwelling,
+        cameraDepth: float(0),
+      });
+      const normalBelow = normal.negate().toVar();
+      const cosUp = saturate(dot(normalBelow, view)).toVar();
+      const fresnelUp = fresnelDielectric(cosUp, N_WATER).toVar();
+      const refracted = normalize(
+        refract(view.negate(), normalBelow, float(N_WATER)).add(
+          vec3(0, 1e-5, 0)
+        )
+      ).toVar();
+      const sharpness = mix(
+        float(WINDOW_SUN_SHARP),
+        float(WINDOW_SUN_SOFT),
+        saturate(roughness.mul(2))
+      );
+      const sunSpot = light.sunColor.mul(
+        pow(saturate(dot(refracted, light.sunDirection)), sharpness).mul(
+          WINDOW_SUN_GAIN
+        )
+      );
+      const window = light.sky(refracted).add(sunSpot);
+      const internal = water.radiance(
+        normalize(reflect(view.negate(), normalBelow))
+      );
+      const underLit = mix(window, internal, fresnelUp);
+      const shaded = mix(surface, underLit, under);
+      result.assign(mix(surface.mul(farSink), shaded, submerged));
+    }
   );
-  return mix(
-    shaded.mul(farSink),
-    mixVec3(deepBody.mul(0.35), shaded, extinction),
-    submerged
-  );
+
+  return result;
 }

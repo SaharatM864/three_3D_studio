@@ -46,7 +46,11 @@ const cloudsForkImports = {
 };
 
 const oceanInternalImports = {
-  group: ["**/ocean/simulation/**", "**/ocean/surface/**"],
+  group: [
+    "**/ocean/simulation/**",
+    "**/ocean/surface/**",
+    "**/ocean/underwater/**",
+  ],
   message:
     'Use the ocean through "src/scene/ocean/create-ocean.ts" or "src/scene/ocean/ocean.tsx" (see docs/architecture.md).',
 };

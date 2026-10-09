@@ -1,4 +1,4 @@
-import { Matrix4, Vector2 } from "three";
+import { Matrix4, Vector2, Vector3 } from "three";
 import { uniform } from "three/tsl";
 import type { UniformNode } from "three/webgpu";
 
@@ -7,6 +7,7 @@ import type { ResolvedOcean } from "@/presets/ocean";
 const LUMINANCE_GAIN_PER_EXPOSURE = 1 / 1.2;
 
 type FloatUniform = UniformNode<"float", number>;
+type Vec3Uniform = UniformNode<"vec3", Vector3>;
 
 export interface SurfaceUniforms {
   originXZ: UniformNode<"vec2", Vector2>;
@@ -23,6 +24,13 @@ export interface SurfaceUniforms {
   foamBrightness: FloatUniform;
   foamRelief: FloatUniform;
   foamMilk: FloatUniform;
+  underwaterActive: FloatUniform;
+  cameraPosition: Vec3Uniform;
+  extinction: Vec3Uniform;
+  backscatter: Vec3Uniform;
+  downwelling: Vec3Uniform;
+  tint: Vec3Uniform;
+  caustics: FloatUniform;
 }
 
 export function createSurfaceUniforms(): SurfaceUniforms {
@@ -41,6 +49,13 @@ export function createSurfaceUniforms(): SurfaceUniforms {
     foamBrightness: uniform(0.88),
     foamRelief: uniform(0.18),
     foamMilk: uniform(0.45),
+    underwaterActive: uniform(0),
+    cameraPosition: uniform(new Vector3()),
+    extinction: uniform(new Vector3()),
+    backscatter: uniform(new Vector3()),
+    downwelling: uniform(new Vector3()),
+    tint: uniform(new Vector3(1, 1, 1)),
+    caustics: uniform(1),
   };
 }
 
@@ -56,6 +71,12 @@ export function applySurfaceOcean(
   uniforms.foamBrightness.value = ocean.foam.brightness;
   uniforms.foamRelief.value = ocean.foam.relief;
   uniforms.foamMilk.value = ocean.foam.milk;
+  const { underwater } = ocean;
+  uniforms.extinction.value.fromArray(underwater.extinction);
+  uniforms.backscatter.value.fromArray(underwater.backscatter);
+  uniforms.downwelling.value.fromArray(underwater.downwelling);
+  uniforms.tint.value.fromArray(underwater.tint);
+  uniforms.caustics.value = underwater.caustics;
 }
 
 export function applySurfaceExposure(

@@ -3,11 +3,18 @@ import type {
   OceanColor,
   OceanFoam,
   OceanSpec,
+  OceanUnderwater,
+  OceanUnderwaterSpec,
   OceanWaves,
 } from "@/model/types";
 
 import { getPreset, hasPreset } from "./registry";
-import { assertFields, assertInRange, type Bounds } from "./validation";
+import {
+  assertFields,
+  assertInRange,
+  assertVector,
+  type Bounds,
+} from "./validation";
 
 export interface ResolvedOcean {
   wind: OceanWaves;
@@ -19,6 +26,7 @@ export interface ResolvedOcean {
   subsurface: number;
   timeScale: number;
   seed: number;
+  underwater: OceanUnderwater;
 }
 
 export interface OceanPreset {
@@ -26,7 +34,22 @@ export interface OceanPreset {
   ocean: Omit<OceanSpec, "presetId">;
 }
 
+export interface UnderwaterPreset {
+  label: string;
+  underwater: Partial<OceanUnderwater>;
+}
+
 export const OCEAN_COLORS: readonly OceanColor[] = ["open-ocean", "tropical"];
+
+const POSEIDON_EXTINCTION = [0.4497, 0.1769, 0.2825] as const;
+
+export const DEFAULT_UNDERWATER: OceanUnderwater = {
+  extinction: POSEIDON_EXTINCTION,
+  backscatter: POSEIDON_EXTINCTION,
+  downwelling: POSEIDON_EXTINCTION,
+  tint: [1, 1, 1],
+  caustics: 1,
+};
 
 export const DEFAULT_OCEAN: ResolvedOcean = {
   wind: { speed: 10.5, direction: 45, fetch: 90_000, scale: 0.48 },
@@ -46,6 +69,7 @@ export const DEFAULT_OCEAN: ResolvedOcean = {
   subsurface: 1,
   timeScale: 1,
   seed: 0x5eed0cea,
+  underwater: DEFAULT_UNDERWATER,
 };
 
 export const oceanPresets = {
@@ -73,6 +97,49 @@ export const oceanPresets = {
 
 export type OceanPresetId = keyof typeof oceanPresets;
 
+export const underwaterPresets = {
+  ocean: {
+    label: "Open ocean",
+    underwater: {},
+  },
+  clear: {
+    label: "Clear",
+    underwater: {
+      extinction: [0.25, 0.07, 0.035],
+      backscatter: [0.25, 0.07, 0.035],
+      downwelling: [0.25, 0.07, 0.035],
+      tint: [0.85, 1, 1.15],
+      caustics: 1.2,
+    },
+  },
+  coastal: {
+    label: "Coastal",
+    underwater: {
+      extinction: [0.55, 0.3, 0.45],
+      backscatter: [0.55, 0.3, 0.45],
+      downwelling: [0.55, 0.3, 0.45],
+      tint: [0.9, 1.1, 0.8],
+      caustics: 0.7,
+    },
+  },
+  murky: {
+    label: "Murky",
+    underwater: {
+      extinction: [0.9, 0.7, 0.9],
+      backscatter: [0.9, 0.7, 0.9],
+      downwelling: [0.9, 0.7, 0.9],
+      tint: [1, 1, 0.7],
+      caustics: 0.3,
+    },
+  },
+} satisfies Record<string, UnderwaterPreset>;
+
+export type UnderwaterPresetId = keyof typeof underwaterPresets;
+
+export function isUnderwaterPresetId(id: string): id is UnderwaterPresetId {
+  return hasPreset(underwaterPresets, id);
+}
+
 export type OceanOverride = OceanPresetId | "off";
 
 export function isOceanPresetId(id: string): id is OceanPresetId {
@@ -94,9 +161,30 @@ export function resolveOcean(spec: OceanSpec): ResolvedOcean {
       spec.subsurface ?? preset.subsurface ?? DEFAULT_OCEAN.subsurface,
     timeScale: spec.timeScale ?? preset.timeScale ?? DEFAULT_OCEAN.timeScale,
     seed: spec.seed ?? preset.seed ?? DEFAULT_OCEAN.seed,
+    underwater: resolveUnderwater(preset.underwater, spec.underwater),
   };
   validateOcean(ocean);
   return ocean;
+}
+
+function resolveUnderwater(
+  preset: OceanUnderwaterSpec | undefined,
+  spec: OceanUnderwaterSpec | undefined
+): OceanUnderwater {
+  const presetId = spec?.presetId ?? preset?.presetId;
+  const water: Partial<OceanUnderwater> =
+    presetId === undefined
+      ? {}
+      : getPreset(underwaterPresets, presetId, "underwater").underwater;
+  const pick = <K extends keyof OceanUnderwater>(key: K): OceanUnderwater[K] =>
+    spec?.[key] ?? preset?.[key] ?? water[key] ?? DEFAULT_UNDERWATER[key];
+  return {
+    extinction: pick("extinction"),
+    backscatter: pick("backscatter"),
+    downwelling: pick("downwelling"),
+    tint: pick("tint"),
+    caustics: pick("caustics"),
+  };
 }
 
 export function applyOceanOverride(
@@ -105,7 +193,21 @@ export function applyOceanOverride(
 ): EnvironmentSpec {
   return {
     ...spec,
-    ocean: override === "off" ? undefined : { presetId: override },
+    ocean:
+      override === "off"
+        ? undefined
+        : { presetId: override, underwater: spec.ocean?.underwater },
+  };
+}
+
+export function applyUnderwaterOverride(
+  spec: EnvironmentSpec,
+  override: UnderwaterPresetId
+): EnvironmentSpec {
+  if (spec.ocean === undefined) return spec;
+  return {
+    ...spec,
+    ocean: { ...spec.ocean, underwater: { presetId: override } },
   };
 }
 
@@ -137,6 +239,10 @@ const SURFACE_BOUNDS = {
   timeScale: [0, 3],
 } satisfies Record<string, Bounds>;
 
+const ATTENUATION_BOUNDS: Bounds = [0.001, 5];
+const TINT_BOUNDS: Bounds = [0, 2];
+const CAUSTICS_BOUNDS: Bounds = [0, 2];
+
 const SEED_MAX = 0xffffffff;
 
 function validateOcean(ocean: ResolvedOcean): void {
@@ -153,4 +259,29 @@ function validateOcean(ocean: ResolvedOcean): void {
     throw new Error(`Invalid ocean.seed ${ocean.seed}: expected an integer`);
   }
   assertInRange("ocean.seed", ocean.seed, [0, SEED_MAX]);
+  validateUnderwater(ocean.underwater);
+}
+
+function validateUnderwater(underwater: OceanUnderwater): void {
+  const name = "ocean.underwater";
+  assertVector(
+    `${name}.extinction`,
+    underwater.extinction,
+    3,
+    ATTENUATION_BOUNDS
+  );
+  assertVector(
+    `${name}.backscatter`,
+    underwater.backscatter,
+    3,
+    ATTENUATION_BOUNDS
+  );
+  assertVector(
+    `${name}.downwelling`,
+    underwater.downwelling,
+    3,
+    ATTENUATION_BOUNDS
+  );
+  assertVector(`${name}.tint`, underwater.tint, 3, TINT_BOUNDS);
+  assertInRange(`${name}.caustics`, underwater.caustics, CAUSTICS_BOUNDS);
 }

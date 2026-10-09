@@ -11,7 +11,7 @@ import { useRenderActivity } from "./canvas/render-activity";
 import type { SceneComponents } from "./custom-components";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
-import { Ocean } from "./ocean/ocean";
+import { Ocean, useOceanHandle } from "./ocean/ocean";
 import { ScenePipeline } from "./pipeline/scene-pipeline";
 
 export interface SceneContentProps {
@@ -35,6 +35,7 @@ export function SceneContent({
     [spec.environment]
   );
   const exposure = environment.exposure * 2 ** exposureCompensation;
+  const ocean = useOceanHandle(environment.ocean !== null);
 
   useLayoutEffect(() => {
     activity.wake();
@@ -48,9 +49,13 @@ export function SceneContent({
       >
         <SkyEnvironment />
         <CelestialLight />
-        <ScenePipeline exposure={exposure} clouds={environment.clouds} />
-        {environment.ocean && (
-          <Ocean ocean={environment.ocean} exposure={exposure} />
+        <ScenePipeline
+          exposure={exposure}
+          clouds={environment.clouds}
+          water={ocean?.underwater ?? null}
+        />
+        {ocean && environment.ocean && (
+          <Ocean handle={ocean} ocean={environment.ocean} exposure={exposure} />
         )}
       </Atmosphere>
       <LightRig lights={spec.lights} values={evaluated.lights} />

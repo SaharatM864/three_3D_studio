@@ -19,6 +19,7 @@ Build the scene once, inspect it in the playground, then edit the video in the c
 - `src/projects/_template/`: start here. Its scene includes a custom component example.
 - `src/projects/example-turntable/`: a data-only scene, plus a clip that animates a scene object with `animate`.
 - `src/projects/showroom/`: a scene generated from `materialPresets`, plus a camera-only clip.
+- `src/projects/underwater/`: a seabed scene below the ocean, with a playground spawn underwater and a clip that rises through the surface.
 
 ## Add a project
 
@@ -121,11 +122,13 @@ export default definePlayground(
     - Keep `scattering` and `haze` at their defaults unless the shot needs it. Defaults and limits are in `src/presets/clouds.ts`.
   - `ocean` (optional) adds an FFT ocean that reaches the horizon; `ocean: {}` uses the defaults. Example: `showroom`.
     - `presetId` picks a sea state: `calm`, `moderate` (the default values) or `rough`. Fields you set override the preset per group, e.g. `ocean: { presetId: "calm", color: "tropical" }`.
-    - The water surface is world y = 0, which is sea level when `location.height` is 0 (every environment preset). Keep objects above the waves (`showroom` raises its floor into a deck with `DECK_HEIGHT`) and keep the camera above the water.
+    - The water surface is world y = 0, which is sea level when `location.height` is 0 (every environment preset). Objects and the camera may go below it: underwater, objects lose light with depth and distance, show caustics, and the camera sees the surface from below. `showroom` raises its floor into a deck with `DECK_HEIGHT` to keep its plinths dry.
     - The ocean reaches about 20 km. A clip camera with `far` set must keep it at 20 000 or more, or the sea is cut off before the horizon.
     - `wind` and `swell` take `speed` (m/s, 0.5–30), `direction` (0–360 degrees the waves travel toward: 0 = +X north, 90 = +Z east), `fetch` (meters, up to 1 000 000) and `scale` (wave amount, 0–2). For a calmer sea lower `scale`, never `speed` to 0.
     - `choppiness` (0–2.5) sharpens crests, `foam` tunes whitecaps, `color` is `"open-ocean"` or `"tropical"`, `timeScale` (0–3) slows or freezes the waves. The limits match the range Poseidon was tuned in; above `choppiness` 2.2 crests fold into pyramids and wind above about 13 m/s turns the sea white. Defaults and limits are in `src/presets/ocean.ts`.
     - The water reflects the sky and the sun of the environment, but not clouds or objects.
+    - `underwater` tunes the water seen from below. `presetId` picks the water: `ocean` (the default), `clear`, `coastal` or `murky`. Fields override the preset: `extinction`, `backscatter` and `downwelling` (RGB per meter, 0.001–5; red should be the largest), `tint` (RGB, 0–2) and `caustics` (0–2). Example: `ocean: { presetId: "calm", underwater: { presetId: "clear" } }`.
+    - The waterline crosses the lens when the camera is within about 25 cm of the surface, so the frame splits into above and below. Underwater objects are hidden from a camera above the water, because the surface is opaque from above.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.
   - Set `castShadow` on objects only when their shadow is visible in the shot.

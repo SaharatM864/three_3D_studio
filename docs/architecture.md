@@ -74,12 +74,12 @@ flowchart TD
 features (playground-app / viewport)
 └─ SceneCanvas quality (canvas/)        useWebGPUSupport() → <Canvas gl={createRenderer}> flat, shadows="percentage", dpr จาก resolvePixelRatio (pixel budget), frameloop, resize debounce
    └─ RenderQualityContext + RenderActivityContext
-      └─ SceneContent                   resolveEnvironment(spec.environment)
+      └─ SceneContent                   resolveEnvironment(spec.environment), useOceanHandle (ถ้ามีทะเล) สร้าง OceanHandle ให้ pipeline และ <Ocean>
          ├─ Atmosphere (atmosphere/)    AtmosphereContext → renderer.contextNode, CelestialFrame (geo-frame.ts) จากพิกัดและวันเวลา, กล้อง, useAtmosphere()
          │  ├─ SkyEnvironment           scene.environmentNode = skyEnvironment() (IBL)
          │  ├─ CelestialLight           AtmosphereLight ตัวเดียว: กลางวันเป็นดวงอาทิตย์ (ปิด indirect เพราะใช้ IBL) กลางคืนเป็นดวงจันทร์
-         │  ├─ ScenePipeline (pipeline/) pass(MRT output + highpVelocity) → aerialPerspective (วาดท้องฟ้า ดวงอาทิตย์ ดวงจันทร์ ดาว + shadow length ของเมฆ) → เมฆ (ถ้ามี) → lensFlare → toneMapping(Neutral, exposure) → TAA → renderOutput (sRGB) → dithering
-         │  └─ Ocean (ocean/)             ทะเล FFT (ถ้ามี environment.ocean) compute ก่อน pipeline render แล้ววาดเป็น mesh ใน scene pass
+         │  ├─ ScenePipeline (pipeline/) pass(MRT output + highpVelocity) → aerialPerspective (วาดท้องฟ้า ดวงอาทิตย์ ดวงจันทร์ ดาว + shadow length ของเมฆ) → เมฆ (ถ้ามี) → underwater medium (ถ้ามีทะเล) → lensFlare → toneMapping(Neutral, exposure) → TAA → renderOutput (sRGB) → dithering
+         │  └─ Ocean (ocean/)             ทะเล FFT (ถ้ามี environment.ocean) compute ก่อน pipeline render แล้ววาดเป็น mesh ใน scene pass และลงทะเบียน caustics กับ light node
          ├─ LightRig                    แสงเสริมจาก spec.lights
          └─ SceneObject × n             primitive + MeshStandardNodeMaterial
 ```
@@ -161,6 +161,7 @@ features (playground-app / viewport)
   - `ScenePipeline` ส่ง `CloudsHandle` ให้ `AtmosphereHandle.setSunTransmittance` ซึ่งสร้าง `renderer.contextNode` ใหม่ (key `getSunTransmittance`) เพื่อ rebuild material ทุกตัว เพราะ light node ถูก cache ต่อ light ตลอดอายุ
   - shadow map ของเมฆ update หลัง scene pass จึงช้าหนึ่งเฟรม (เห็นตอนตัดกล้อง) ส่วน history ถูกล้างเฉพาะเมื่อ flag ของ kernel หรือขนาด shadow map เปลี่ยน ไม่ล้างตอน compile material แล้ว (patch ข้อ 9 ใน "Clouds")
   - texel ของ cascade 0 ราว 50 ม. (preset high) เงาบนฉากเล็กจึงเป็นการหรี่แสงแบบนุ่ม
+  - key ที่สอง `getWaterLight` (`WaterLightSource`) คูณ direct light ด้วย caustics ของทะเล (ดู "ใต้น้ำ" ใน Ocean) โดยคูณนอก `sunWeight` จึงมีผลกับดวงจันทร์ด้วย `<Ocean>` ตั้งผ่าน `AtmosphereHandle.setWaterLight` ซึ่ง rebuild material ครั้งเดียวตอนเปิด/ปิดทะเลเหมือนกัน
 - **ยังไม่ได้ทำ**:
   - light shafts จากเงาวัตถุ (`shadowLength(csm, viewZUnit)`) ใช้ร่วมกับ shafts ของเมฆไม่ได้ เพราะ shadow length รับได้ช่วงเดียว
   - texture ผิวดวงจันทร์ (`moonNode.colorNode`, `matrixMoonFixedToECEF`) ไม่คุ้มเพราะดวงจันทร์กว้างราว 11 px ที่ fov 50
@@ -264,14 +265,15 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
 สถานะ: FFT ocean บน WebGPU ที่ port เป็น TypeScript จาก [Poseidon](https://github.com/owenyuwono/poseidon) commit `671053b812fcbffe8ecc4668eaa6ab7ffeb63287` (MIT) ไม่ใช่ npm package และไม่เพิ่ม dependency ตัวอย่างอยู่ที่ project `showroom` ใช้ใน playground ได้แล้ว ส่วน Studio รอ M1 (`SceneRoot`) และ M2 (`useClipFrame`) ยังไม่เคยรันบน GPU จริง
 
 ```text
-SceneContent                         {environment.ocean && <Ocean ocean exposure/>} ใต้ <Atmosphere>
-└─ Ocean (ocean/ocean.tsx)           useMemo(createOcean(renderer, clock)) + useDisposable, layout effect: setQuality/setOcean/setExposure, useFrame (priority 0): update(camera, time)
-   └─ createOcean (create-ocean.ts)  OceanHandle { mesh, setOcean, setQuality, setExposure, update, dispose } + OceanStepper (timeline/ocean.ts)
+SceneContent                         useOceanHandle(environment.ocean !== null) → <ScenePipeline water={handle.underwater}> + <Ocean handle ocean exposure/> ใต้ <Atmosphere>
+└─ Ocean (ocean/ocean.tsx)           useOceanHandle: useMemo(createOcean(renderer, clock)) + useDisposable, <Ocean>: layout effect setWaterLight/setQuality/setOcean/setExposure, useFrame (priority 0): update(camera, time)
+   └─ createOcean (create-ocean.ts)  OceanHandle { mesh, underwater, waterLight, setOcean, setQuality, setExposure, update, dispose } + OceanStepper (timeline/ocean.ts)
       ├─ simulation/                 createOceanSimulation: spectrum (JONSWAP + swell), FFT 256² × 3 cascade, cascade maps + foam history
-      └─ surface/                    createSurfaceMaterial: waves, reflection, water-body, foam, underwater, sky-light (takram), velocity (TAA), radial-grid, detail-texture
+      ├─ surface/                    createSurfaceMaterial: waves, reflection, water-body, foam, underwater (ผิวน้ำด้านล่าง), sky-light (takram), velocity (TAA), radial-grid, detail-texture
+      └─ underwater/                 probe (ความสูงคลื่นที่กล้อง), radiance (สีน้ำ B∞), medium (post pass), caustics (light node), constants
 ```
 
-- **ขอบเขตโมดูล**: ส่วนอื่นของแอปเห็นแค่ `createOcean`/`OceanHandle` กับ `<Ocean>` ESLint (`oceanInternalImports`) ห้ามไฟล์นอก `src/scene/ocean/` import `ocean/simulation/**` และ `ocean/surface/**`
+- **ขอบเขตโมดูล**: ส่วนอื่นของแอปเห็นแค่ `createOcean`/`OceanHandle` (รวม type `UnderwaterMedium`) กับ `<Ocean>`/`useOceanHandle` ESLint (`oceanInternalImports`) ห้ามไฟล์นอก `src/scene/ocean/` import `ocean/simulation/**`, `ocean/surface/**` และ `ocean/underwater/**`
 - **ข้อมูล** (`EnvironmentSpec.ocean`, `presets/ocean.ts`): ไม่มี field คือไม่มีทะเล `{}` คือค่าเริ่มต้นของ Poseidon
   - `presetId` เลือก sea state (`calm`, `moderate`, `rough`) แล้ว `resolveOcean` merge default ← preset ← spec ทีละกลุ่มและตรวจค่า (ใช้ตัวตรวจค่ากลางใน `presets/validation.ts` ร่วมกับเมฆ)
   - ขอบเขตของค่าเท่ากับช่วงใน GUI ของ Poseidon (`gui.js`) เช่น `choppiness` ≤ 2.5, `timeScale` ≤ 3 และ `speed` 0.5–30 m/s เพราะค่าของ foam และ shader จูนไว้ในช่วงนี้
@@ -279,7 +281,11 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - `rough` ใช้ลม 13 m/s และ `choppiness` 2.2 เพราะ Poseidon บันทึกว่าลม 16 m/s ทำให้ฟองขาวทั้งทะเล และ `choppiness` เกิน 2.2 ทำให้สันคลื่นพับเป็นพีระมิด ส่วนความเร็วของ swell ไม่เปลี่ยนตาม sea state (มาจากพายุไกล)
   - `direction` เป็นองศาของทิศที่คลื่นวิ่งไป ใช้ `(cos θ, sin θ)` บน XZ ตรงกับแกน +X เหนือ, +Z ตะวันออก จึงไม่ต้องแปลง
   - ค่าที่ผูกกับ shader (N 256, 3 cascade, lengthScales [1024, 144, 24], boundaryFactor 6, รูปร่าง spectrum และ chop) อยู่ใน `simulation/config.ts` ไม่อยู่ใน spec
-  - clip ที่ตั้ง `environment.ocean` จะแทนของ scene ทั้งก้อน (`composeClip` merge แค่ระดับบนสุด) ส่วน playground แทนด้วย `applyOceanOverride` จาก section "ทะเล" ใน environment panel
+  - clip ที่ตั้ง `environment.ocean` จะแทนของ scene ทั้งก้อน (`composeClip` merge แค่ระดับบนสุด) ส่วน playground แทนด้วย `applyOceanOverride` จาก section "ทะเล" ใน environment panel (คง `underwater` ของ project ไว้) และ `applyUnderwaterOverride` จาก section "ใต้น้ำ"
+  - `underwater` (`OceanUnderwater`) เป็นค่าทางแสงของน้ำ: `extinction`, `backscatter`, `downwelling` (RGB ต่อเมตร), `tint` (RGB) และ `caustics` (0–2)
+    - `presetId` เลือกจาก `underwaterPresets`: `ocean` (ค่าของ Poseidon ซึ่งเป็นค่าเริ่มต้น), `clear`, `coastal` และ `murky`
+    - merge default ← preset ← field ของ sea-state preset ← spec ทุกค่าเป็น uniform จึงเปลี่ยนได้ทันทีโดยไม่ reset foam
+    - ค่าเริ่มต้นของ `ocean` คือค่าเฉลี่ยของ `MU_CLEAR`/`MU_TURBID` (diffuse attenuation ของ Jerlov 1C/3C ที่ 600/550/450 nm) ซึ่ง Poseidon ใช้เป็น extinction ใต้น้ำ ภาพใต้น้ำแบบเดิมจึงไม่เปลี่ยนสี ส่วนค่าของ preset อื่นเป็นจุดเริ่มสำหรับจูนบน GPU
 - **สิ่งที่เปลี่ยนจาก Poseidon**:
   - ตัด GUI (`lil-gui`), HUD, fly camera, capture, FFT self-test, sky panorama, sky dome และ fog ทิ้ง ไม่มี state ระดับโมดูล (`params`, uniform ของ chop/ลม, texture ของ sky ย้ายเป็นต่อ instance) ยกเว้น pixel ของ detail texture ที่ cache ไว้เพราะเป็นข้อมูลคงที่
   - เพิ่ม `reset` ของ foam history (ใช้ `select` จึงล้าง NaN ได้), `dispose()` และเก็บ reference ของ scratch buffer กับ history texture
@@ -319,12 +325,39 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - array ของ compute node ต่อ step เป็น object เดิมทุกครั้ง (สองชุดสลับตาม parity ของ foam history) เพราะ backend เก็บ state ของ pass ผูกกับ array นั้น
   - kernel ใช้ storage texture ไม่เกิน 4 ต่อ stage จึงไม่ต้องขอ limit เพิ่มใน `createRenderer`
 - **Dispose**: ComputeNode, StorageTexture, material, geometry และ detail texture คืนผ่าน `dispose()` ส่วน storage buffer ไม่มี public API ให้คืนใน three 0.184 จึงตัด reference ทิ้งให้ GC เก็บ (ไม่แตะ `renderer._attributes`)
+- **ใต้น้ำ** (`underwater/`): ทุกค่ามาจาก probe, uniform และกล้อง ไม่มี history จึง deterministic (seek และ export ได้ภาพเดียวกัน) project ทดสอบคือ `underwater`
+  - **Probe** (`underwater/probe.ts`): compute 1 thread หาความสูงคลื่นและ slope ที่ XZ ของกล้องจริง แล้วเขียนลง storage buffer `vec4(h, ∂h/∂x, ∂h/∂z, 0)` ผู้อ่านใช้ node แบบ read-only ของ buffer เดียวกัน
+    - ทำ inverse displacement 1 รอบ ใช้ 3 cascade และ envelope แบบเดียวกับ `displacedPosition` แทน `cameraWaterHeight` เดิมที่คำนวณต่อ pixel
+    - `OceanHandle.update` ตั้ง `cameraPosition` และ `underwaterActive` แล้ว dispatch probe ทุกเฟรมแม้ simulation ไม่ step (`timeScale` 0)
+    - `underwaterActive` เป็น gate ฝั่ง CPU: กล้องต่ำกว่า `UNDERWATER_GATE_HEIGHT` (8 ม. เผื่อยอดคลื่น) และ simulation มีข้อมูลแล้ว ถ้าเป็น 0 จะไม่ dispatch probe และข้ามทุก branch ใต้น้ำ
+  - **ผิวน้ำด้านล่าง** (`surface/underwater.ts`): branch อยู่ใน `If(underwaterActive && submerged > 0)` ซึ่งเป็นเงื่อนไขแบบ uniform (uniform + storage แบบ read-only) pixel เหนือน้ำจึงไม่จ่ายค่า branch นี้
+    - Snell's window ใช้ exact Fresnel เดิม และเพิ่มจุดดวงอาทิตย์ใน window (`pow(cos, k)` ที่ k ลดตาม roughness)
+    - นอก window (TIR) สะท้อน `waterRadiance` ของทิศที่สะท้อน แทนสีเรียบของ Poseidon จึงกลืนกับพื้นหลังของ medium
+    - ไม่มี extinction ใน material แล้ว เพราะ medium ทำแทน (ไม่งั้นดูดกลืนซ้ำ) `FAR_SINK` ยังมีผลเฉพาะเหนือน้ำ
+  - **Medium** (`underwater/medium.ts`): `UnderwaterMedium.apply({ above, scene, depth, camera, reversedDepth })` ต่อหลังเมฆและ aerial perspective ก่อน `lensFlare` จึงอยู่ใน RTT input ของ lens flare ไม่มี pass เต็มจอเพิ่ม
+    - ทำงานใน `If(underwaterActive && probe.h + LENS_DISTANCE > กล้อง)` ถ้าไม่เข้าเงื่อนไขจะคืน `above` ตรง ๆ
+    - reconstruct ตำแหน่งด้วย `getViewPosition` กับ `reference("projectionMatrixInverse")` ของกล้องฉาก (jitter ของ TAA ตรงกับ depth) ส่วน pixel ท้องฟ้า (`depth <= 0` เมื่อ reversed) ใช้ระยะ `SKY_DISTANCE`
+    - สี = `scene · e^(−downwelling·max(0, −y)) · e^(−extinction·d) + B∞(dir) · (1 − e^(−backscatter·d))` เทอมแรกคือแสงที่ลดตามความลึกของ pixel (ระดับน้ำเฉลี่ย y = 0) ครอบคลุมแดด, IBL และ LightRig ในที่เดียว
+    - ฝั่งใต้น้ำใช้ `scene` (output ของ scene pass ก่อน aerial และเมฆ) haze ของอากาศ ท้องฟ้า และพื้นของ takram จึงไม่โผล่ใต้น้ำ
+    - **เส้นน้ำบนเลนส์**: เทียบจุด `กล้อง + dir · LENS_DISTANCE` (0.25 ม.) กับระนาบ `probe.h + slope · Δxz` ได้ mask ต่อ pixel กล้องที่ผิวน้ำจึงเห็นภาพแบ่งบน/ล่างที่เลื่อนตามคลื่น ไม่ใช้ temporal smoothing หรือ hysteresis เพราะเป็น history
+    - **Exposure**: คูณ `2^EV` โดย EV ไล่จาก `UNDERWATER_EV_SURFACE` ที่ผิวถึง `UNDERWATER_EV_DEEP` ที่ความลึก `UNDERWATER_EV_DEPTH` และค่อย ๆ เปิดในช่วง `EXPOSURE_RAMP` รอบผิว เป็น closed form ตามความลึกกล้อง ไม่ใช่ eye adaptation ตามเวลา
+  - **สีน้ำ** (`underwater/radiance.ts`, `createWaterLighting`): `B∞(dir)` = (ambient + แดดที่กระเจิง) × `tint` × `e^(−downwelling·ความลึกกล้อง)`
+    - ambient = สีเนื้อน้ำของ palette (deepBody ที่ `massT` 0.5) × 0.35 × `ambientLevel` (asymptote เดิมของ Poseidon) × `2^(1.5·dir.y)` (มองขึ้นสว่าง มองลงมืด)
+    - แดดที่กระเจิงเป็น Henyey-Greenstein (g 0.8) รอบทิศดวงอาทิตย์ที่หักเหแล้ว
+    - material ใช้ฟังก์ชันเดียวกันที่ความลึก 0 (radiance ที่ผิว) แล้วให้ medium ลดตามระยะ ส่วน medium ใช้ความลึกจริงของกล้องแล้วคูณ `outputScale` กลับเป็นหน่วยของฉาก
+  - **Caustics** (`underwater/caustics.ts`): `WaterLightSource` ที่ light node คูณกับ direct light ของ material ที่มีแสงทุกตัว ทำงานเฉพาะจุดที่ y < 0 ขณะ `underwaterActive`
+    - ฉายจุดขึ้นไปหาผิวตามทิศแดดที่หักเห หา Laplacian ของความสูงจาก central difference ของ slope ใน cascade 144 ม. และ 24 ม. (8 tap, mip เพิ่มตามความลึก) แล้วใช้ differential area `1 / |1 + path·(1 − 1/n)·∇²h|`
+    - จางด้วย `e^(−CAUSTIC_FADE·depth)`, `ocean.underwater.caustics` และมุมเงยของดวงอาทิตย์ เวลามาจาก cascade ของ FFT จึงหยุดเมื่อ `timeScale` เป็น 0
+    - การลดแสงตามความลึกทำใน medium ไม่ใช่ที่นี่
+  - ยังไม่ได้ตรวจบน GPU: ค่าใน `underwater/constants.ts` (`BACKSCATTER_LEVEL`, `SUN_LOBE_GAIN`, EV, `WINDOW_SUN_*`, `CAUSTIC_*`), preset ใน `underwaterPresets` และ `getViewPosition` กับ reversed depth
+  - เมฆและ aerial perspective ยังคำนวณตอนกล้องอยู่ใต้น้ำแม้ภาพถูกแทน ให้ตัดสินใจหลังได้ตัวเลขจาก `?inspector`
+  - เปิด/ปิดทะเลจะ rebuild pipeline ทั้งชุด (เหมือนเปิด/ปิดเมฆ) เพราะ medium ต่อเข้า node graph ตอนสร้าง
 - **License**: ข้อความ MIT ของ Poseidon และที่มาอยู่ใน `src/scene/ocean/LICENSE` ไม่ได้ใช้ asset ของ Poseidon
 - **ยังไม่ทำ**:
   - วัตถุและเมฆไม่สะท้อนบนน้ำ (Poseidon สะท้อนแค่ท้องฟ้า และเมฆ composite ใน post) เงาวัตถุและเงาเมฆยังไม่ลงบนน้ำ กลางคืนยังไม่มี glint ของดวงจันทร์
   - ทะเลเป็นแผ่นเรียบ ไม่โค้งตามโลก ระดับสายตาต่ำไม่ต่างกัน แต่กล้องที่สูงหลายร้อยเมตรจะเห็นพื้นของ takram ระหว่างขอบทะเลกับขอบฟ้า
   - ไม่มีฟองรอบวัตถุ คลื่นซัดฝั่ง การลอยตัว หรือ `getHeightAt(x, z)` ฝั่ง CPU
-  - กล้องของ playground (`InspectCamera`) ยังมุดใต้น้ำได้ ใต้น้ำมีแค่ Snell's window ของ Poseidon ไม่มี volumetrics
+  - ใต้น้ำยังไม่มี god rays, marine snow, foam ที่มองจากด้านล่าง และเมฆใน Snell's window (ดู "ใต้น้ำ")
   - ไม่มี FFT self-test ของ Poseidon (ต้องอ่านค่ากลับจาก GPU) ความถูกต้องมาจากการเทียบซอร์สทีละบรรทัด
 
 ### Performance
@@ -373,7 +406,8 @@ SceneContent                         {environment.ocean && <Ocean ocean exposure
   - วัด GPU ms ของ compute ของทะเล, scene pass ที่มีทะเล, aerial perspective, cloud march, cloud resolve, BSM compute, lens flare (รวม glare ซึ่งมีเฉพาะ WebGPU) และ TAA ทั้ง `high` และ `performance` โดยเปิดและปิดทะเล แล้วลงตาราง (ก่อนและหลัง patch ข้อ 8–9 กับ lookup ของ aerial perspective)
   - เมฆ `high` ช้ากว่า WebGL ที่ light shafts: BSM ของ fork เป็น `Storage3DTexture` (อ่านแบบ 3D linear 8 texel) ส่วน WebGL เป็น 2D array และ shadow-length march อ่าน BSM ได้ถึงราว 300+ ครั้งต่อ pixel ของ march ถ้าตัวเลขยืนยัน ให้ลดตามข้อถัดไปหรือ patch ให้ BSM เป็น `StorageArrayTexture`
   - tier `performance` ใช้เมฆ `medium` ถ้ายังไม่ลื่นให้ลองเป็น `low`
-  - ทะเล: `getSplitIlluminance` สองครั้งใน `sky-light.ts` และ `cameraWaterHeight` (4 texture sample) ให้ค่าเดียวกันทั้งเฟรมแต่คำนวณต่อ pixel ถ้าตัวเลขชี้ว่า scene pass ของทะเลหนัก ให้ย้ายไป compute ครั้งเดียวต่อเฟรม และ gate branch ใต้น้ำ (`underwater.ts` ซึ่งใช้ `mix` จึงคำนวณทุก pixel) ด้วย `If` ตาม flag ฝั่ง CPU
+  - ทะเล: `getSplitIlluminance` สองครั้งใน `sky-light.ts` ให้ค่าเดียวกันทั้งเฟรมแต่คำนวณต่อ pixel ถ้าตัวเลขชี้ว่า scene pass ของทะเลหนัก ให้ย้ายไป compute ครั้งเดียวต่อเฟรม (`cameraWaterHeight` ย้ายไป probe และ branch ใต้น้ำ gate ด้วย `If` แล้ว ดู "ใต้น้ำ")
+  - ใต้น้ำ: วัด GPU ms ของ RTT input ของ lens flare (มี medium อยู่ข้างใน) และ scene pass ที่มี caustics ทั้งตอนกล้องอยู่เหนือและใต้น้ำ
   - light shafts ของเมฆ `high`: shadow-length march สูงสุด 500 ครั้งต่อ pixel ของ march (`maxShadowLengthIterationCount`) ลองลดจำนวนครั้งหรือเพิ่ม `minShadowLengthStepSize` ห้ามตัด `maxShadowLengthRayDistance` (ดู "คุณภาพ" ของ Clouds)
   - ปิด lens flare ใน tier `performance`
   - LUT ของ atmosphere เป็น `HalfFloatType` (ลด memory 3D LUT จากราว 32 เป็น 16 MiB) ต้องตรวจ banding ที่ขอบฟ้า

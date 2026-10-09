@@ -12,6 +12,7 @@ import {
 } from "../canvas/render-activity";
 import { useRenderQuality } from "../canvas/render-quality";
 import { useWebGPURenderer } from "../canvas/use-renderer";
+import type { UnderwaterMedium } from "../ocean/create-ocean";
 import { RENDER_PRIORITY } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { createScenePipeline } from "./create-scene-pipeline";
@@ -19,9 +20,10 @@ import { createScenePipeline } from "./create-scene-pipeline";
 export interface ScenePipelineProps {
   exposure: number;
   clouds: ResolvedClouds | null;
+  water: UnderwaterMedium | null;
 }
 
-export function ScenePipeline({ exposure, clouds }: ScenePipelineProps) {
+export function ScenePipeline({ exposure, clouds, water }: ScenePipelineProps) {
   const renderer = useWebGPURenderer();
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -36,8 +38,12 @@ export function ScenePipeline({ exposure, clouds }: ScenePipelineProps) {
   const view = useMemo(() => createViewSnapshot(), []);
 
   const pipeline = useMemo(
-    () => createScenePipeline(renderer, scene, camera, { clouds: hasClouds }),
-    [renderer, scene, camera, hasClouds]
+    () =>
+      createScenePipeline(renderer, scene, camera, {
+        clouds: hasClouds,
+        water,
+      }),
+    [renderer, scene, camera, hasClouds, water]
   );
   useDisposable(pipeline);
 
