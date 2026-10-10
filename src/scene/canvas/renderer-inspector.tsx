@@ -17,6 +17,7 @@ export function RendererInspector() {
       if (!active) return;
       const inspector = new Inspector();
       renderer.inspector = inspector;
+      if (renderer.initialized) inspector.init();
       installConsoleFilter();
       domElement = inspector.domElement;
     });
