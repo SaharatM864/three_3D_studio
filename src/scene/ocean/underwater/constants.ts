@@ -2,6 +2,8 @@ export const UNDERWATER_GATE_HEIGHT = 8;
 
 export const SUBMERGE_RAMP = 3;
 
+export const PROBE_JACOBIAN_MIN = 0.1;
+
 export const LENS_DISTANCE = 0.25;
 export const LENS_SOFTNESS = 0.012;
 export const EXPOSURE_RAMP = 0.3;

@@ -1,12 +1,15 @@
 import { Vector2, type Camera, type Scene } from "three";
 import {
+  clamp,
   convertToTexture,
   mrt,
   output,
   pass,
   renderOutput,
+  saturate,
   toneMapping,
   uniform,
+  vec4,
 } from "three/tsl";
 import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
 
@@ -22,6 +25,8 @@ import {
   lensFlare,
   temporalAntialias,
 } from "./takram";
+
+const HDR_LIMIT = 65000;
 
 export interface ScenePipelineOptions {
   clouds: boolean;
@@ -57,17 +62,17 @@ export function createScenePipeline(
     clouds?.shadowLength ?? null
   );
   const above = clouds?.composite(aerial.node) ?? aerial.node;
-  const lensFlareNode = lensFlare(
+  const hdr =
     options.water?.apply({
       above,
       scene: colorNode,
       depth: depthNode,
       camera,
       reversedDepth: renderer.reversedDepthBuffer,
-    }) ?? above
-  );
+    }) ?? above;
+  const lensFlareNode = lensFlare(vec4(clamp(hdr.rgb, 0, HDR_LIMIT), 1));
   const toneMappedNode = convertToTexture(
-    toneMapping(TONE_MAPPING, exposureNode, lensFlareNode)
+    saturate(toneMapping(TONE_MAPPING, exposureNode, lensFlareNode))
   );
   const taaNode = temporalAntialias(
     toneMappedNode,

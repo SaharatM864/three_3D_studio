@@ -3,6 +3,7 @@ import {
   attributeArray,
   float,
   Fn,
+  max,
   storage,
   texture,
   vec2,
@@ -14,6 +15,7 @@ import type { ComputeNode, Node, Texture, UniformNode } from "three/webgpu";
 import type { Disposable } from "../../use-disposable";
 import type { OceanCascadeMaps } from "../simulation/ocean-simulation";
 import { amplitudeEnvelope } from "../surface/waves";
+import { PROBE_JACOBIAN_MIN } from "./constants";
 
 export interface WaterProbe extends Disposable {
   readonly compute: ComputeNode;
@@ -61,8 +63,8 @@ export function createWaterProbe(
       .assign(
         vec4(
           height,
-          slopes.x.div(float(1).add(slopes.z)),
-          slopes.y.div(float(1).add(slopes.w)),
+          slopes.x.div(max(float(1).add(slopes.z), PROBE_JACOBIAN_MIN)),
+          slopes.y.div(max(float(1).add(slopes.w), PROBE_JACOBIAN_MIN)),
           0
         )
       );
