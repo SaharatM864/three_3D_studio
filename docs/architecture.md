@@ -53,6 +53,7 @@ flowchart TD
 | `src/presets/`                                   | preset แสง วัสดุ และสภาพแวดล้อมที่ใช้ร่วมกัน รวมถึงค่าเริ่มต้นและการตรวจค่าของเมฆ (`clouds.ts`) และทะเล (`ocean.ts`) โดยใช้ตัวตรวจค่ากลาง (`validation.ts`)                                       | **pure data**                                                                                                    |
 | `src/scene/`                                     | ชั้น render ด้วย R3F + WebGPU, scene content, render bridge, frame driver และ clip clock (ดู "Render layer")                                                                                      | client-only และห้าม import `src/projects`                                                                        |
 | `src/scene/canvas/`                              | `SceneCanvas` ตัวเดียวที่ทั้ง playground และ studio ใช้ สร้าง `WebGPURenderer` (ขอ limit ของเมฆ), ตรวจว่ารองรับ WebGPU, คำนวณ pixel budget, idle render (`RenderActivity`) และ `?inspector`       | ห้ามสร้าง `<Canvas>` เองที่อื่น                                                                                  |
+| `src/scene/camera/`                              | เจ้าของกล้อง: adapter ของ `camera-controls`, `CameraSystem`, `<CameraRig>` (playground) และ `<ClipCamera>` (M1) (ดู "กล้อง")                                                                      | import `camera-controls` ผ่าน `camera/camera-controls.ts` เท่านั้น                                               |
 | `src/scene/atmosphere/`                          | บรรยากาศจาก takram: aerial perspective + ท้องฟ้า (`createAerialPerspective`), ดวงอาทิตย์/ดวงจันทร์ (`<CelestialLight>`), IBL (`<SkyEnvironment>`) และ context (`<Atmosphere>`, `useAtmosphere()`) | import `@takram/*` ผ่าน `atmosphere/takram.ts` เท่านั้น                                                          |
 | `src/scene/pipeline/`                            | post-processing (`createScenePipeline`, `<ScenePipeline>`)                                                                                                                                        | import `@takram/*` ผ่าน `pipeline/takram.ts` เท่านั้น                                                            |
 | `src/scene/clouds/`                              | เมฆเชิงปริมาตร: `createClouds` (`CloudsHandle`), adapter ของไลบรารีเมฆ (`three-clouds.ts`), quality presets (`quality.ts`) และ loader ของ texture (`cloud-textures.ts`) (ดู "Clouds")             | import ไลบรารีเมฆและ `@takram/*` ผ่าน `clouds/three-clouds.ts` เท่านั้น                                          |
@@ -64,7 +65,7 @@ flowchart TD
 | `src/stores/`                                    | zustand store สำหรับ state ของ UI: `playground-store` (override เฉพาะฉาก) และ `playground-settings-store` (ค่าตั้งของ playground)                                                                 | ห้ามใช้ store ขับ scene ทีละเฟรม                                                                                 |
 | `public/assets/`                                 | ใช้ร่วมกัน: `models/`, `textures/`, `hdri/`, `audio/`, `fonts/`, texture ของเมฆ (`clouds/`) และข้อมูลดาว (`atmosphere/`) เฉพาะ project: `projects/<id>/`                                          | same-origin เท่านั้น เพื่อเลี่ยงปัญหา CORS ตอนอ่าน canvas                                                        |
 
-**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `@yong_three/*`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter ของ `@takram/*` (`atmosphere/takram.ts`, `pipeline/takram.ts`, `clouds/three-clouds.ts`) กฎ adapter เดียวของไลบรารีเมฆ (`@yong_three/*` ผ่าน `clouds/three-clouds.ts`) กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing` และ entry WebGL ของ `@takram/three-clouds`/`@yong_three/three-clouds` และกฎห้าม project import project อื่น (`@/projects/<id>/…`)
+**pure** หมายถึงห้าม import `react`, `three`, `@react-three/*`, `@takram/*`, `@yong_three/*`, `camera-controls`, `mediabunny` และโมดูลชั้นบน ESLint (`no-restricted-imports` ใน `eslint.config.mjs`) บังคับกฎนี้ กฎ entry เดียวของ mediabunny กฎ adapter ของ `@takram/*` (`atmosphere/takram.ts`, `pipeline/takram.ts`, `clouds/three-clouds.ts`) กฎ adapter เดียวของไลบรารีเมฆ (`@yong_three/*` ผ่าน `clouds/three-clouds.ts`) กฎห้ามใช้ `postprocessing`/`@react-three/postprocessing` และ entry WebGL ของ `@takram/three-clouds`/`@yong_three/three-clouds` กฎ adapter เดียวของ `camera-controls` (`camera/camera-controls.ts`) กฎห้ามใช้ controls และกล้องของ drei (`OrbitControls`, `CameraControls`, `PerspectiveCamera` ฯลฯ) และกฎห้าม project import project อื่น (`@/projects/<id>/…`) หรือ `@/scene/camera/`
 
 ## Render layer (WebGPU)
 
@@ -74,6 +75,7 @@ flowchart TD
 features (playground-app / viewport)
 └─ SceneCanvas quality (canvas/)        useWebGPUSupport() → <Canvas gl={createRenderer}> flat, shadows="percentage", dpr จาก resolvePixelRatio (pixel budget), frameloop, resize debounce
    └─ RenderQualityContext + RenderActivityContext
+      ├─ CameraRig (camera/)            เฉพาะ playground: CameraSystem (camera-controls) เขียน pose ที่ CAMERA_PRIORITY และ fov
       └─ SceneContent                   resolveEnvironment(spec.environment), useOceanHandle (ถ้ามีทะเล) สร้าง OceanHandle ให้ pipeline และ <Ocean>
          ├─ Atmosphere (atmosphere/)    AtmosphereContext → renderer.contextNode, CelestialFrame (geo-frame.ts) จากพิกัดและวันเวลา, กล้อง, useAtmosphere()
          │  ├─ SkyEnvironment           scene.environmentNode = skyEnvironment() (IBL)
@@ -118,10 +120,28 @@ features (playground-app / viewport)
   - TAA ของ takram ยกเลิก jitter ผ่าน `highpVelocity.setProjectionMatrix()` เท่านั้น และใช้ค่า `.z` ตรวจ depth แต่ `velocity` ของ three เป็น `vec2`
   - `highpVelocity` ใช้กับ `SkinnedMesh`/`InstancedMesh` ได้ เพราะ MRT มี key `velocity` และ three จะคำนวณ `positionPrevious` ให้
   - ยกเว้นทะเลที่ตั้ง `mrtNode` เอง (ดู "Ocean") ห้ามอ่าน field ภายในของ `highpVelocity` เพราะ `update()` ของมันรันเฉพาะเฟรมที่มี mesh อื่นใช้ node นี้
-- **กล้อง**: canvas หนึ่งตัวมีกล้องตัวเดียวตลอดอายุ และห้าม `makeDefault` กล้องใหม่
+- **กล้อง**: canvas หนึ่งตัวมีกล้อง perspective ตัวเดียวตลอดอายุ และห้าม `makeDefault` กล้องใหม่
   - node ของ takram (aerial perspective, ดาว, environment, TAA) และ `CloudsNode` จับกล้องไว้ตอน setup ส่วน `ScenePipeline` จะ rebuild ทุกครั้งที่กล้องเปลี่ยน
-  - โหมดต่าง ๆ (inspect, player, clip) เขียนค่าลงกล้อง default ของ R3F เอง
-- **ลำดับ `useFrame`**: controls (-1) → update (0) → render (`RENDER_PRIORITY` = 1)
+  - ไม่รองรับ `OrthographicCamera` เพราะ aerial perspective, underwater medium และ cascade เงาเมฆสร้าง ray แบบ perspective
+  - โหมดต่าง ๆ เปลี่ยนผู้เขียน ไม่เปลี่ยนตัวกล้อง canvas หนึ่งตัวมีเจ้าของ pose รายเดียว: playground คือ `<CameraRig>` ส่วนคลิปคือ `<ClipCamera>` (M1) ห้าม mount สองตัวใน canvas เดียว
+  - ผู้เขียนแต่ละค่า:
+
+    | ค่า                        | playground                                | คลิป (studio และ export)                                     |
+    | -------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+    | position, quaternion, zoom | camera-controls ผ่าน `CameraSystem`       | `ClipCamera` จาก `evaluateClip`                              |
+    | fov                        | `CameraSystem.setFov` (`<CameraRig fov>`) | `ClipCamera`                                                 |
+    | aspect                     | R3F ตามขนาด canvas                        | `ClipCamera` (`manual = true`, `video.width / video.height`) |
+    | near, far                  | `CAMERA_DEFAULTS`                         | `ClipCamera`                                                 |
+
+  - `CameraSystem` (`camera/camera-system.ts`) เป็นเจ้าของ `CameraControls` ตัวเดียวต่อ canvas คำสั่งกล้องทั้งหมดผ่าน `setPose`, `setProfile` และ `setFov` ห้ามเขียน `camera.position`, `lookAt()` หรือ `zoom` ตรง ๆ เพราะ `update()` ของ camera-controls เขียนทับทุกเฟรม
+  - `setPose` ตรวจว่าค่า finite และ position ไม่ทับ target แล้วเรียก `setLookAt` ถ้าไม่ใช้ transition จะเรียก `update(0)` ทันทีเพื่อให้กล้องตรงก่อน consumer อ่าน
+  - `CameraProfile` คือ input mapping, ความเร็ว, smoothing และระยะ ห้าม tween position/target ซ้อนกับ smoothing ของไลบรารี (`CAMERA_SMOOTHING`)
+  - `<CameraRig>` ใช้ delta เวลาจริงทำ smoothing จึงห้ามอยู่ใน `ClipCanvas` ค่ากล้องของคลิปมาจาก `evaluateClip` เท่านั้น
+  - G1 (first-person): ใช้ `CameraSystem` ตัวเดิมแล้วเปลี่ยนเป็น profile first-person (ระยะ orbit เกือบศูนย์) ใช้ `lockPointer()`/`unlockPointer()` ของไลบรารี และเรียก `moveTo(ตำแหน่งตา, false)` หลัง physics step ทุกเฟรม ทิศเดินอ่านจาก `azimuthAngle` ไม่สร้าง controller ที่เขียนกล้องเอง และเพิ่ม method หรือ context (`useCameraSystem()`) เฉพาะที่ใช้จริงตอนนั้น
+  - camera cut และ teleport ยังไม่แจ้ง post-processing: TAA ไม่มี reset สาธารณะ (อาศัย velocity rejection) และ `CloudsNode.resetHistory()` ยังไม่ได้ expose ผ่าน `CloudsHandle` ถ้าเห็น ghost หลัง teleport ใน G1 ให้เพิ่มตอนนั้น
+- **ลำดับ `useFrame`**: กล้อง (`CAMERA_PRIORITY` = -1) → update (0) → render (`RENDER_PRIORITY` = 1)
+  - ocean (0) และ pipeline (1) จึงเห็น pose สุดท้ายของเฟรม
+  - `CameraSystem.update` จำกัด delta ไว้ที่ `CAMERA_MAX_DELTA` เพราะ `frameloop="demand"` ให้ delta ยาวเท่าช่วงที่ idle
   - priority ที่มากกว่า 0 ทำให้ R3F เลิกเรียก `gl.render` เอง
 - **ต้องเป็น WebGPU จริง**: `createRenderer` ตรวจ `renderer.backend` หลัง `init()`
   - ถ้าไม่ใช่ WebGPU backend หรือ init ล้มเหลว จะ throw `WebGPUUnavailableError`
@@ -392,7 +412,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - 300 เฟรมเผื่อให้ BSM ของเมฆ (temporal α 0.01) converge ราว 95% ส่วน TAA และ cloud resolve converge เร็วกว่านั้น
   - `ScenePipeline` ตรวจเองทุกเฟรม: กล้อง (`matrixWorld`, fov, aspect, zoom, near, far ไม่เทียบ `projectionMatrix` เพราะ TAA jitter), pixel ratio และเมฆที่มี velocity
   - `<Ocean>` เรียก `wake()` ทุกเฟรมที่ simulation เดิน playground ที่มีทะเล (และ `timeScale` > 0) จึงไม่เข้า idle
-  - เรียก `wake()`: prop `spec`/`evaluated` ของ `SceneContent`, effect ทุกตัวของ `ScenePipeline`, `pipeline.ready` และ event `update` ของ LUT (`AtmosphereHandle.onLUTUpdate`) ส่วน drei controls เรียก `invalidate()` เองอยู่แล้ว
+  - เรียก `wake()`: prop `spec`/`evaluated` ของ `SceneContent`, effect ทุกตัวของ `ScenePipeline`, `pipeline.ready`, event `update` ของ LUT (`AtmosphereHandle.onLUTUpdate`) และ `CameraSystem.subscribe` ใน `<CameraRig>` (event `controlstart`, `control`, `transitionstart`, `update`, `wake` ของ camera-controls และทุกคำสั่ง `setPose`/`setProfile`/`setFov`)
   - นับ `state.internal.frames` ของ R3F แทนไม่ได้ เพราะ R3F 9 ตั้งค่าเป็น 1 หรือ 2 ไม่ได้บวกสะสม จึงแยกไม่ออกว่าเฟรมไหน pipeline ขอเอง
   - Studio ยังเป็น `"always"` (กลไกนี้ไม่มีผล) จนกว่า M1 จะเปลี่ยนเป็น `"never"` + frame-driver
 - **งานที่ตัดออกแล้วโดยภาพไม่เปลี่ยน**:
@@ -456,7 +476,8 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
 - Toolbar (มุมซ้ายบน): กลับหน้าแรก, ไป Studio และปุ่มเฟืองเปิด dialog ตั้งค่า (`settings-dialog.tsx`)
 - Environment panel (มุมขวาบน): override เฉพาะฉาก (แสง สภาพแวดล้อม ทะเล) เก็บใน `playground-store` ซึ่ง reset ทุกครั้งที่เปิด project
 - Dialog ตั้งค่า: ค่าส่วนกลางของ playground (คุณภาพการแสดงผล, FOV, ชดเชยแสง, กล้อง orbit และ Debug) schema และค่าเริ่มต้นอยู่ที่ `game/settings.ts` (`DEFAULT_PLAYGROUND_SETTINGS` เท่ากับค่าเดิมของแอปทุกค่า) เก็บใน `playground-settings-store` ซึ่งอยู่ข้าม project จนกว่าจะปิดหรือ reload แท็บ
-  - FOV เขียนลงกล้อง default ตัวเดิม (`game/camera-fov.tsx`) ห้ามเปลี่ยน prop `camera` ของ `<Canvas>` เพราะ R3F จะสร้างกล้องใหม่และ pipeline ถูกสร้างใหม่ตาม
+  - FOV เขียนลงกล้อง default ตัวเดิมผ่าน `<CameraRig fov>` (`CameraSystem.setFov`) ห้ามเปลี่ยน prop `camera` ของ `<Canvas>` เพราะ R3F จะสร้างกล้องใหม่และ pipeline ถูกสร้างใหม่ตาม
+  - ค่ากล้อง orbit แปลงเป็น `CameraProfile` ใน `game/playground-scene.tsx` (`toOrbitProfile`): ความเร็วหมุนคูณ azimuth/polar, ความเร็วซูมคูณ dolly, ความเร็ว pan คูณ truck (ฐาน 2 ตามไลบรารี) และปิดการหน่วงคือ `smoothTime` = 0 กล้องเริ่มที่ `playground.spawn` และมองไปที่ `[0, spawn.y, 0]`
   - ชดเชยแสง (EV) ส่งเป็น prop `exposureCompensation` ของ `SceneContent` ซึ่งคูณ `2 ** EV` เข้ากับ exposure ของ environment ก่อนส่งให้ `ScenePipeline` และ `Ocean` ไม่แก้ spec เพราะ environment ที่ resolve ใหม่จะ reset ชั้นเมฆ
 
 ### สิ่งที่ติดไปใน MP4
@@ -490,6 +511,6 @@ grep -rn "TODO(M1)" src
 | **M4** assets และข้อความ | GLB, ฟอนต์ไทย และ overlay ติดครบในไฟล์                                                   | `model/assets.ts`, `objects/` (model/text), `materials/` (texture maps), `compositing/`                                                                                                                                                                                                                                        |
 | **M5** ขอบเขต MVP        | 30–60 วินาที, แนวนอน/แนวตั้ง, cancel, export ซ้ำ, codec ไม่รองรับ, ปลายทางไฟล์ทั้งสองแบบ | `export/*` (cancel, cleanup, ขนาดสูงสุดของ memory target)                                                                                                                                                                                                                                                                      |
 | **M6** effects/4K        | วัด RAM, GPU, เวลา export และ A/V sync ใหม่                                              | เพิ่ม node ใน `scene/pipeline/create-scene-pipeline.ts` (bloom, DOF) และเปลี่ยนเมฆจาก fork ไปใช้ของ takram เมื่อออก (ดู "Clouds")                                                                                                                                                                                              |
-| **G1** เดินใน playground | WASD + pointer lock + physics                                                            | `game/playground-scene.tsx`, `player/` (แทน `game/inspect-camera.tsx`), `features/playground/components/hud.tsx`                                                                                                                                                                                                               |
+| **G1** เดินใน playground | WASD + pointer lock + physics                                                            | `game/playground-scene.tsx`, `player/` (ขับ `CameraSystem` ด้วย profile first-person), `features/playground/components/hud.tsx`                                                                                                                                                                                                |
 | **G2** สลับ preset       | สลับแสง สภาพแวดล้อม และดู material swatch                                                | `projects/showroom/`, `environment-panel.tsx`                                                                                                                                                                                                                                                                                  |
 | **future**               | นำเข้า JSON และ LLM ในแอป                                                                | `model/schema.ts`                                                                                                                                                                                                                                                                                                              |

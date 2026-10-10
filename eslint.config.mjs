@@ -39,6 +39,34 @@ const takramImports = {
     'Import @takram/* through "src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts" or "src/scene/clouds/three-clouds.ts" (see docs/architecture.md).',
 };
 
+const cameraControlsImports = {
+  regex: "^camera-controls(/.*)?$",
+  message:
+    'Import camera-controls through "src/scene/camera/camera-controls.ts" (see docs/architecture.md).',
+};
+
+const dreiCameraImports = [
+  {
+    name: "@react-three/drei",
+    importNames: [
+      "CameraControls",
+      "CameraControlsImpl",
+      "OrbitControls",
+      "MapControls",
+      "TrackballControls",
+      "ArcballControls",
+      "FlyControls",
+      "FirstPersonControls",
+      "PointerLockControls",
+      "DeviceOrientationControls",
+      "PerspectiveCamera",
+      "OrthographicCamera",
+    ],
+    message:
+      "The canvas camera has one owner: drive it through src/scene/camera/ (see docs/architecture.md).",
+  },
+];
+
 const cloudsForkImports = {
   group: ["@yong_three/**"],
   message:
@@ -74,6 +102,7 @@ const pureModulePatterns = {
     "@react-three/**",
     "@takram/**",
     "@yong_three/**",
+    "camera-controls",
     "@/app/**",
     "@/audio/**",
     "@/compositing/**",
@@ -86,6 +115,12 @@ const pureModulePatterns = {
     "@/stores/**",
   ],
   message: pureModuleMessage,
+};
+
+const projectCameraImports = {
+  group: ["@/scene/camera/**"],
+  message:
+    "Projects do not own the camera: set playground.spawn or the clip camera instead (see docs/project-authoring.md).",
 };
 
 const crossProjectImports = {
@@ -101,7 +136,12 @@ function restrictImports({ files, paths = [], patterns = [] }) {
       "no-restricted-imports": [
         "error",
         {
-          paths: [...mediabunnyImports, ...webglImports, ...paths],
+          paths: [
+            ...mediabunnyImports,
+            ...webglImports,
+            ...dreiCameraImports,
+            ...paths,
+          ],
           patterns: [...patterns, oceanInternalImports],
         },
       ],
@@ -113,7 +153,9 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
-  restrictImports({ patterns: [takramImports, cloudsForkImports] }),
+  restrictImports({
+    patterns: [takramImports, cloudsForkImports, cameraControlsImports],
+  }),
   restrictImports({
     files: ["src/model/**", "src/timeline/**", "src/presets/**"],
     paths: pureModuleImports,
@@ -121,13 +163,26 @@ const eslintConfig = defineConfig([
   }),
   restrictImports({
     files: ["src/projects/*/**"],
-    patterns: [crossProjectImports, takramImports, cloudsForkImports],
+    patterns: [
+      crossProjectImports,
+      projectCameraImports,
+      takramImports,
+      cloudsForkImports,
+      cameraControlsImports,
+    ],
   }),
   restrictImports({
     files: ["src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts"],
-    patterns: [cloudsForkImports],
+    patterns: [cloudsForkImports, cameraControlsImports],
   }),
-  restrictImports({ files: ["src/scene/clouds/three-clouds.ts"] }),
+  restrictImports({
+    files: ["src/scene/clouds/three-clouds.ts"],
+    patterns: [cameraControlsImports],
+  }),
+  restrictImports({
+    files: ["src/scene/camera/camera-controls.ts"],
+    patterns: [takramImports, cloudsForkImports],
+  }),
   {
     files: ["src/export/mediabunny.ts", "src/export/aac-fallback.ts"],
     rules: {

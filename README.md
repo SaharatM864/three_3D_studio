@@ -23,7 +23,8 @@ WebApp สำหรับทำคลิป 3D, เล่นเกม 3D แล�
 | เมฆ           | `@yong_three/three-clouds` (`/webgpu`)           | เมฆเชิงปริมาตรแบบ TSL บน WebGPU จาก fork ของ three-geospatial ใช้ชั่วคราวจนกว่า takram จะออกเมฆ WebGPU (`src/scene/clouds/`) |
 | ทะเล          | port จาก Poseidon (ไม่ใช่ package)               | FFT ocean แบบ TSL + compute บน WebGPU port เป็น TypeScript ไว้ใน `src/scene/ocean/` (ไม่เพิ่ม dependency)                    |
 | React กับ 3D  | `@react-three/fiber` 9                           | เขียนฉาก three.js เป็น React components และคุม render loop (`frameloop`, `advance()`)                                        |
-| 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, กล้อง, `KeyboardControls` สำหรับรับปุ่มในเกม                                            |
+| 3D helpers    | `@react-three/drei`                              | helper สำเร็จรูป เช่น โหลด GLB/glTF, `KeyboardControls` สำหรับรับปุ่มในเกม                                                   |
+| กล้อง         | `camera-controls` 3.1.2                          | orbit, dolly, truck และ smoothing ของกล้อง playground ผ่าน `src/scene/camera/` (`CameraSystem`, `<CameraRig>`)               |
 | Physics (เกม) | `@react-three/rapier`                            | ระบบฟิสิกส์ชน/ตก/แรง ใช้ fixed timestep และ step เองได้ เพื่อให้ export ซ้ำได้ผลเหมือนเดิม                                   |
 | State         | `zustand`                                        | เก็บ state ของเกมและ editor                                                                                                  |
 | Export วิดีโอ | `mediabunny`                                     | encode H.264 และ AAC ผ่าน WebCodecs แล้วรวมเป็นไฟล์ MP4 (`CanvasSource`, `StreamTarget`, `BufferTarget`)                     |
@@ -101,6 +102,7 @@ script `dev`, `build` และ `start` รัน Next.js บน Bun runtime ผ
   - `@yong_three/three-clouds` pin แบบ exact ที่ 0.1.3 เป็น fork ที่ pin atmosphere 0.19.1 กับ geospatial 0.9.1 ตรงกับของเรา และต้องการ `three >=0.184.0 <0.185.0` ใช้เฉพาะ entry `/webgpu` ผ่าน `src/scene/clouds/three-clouds.ts` (ESLint บังคับ) เพราะ entry หลักเป็น GLSL บน `postprocessing`
   - `patches/` มี fix จาก `bun patch` ที่ upstream ยังไม่ release: `@yong_three/three-clouds@0.1.3` (6 ข้อจาก fork commit `696948c321`) และ `@takram/three-atmosphere@0.19.1` (`matrixECEFToWorld` ใช้ `invert()` แทน `transpose()`) เมื่ออัปเกรดสองแพ็กเกจนี้ให้ลบ patch ที่ upstream แก้แล้ว และ patch ใหม่ถ้ายังจำเป็น (ดู "Clouds" ใน `docs/architecture.md`)
   - texture ใน `public/assets/clouds/` คัดลอกจาก `@takram/three-clouds` 0.7.6 (fork ใช้ชุดเดียวกัน) และเป็นค่าอ้างอิงของ `src/presets/clouds.ts` กับ `src/scene/clouds/quality.ts` เมื่อเปลี่ยนไลบรารีเมฆให้คัดลอก texture และตรวจค่าซ้ำ
+  - `camera-controls` pin แบบ exact ที่ 3.1.2 (drei 10.7.9 ขอ `^3.1.0` จึงได้สำเนาเดียวกัน) import ผ่าน `src/scene/camera/camera-controls.ts` เท่านั้น และห้ามใช้ controls หรือกล้องของ drei (ESLint บังคับ) ก่อนอัปเกรดให้อ่าน release notes เพราะ `CameraSystem` พึ่งพฤติกรรมของ `setLookAt`, `update` และ event ของไลบรารี
   - `@react-three/fiber` ใช้ 9.x ไว้ก่อน เพราะ v10 ยังเป็น alpha
   - ห้ามอัป TypeScript เป็น 7 เพราะ typescript-eslint ยังไม่รองรับ
   - `mediabunny` กับ `@mediabunny/aac-encoder` ต้องเป็นเวอร์ชันเดียวกัน

@@ -12,7 +12,7 @@ A **project** is one folder, `src/projects/<project-id>/`, with three modules:
 
 Build the scene once, inspect it in the playground, then edit the video in the clip. The playground and the clip always show the same scene.
 
-> **Status:** the playground renders the scene (sky, sun, primitives) with a temporary orbit camera. Walking (G1), the studio viewport and export (M1) are still stubs (see the roadmap in `docs/architecture.md`). A project must still typecheck and follow every rule below.
+> **Status:** the playground renders the scene (sky, sun, primitives) with an orbit camera (`camera-controls`). Walking (G1), the studio viewport and export (M1) are still stubs (see the roadmap in `docs/architecture.md`). A project must still typecheck and follow every rule below.
 
 ## Working references
 
@@ -98,6 +98,7 @@ export default definePlayground(
 ); // optional playground-only custom components
 ```
 
+- The camera starts at `spawn` and looks at `[0, spawn.y, 0]`, so `spawn` must not sit on the Y axis.
 - Colliders default to a fixed `"cuboid"` for `primitive` and `model` objects and `"none"` for the rest.
 - Nothing in the playground is recorded. Playground-only components may use real time (`useFrame` delta, input), but scene components may not.
 
@@ -167,6 +168,9 @@ These keep preview and export identical. Breaking them produces clips that diffe
    - A playground-only component that changes the picture inside `useFrame` (moving objects, physics) must call `useRenderActivity().wake()` (`src/scene/canvas/render-activity.ts`) on every frame it changes something.
    - Camera controls, React props, moving clouds and the ocean already keep it awake.
    - Never allocate in `useFrame` (`new Vector3()`, arrays, closures); reuse scratch objects.
+9. **Don't own the camera.** The engine has one camera per canvas: the playground drives it with `camera-controls` from `playground.spawn`, and the clip drives it from `camera`.
+   - Never add cameras or camera controls (drei `OrbitControls`, `CameraControls`, `PerspectiveCamera`, `camera-controls`, …) and never import `@/scene/camera/`. ESLint rejects them.
+   - Never write `camera.position`, `lookAt()` or `fov` from a project component.
 
 ## MVP limits
 

@@ -104,6 +104,12 @@ export const IDLE_SETTLE_FRAMES = 300;
 
 export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 1e5 };
 
+export const CAMERA_SMOOTHING = { smoothTime: 0.25, draggingSmoothTime: 0.125 };
+
+export const CAMERA_MAX_DELTA = 0.1;
+
+export const CAMERA_PRIORITY = -1;
+
 export const RENDER_PRIORITY = 1;
 
 export const TONE_MAPPING = NeutralToneMapping;
