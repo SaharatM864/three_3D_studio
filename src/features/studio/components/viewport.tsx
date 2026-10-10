@@ -1,4 +1,5 @@
 import { Box } from "lucide-react";
+import { useState } from "react";
 
 import { ErrorScreen } from "@/components/status-screen";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +11,19 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import type { ClipModule } from "@/projects/define";
+import {
+  INITIAL_SCENE_LOAD,
+  type SceneLoadState,
+} from "@/scene/canvas/scene-load";
 import { ClipCanvas } from "@/scene/clip-canvas";
 import { SceneRoot } from "@/scene/scene-root";
 
+import { SceneLoadingOverlay, sceneLoadingStep } from "../../scene-loading";
+
 export function Viewport({ clip }: { clip: ClipModule }) {
   const { width, height } = clip.spec.video;
+  const [sceneLoad, setSceneLoad] =
+    useState<SceneLoadState>(INITIAL_SCENE_LOAD);
 
   return (
     <div className="relative min-h-0 min-w-0 bg-muted/20 p-6">
@@ -36,10 +45,12 @@ export function Viewport({ clip }: { clip: ClipModule }) {
                 className="relative z-10 h-full bg-black"
               />
             }
+            onLoadChange={setSceneLoad}
           >
             <SceneRoot spec={clip.spec} components={clip.components} />
           </ClipCanvas>
           <ScenePendingOverlay />
+          <SceneLoadingOverlay step={sceneLoadingStep(sceneLoad)} />
         </div>
       </div>
       <div className="pointer-events-none absolute top-2 left-2 flex gap-1.5">

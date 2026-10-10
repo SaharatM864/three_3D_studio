@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { ResolvedClouds } from "@/presets/clouds";
 import { evaluateCloudMotion, hasCloudMotion } from "@/timeline/clouds";
@@ -11,9 +11,10 @@ import {
   useRenderActivity,
 } from "../canvas/render-activity";
 import { useRenderQuality } from "../canvas/render-quality";
+import { useSceneLoad } from "../canvas/scene-load";
 import { useWebGPURenderer } from "../canvas/use-renderer";
 import type { UnderwaterMedium } from "../ocean/create-ocean";
-import { RENDER_PRIORITY } from "../render-config";
+import { RENDER_PRIORITY, SCENE_WARMUP_FRAMES } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { createScenePipeline } from "./create-scene-pipeline";
 
@@ -30,6 +31,8 @@ export function ScenePipeline({ exposure, clouds, water }: ScenePipelineProps) {
   const { handle: atmosphere, celestial } = useAtmosphere();
   const cloudsQuality = useRenderQuality().clouds;
   const activity = useRenderActivity();
+  const load = useSceneLoad();
+  const warmup = useRef<(() => void) | null>(null);
   const hasClouds = clouds !== null;
   const cloudsMoving = useMemo(
     () => clouds !== null && hasCloudMotion(clouds),
@@ -67,6 +70,36 @@ export function ScenePipeline({ exposure, clouds, water }: ScenePipelineProps) {
     () => atmosphere.onLUTUpdate(activity.wake),
     [atmosphere, activity]
   );
+
+  useLayoutEffect(() => {
+    const task = load.begin("assets");
+    let active = true;
+    let remaining = SCENE_WARMUP_FRAMES;
+    void pipeline.ready
+      .then(() => {
+        if (active) task.advance("compile");
+        return atmosphere.lutReady;
+      })
+      .then(
+        () => {
+          if (!active) return;
+          task.advance("warmup");
+          warmup.current = () => {
+            remaining -= 1;
+            if (remaining > 0) return;
+            warmup.current = null;
+            task.finish();
+          };
+          activity.wake();
+        },
+        () => {}
+      );
+    return () => {
+      active = false;
+      warmup.current = null;
+      task.finish();
+    };
+  }, [load, pipeline, atmosphere, activity]);
 
   useLayoutEffect(() => {
     atmosphere.setSunTransmittance(pipeline.clouds);
@@ -107,7 +140,7 @@ export function ScenePipeline({ exposure, clouds, water }: ScenePipelineProps) {
       );
     }
     const viewChanged = view.update(state.camera, renderer.getPixelRatio());
-    pipeline.render();
+    if (pipeline.render()) warmup.current?.();
     if (activity.tick(viewChanged || cloudsMoving)) state.invalidate();
   }, RENDER_PRIORITY);
 

@@ -4,6 +4,7 @@ import { WebGPUUnavailableError } from "./webgpu-support";
 
 interface CanvasErrorBoundaryProps {
   fallback?: ReactNode;
+  onFallback?: () => void;
   children?: ReactNode;
 }
 
@@ -19,6 +20,10 @@ export class CanvasErrorBoundary extends Component<
 
   static getDerivedStateFromError(error: unknown): CanvasErrorBoundaryState {
     return { error };
+  }
+
+  componentDidCatch(error: unknown) {
+    if (error instanceof WebGPUUnavailableError) this.props.onFallback?.();
   }
 
   render() {

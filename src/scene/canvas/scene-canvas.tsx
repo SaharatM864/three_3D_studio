@@ -1,5 +1,11 @@
 import { Canvas, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { hasQueryFlag } from "@/lib/query-flags";
 
@@ -18,6 +24,12 @@ import {
 } from "./render-activity";
 import { INSPECTOR_QUERY_FLAG, RendererInspector } from "./renderer-inspector";
 import { RenderQualityContext } from "./render-quality";
+import {
+  createSceneLoadTracker,
+  SceneLoadContext,
+  type SceneLoadState,
+  type SceneLoadTracker,
+} from "./scene-load";
 import { useWebGPUSupport } from "./webgpu-support";
 import "./three-console";
 
@@ -30,6 +42,7 @@ export interface SceneCanvasProps {
   className?: string;
   frameloop?: "always" | "demand" | "never";
   fallback?: ReactNode;
+  onLoadChange?: (state: SceneLoadState) => void;
   children?: ReactNode;
 }
 
@@ -40,12 +53,23 @@ export function SceneCanvas({
   className,
   frameloop = "always",
   fallback,
+  onLoadChange,
   children,
 }: SceneCanvasProps) {
   const support = useWebGPUSupport();
   const [inspectorFlag] = useState(readInspectorFlag);
   const [cssSize, setCssSize] = useState<CssSize>(readWindowSize);
   const activity = useMemo(() => createRenderActivity(), []);
+  const load = useMemo(() => createSceneLoadTracker(), []);
+
+  useEffect(() => {
+    if (onLoadChange === undefined) return;
+    return load.subscribe(onLoadChange);
+  }, [load, onLoadChange]);
+
+  useEffect(() => {
+    if (support === "unsupported") load.markUnavailable();
+  }, [load, support]);
 
   if (support === "checking") return null;
   if (support === "unsupported") return <>{fallback}</>;
@@ -59,7 +83,7 @@ export function SceneCanvas({
   );
 
   return (
-    <CanvasErrorBoundary fallback={fallback}>
+    <CanvasErrorBoundary fallback={fallback} onFallback={load.markUnavailable}>
       <Canvas
         className={className}
         gl={createRenderer}
@@ -72,9 +96,15 @@ export function SceneCanvas({
       >
         <RenderQualityContext value={quality}>
           <RenderActivityContext value={activity}>
-            <CanvasState activity={activity} onResize={setCssSize} />
-            {children}
-            {showInspector && <RendererInspector />}
+            <SceneLoadContext value={load}>
+              <CanvasState
+                activity={activity}
+                load={load}
+                onResize={setCssSize}
+              />
+              {children}
+              {showInspector && <RendererInspector />}
+            </SceneLoadContext>
           </RenderActivityContext>
         </RenderQualityContext>
       </Canvas>
@@ -92,9 +122,11 @@ function readWindowSize(): CssSize {
 
 function CanvasState({
   activity,
+  load,
   onResize,
 }: {
   activity: RenderActivity;
+  load: SceneLoadTracker;
   onResize: (size: CssSize) => void;
 }) {
   const invalidate = useThree((state) => state.invalidate);
@@ -102,6 +134,10 @@ function CanvasState({
   const height = useThree((state) => state.size.height);
 
   useLayoutEffect(() => activity.bind(invalidate), [activity, invalidate]);
+
+  useLayoutEffect(() => {
+    load.start();
+  }, [load]);
 
   useLayoutEffect(() => {
     if (width > 0 && height > 0) onResize({ width, height });

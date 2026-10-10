@@ -14,6 +14,7 @@ import { ControlsHelp } from "../playground/components/controls-help";
 import { EnvironmentPanel } from "../playground/components/environment-panel";
 import { PlaygroundToolbar } from "../playground/components/playground-toolbar";
 import { PointerLockOverlay } from "../playground/components/pointer-lock-overlay";
+import { SceneLoadingOverlay } from "../scene-loading";
 import { InspectorPanel } from "../studio/components/inspector-panel";
 import { OutlinerPanel } from "../studio/components/outliner-panel";
 import {
@@ -194,12 +195,22 @@ export function UiGallery() {
 
       <GallerySection
         title="Status screens"
-        description="LoadingScreen และ ErrorScreen"
+        description="LoadingScreen, SceneLoadingOverlay และ ErrorScreen"
       >
         <div className="grid gap-4 lg:grid-cols-2">
           <GalleryFrame label="LoadingScreen">
             <div className="flex h-64 flex-col rounded-xl border">
               <LoadingScreen label="กำลังโหลดคลิป…" />
+            </div>
+          </GalleryFrame>
+          <GalleryFrame label="LoadingScreen · progress">
+            <div className="flex h-64 flex-col rounded-xl border">
+              <LoadingScreen label="กำลังโหลดไฟล์ของฉาก…" progress={4 / 7} />
+            </div>
+          </GalleryFrame>
+          <GalleryFrame label="SceneLoadingOverlay · compile">
+            <div className="relative h-64 overflow-hidden rounded-xl border">
+              <SceneLoadingOverlay step="compile" />
             </div>
           </GalleryFrame>
           <GalleryFrame label="ErrorScreen">

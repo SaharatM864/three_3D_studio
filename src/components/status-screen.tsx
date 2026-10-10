@@ -10,15 +10,18 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { errorMessage } from "@/lib/error-message";
 import { cn } from "@/lib/utils";
 
 export function LoadingScreen({
   label,
+  progress,
   className,
 }: {
   label: string;
+  progress?: number;
   className?: string;
 }) {
   return (
@@ -30,6 +33,13 @@ export function LoadingScreen({
     >
       <Spinner className="size-5" aria-label={label} />
       <p>{label}</p>
+      {progress !== undefined && (
+        <Progress
+          value={Math.round(progress * 100)}
+          aria-label={label}
+          className="w-48"
+        />
+      )}
     </div>
   );
 }

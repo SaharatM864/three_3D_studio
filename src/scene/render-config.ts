@@ -102,6 +102,8 @@ export const DEFAULT_QUALITY_PROFILE = resolveRenderQuality(
 
 export const IDLE_SETTLE_FRAMES = 300;
 
+export const SCENE_WARMUP_FRAMES = 30;
+
 export const CAMERA_DEFAULTS = { fov: 50, near: 0.1, far: 1e5 };
 
 export const CAMERA_SMOOTHING = { smoothTime: 0.25, draggingSmoothTime: 0.125 };

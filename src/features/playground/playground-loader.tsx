@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 
-import { LoadingScreen } from "@/components/status-screen";
 import type { ProjectId } from "@/projects/manifest";
+
+import { SceneLoadingOverlay } from "../scene-loading";
 
 // R3F, three.js and Rapier (WASM) only run in the browser.
 const PlaygroundApp = dynamic(
@@ -11,7 +12,9 @@ const PlaygroundApp = dynamic(
   {
     ssr: false,
     loading: () => (
-      <LoadingScreen label="กำลังโหลด Playground…" className="h-dvh bg-black" />
+      <div className="relative h-dvh bg-black">
+        <SceneLoadingOverlay step="app" />
+      </div>
     ),
   }
 );

@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import type { VideoSettings } from "@/model/types";
 
 import { SceneCanvas } from "./canvas/scene-canvas";
+import type { SceneLoadState } from "./canvas/scene-load";
 
 export interface ClipCanvasProps {
   video: VideoSettings;
   className?: string;
   fallback?: ReactNode;
+  onLoadChange?: (state: SceneLoadState) => void;
   children?: ReactNode;
 }
 
@@ -15,6 +17,7 @@ export function ClipCanvas({
   video,
   className,
   fallback,
+  onLoadChange,
   children,
 }: ClipCanvasProps) {
   // TODO(M1): frameloop="never" driven by frame-driver; while exporting pin
@@ -24,7 +27,11 @@ export function ClipCanvas({
       className={className}
       style={{ aspectRatio: `${video.width} / ${video.height}` }}
     >
-      <SceneCanvas maxPixels={video.width * video.height} fallback={fallback}>
+      <SceneCanvas
+        maxPixels={video.width * video.height}
+        fallback={fallback}
+        onLoadChange={onLoadChange}
+      >
         {children}
       </SceneCanvas>
     </div>

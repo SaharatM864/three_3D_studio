@@ -36,7 +36,7 @@ export interface ScenePipelineOptions {
 export interface ScenePipelineHandle extends Disposable {
   readonly ready: Promise<void>;
   readonly clouds: CloudsHandle | null;
-  render(): void;
+  render(): boolean;
   setExposure(exposure: number): void;
   setNightSky(sky: NightSky): void;
 }
@@ -112,9 +112,10 @@ export function createScenePipeline(
     clouds,
 
     render() {
-      if (!isReady) return;
+      if (!isReady) return false;
       fitLensFlareFeatures();
       pipeline.render();
+      return true;
     },
 
     setExposure(exposure) {

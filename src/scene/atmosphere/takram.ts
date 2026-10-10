@@ -109,3 +109,19 @@ export function onLUTUpdate(
   target.addEventListener("update", listener);
   return () => target.removeEventListener("update", listener);
 }
+
+const LUT_COMPUTE_STEPS = 4;
+
+export function whenLUTComputed(
+  atmosphere: TakramAtmosphereContext
+): Promise<void> {
+  return new Promise((resolve) => {
+    let remaining = LUT_COMPUTE_STEPS;
+    const stop = onLUTUpdate(atmosphere, () => {
+      remaining -= 1;
+      if (remaining > 0) return;
+      stop();
+      resolve();
+    });
+  });
+}

@@ -12,9 +12,15 @@ import {
   type SunTransmittanceSource,
   type WaterLightSource,
 } from "./shadowed-light-node";
-import { AtmosphereContext, AtmosphereLight, onLUTUpdate } from "./takram";
+import {
+  AtmosphereContext,
+  AtmosphereLight,
+  onLUTUpdate,
+  whenLUTComputed,
+} from "./takram";
 
 export interface AtmosphereHandle extends Disposable {
+  readonly lutReady: Promise<void>;
   provide(renderer: WebGPURenderer): () => void;
   setCamera(camera: Camera): void;
   setCelestialFrame(frame: CelestialFrame): void;
@@ -35,6 +41,7 @@ export function registerAtmosphere(renderer: WebGPURenderer): void {
 export function createAtmosphere(): AtmosphereHandle {
   const atmosphere = new AtmosphereContext();
   atmosphere.raymarchScattering = ATMOSPHERE_RAYMARCH_SCATTERING;
+  const lutReady = whenLUTComputed(atmosphere);
   let sunTransmittance: SunTransmittanceSource | null = null;
   let waterLight: WaterLightSource | null = null;
   let provided: ProvidedContext | null = null;
@@ -52,6 +59,8 @@ export function createAtmosphere(): AtmosphereHandle {
   }
 
   return {
+    lutReady,
+
     provide(renderer) {
       const base = renderer.contextNode;
       provided = { renderer, base };

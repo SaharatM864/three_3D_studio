@@ -1,7 +1,7 @@
 import { KeyboardControls, Stats } from "@react-three/drei";
 import { useEffect, useMemo, useState } from "react";
 
-import { ErrorScreen, LoadingScreen } from "@/components/status-screen";
+import { ErrorScreen } from "@/components/status-screen";
 import { controlsMap } from "@/game/controls";
 import { PlaygroundScene } from "@/game/playground-scene";
 import { hasQueryFlag } from "@/lib/query-flags";
@@ -9,25 +9,39 @@ import type { PlaygroundModule } from "@/projects/define";
 import { projectLoaders } from "@/projects/loaders";
 import type { ProjectId } from "@/projects/manifest";
 import { SceneCanvas } from "@/scene/canvas/scene-canvas";
+import {
+  INITIAL_SCENE_LOAD,
+  type SceneLoadState,
+} from "@/scene/canvas/scene-load";
 import { resolveRenderQuality } from "@/scene/render-config";
 import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
 import { usePlaygroundStore } from "@/stores/playground-store";
 
+import { SceneLoadingOverlay, sceneLoadingStep } from "../scene-loading";
 import { useLazyModule } from "../use-lazy-module";
 import { EnvironmentPanel } from "./components/environment-panel";
 import { Hud } from "./components/hud";
 
 export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
   const state = useLazyModule(projectLoaders[projectId].playground);
+  const [sceneLoad, setSceneLoad] =
+    useState<SceneLoadState>(INITIAL_SCENE_LOAD);
   const resetStore = usePlaygroundStore((s) => s.reset);
 
   useEffect(() => resetStore(), [resetStore]);
 
+  const sceneReady = state.status === "ready" && sceneLoad.status === "ready";
+  const loadingStep =
+    state.status === "loading"
+      ? "module"
+      : state.status === "ready"
+        ? sceneLoadingStep(sceneLoad)
+        : null;
+
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-black">
-      {state.status === "ready" && <PlaygroundCanvas module={state.module} />}
-      {state.status === "loading" && (
-        <LoadingScreen label="กำลังโหลดฉาก…" className="h-full" />
+      {state.status === "ready" && (
+        <PlaygroundCanvas module={state.module} onLoadChange={setSceneLoad} />
       )}
       {state.status === "error" && (
         <ErrorScreen
@@ -37,8 +51,9 @@ export function PlaygroundApp({ projectId }: { projectId: ProjectId }) {
           className="h-full"
         />
       )}
-      <Hud projectId={projectId} sceneReady={state.status === "ready"} />
-      {state.status === "ready" && (
+      <SceneLoadingOverlay step={loadingStep} />
+      <Hud projectId={projectId} sceneReady={sceneReady} />
+      {state.status === "ready" && sceneLoad.status === "ready" && (
         <EnvironmentPanel scene={state.module.scene} />
       )}
     </div>
@@ -51,7 +66,13 @@ function readStatsFlag(): boolean {
   return hasQueryFlag(STATS_QUERY_FLAG);
 }
 
-function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
+function PlaygroundCanvas({
+  module,
+  onLoadChange,
+}: {
+  module: PlaygroundModule;
+  onLoadChange: (state: SceneLoadState) => void;
+}) {
   const qualitySettings = usePlaygroundSettingsStore((s) => s.quality);
   const debug = usePlaygroundSettingsStore((s) => s.debug);
   const [statsFlag] = useState(readStatsFlag);
@@ -67,6 +88,7 @@ function PlaygroundCanvas({ module }: { module: PlaygroundModule }) {
         quality={quality}
         inspector={debug.showInspector}
         frameloop={debug.pauseWhenIdle ? "demand" : "always"}
+        onLoadChange={onLoadChange}
         fallback={
           <ErrorScreen
             title="เบราว์เซอร์นี้ไม่รองรับ WebGPU"
