@@ -2,12 +2,13 @@ import {
   float,
   Fn,
   fwidth,
+  If,
   log2,
   max,
   min,
   normalize,
-  positionGeometry,
   saturate,
+  smoothstep,
   sqrt,
   texture,
   vec2,
@@ -16,6 +17,7 @@ import {
 } from "three/tsl";
 import type { Node, Texture } from "three/webgpu";
 
+import { oceanBandLongestWavelength } from "../simulation/config";
 import type { OceanCascadeMaps } from "../simulation/ocean-simulation";
 import {
   CREST_RADIUS,
@@ -24,6 +26,8 @@ import {
   FOAM_RELIEF_FINE,
   FOAM_RELIEF_NORM,
   FOAM_RELIEF_OCT,
+  GEOMETRY_WAVE_SAMPLES_FULL,
+  GEOMETRY_WAVE_SAMPLES_MIN,
   RIPPLE_FINE,
   RIPPLE_FOOT,
   RIPPLE_GAIN,
@@ -42,6 +46,10 @@ export interface WaveInputs {
   cascades: readonly OceanCascadeMaps[];
   detail: Texture;
   worldXZ: Node<"vec2">;
+}
+
+export interface DisplacementInputs extends WaveInputs {
+  spacing: Node<"float">;
 }
 
 export interface WaveSurface {
@@ -71,26 +79,51 @@ export function amplitudeEnvelope(
     .clamp(0.6, 1.4);
 }
 
-export function displacedPosition({
+export function sampleDisplacement({
   cascades,
   detail,
   worldXZ,
-}: WaveInputs): Node<"vec3"> {
+  spacing,
+}: DisplacementInputs): Node<"vec3"> {
   return Fn(() => {
     const envelope = amplitudeEnvelope(detail, worldXZ).toVar();
     const displacement = vec3(0).toVar();
     cascades.forEach((cascade, index) => {
-      const sample = texture(
-        cascade.displacement,
-        worldXZ.div(cascade.lengthScale),
-        0
-      ).xyz;
-      displacement.addAssign(index <= 1 ? sample.mul(envelope) : sample);
+      const longest = oceanBandLongestWavelength(index);
+      const weight = float(1)
+        .sub(
+          smoothstep(
+            longest / GEOMETRY_WAVE_SAMPLES_FULL,
+            longest / GEOMETRY_WAVE_SAMPLES_MIN,
+            spacing
+          )
+        )
+        .toVar();
+      If(weight.greaterThan(0), () => {
+        const texel = cascade.lengthScale / cascade.size;
+        const lod = log2(spacing.div(texel)).max(0);
+        const sample = texture(
+          cascade.displacement,
+          worldXZ.div(cascade.lengthScale),
+          lod
+        ).xyz.mul(weight);
+        displacement.addAssign(index <= 1 ? sample.mul(envelope) : sample);
+      });
     });
+    return displacement;
+  })();
+}
+
+export function displacedPosition(
+  inputs: DisplacementInputs,
+  rest: Node<"vec2">
+): Node<"vec3"> {
+  return Fn(() => {
+    const displacement = sampleDisplacement(inputs).toVar();
     return vec3(
-      positionGeometry.x.add(displacement.x),
+      rest.x.add(displacement.x),
       displacement.y,
-      positionGeometry.y.add(displacement.z)
+      rest.y.add(displacement.z)
     );
   })();
 }

@@ -1,18 +1,29 @@
 import { Matrix4, Vector2, Vector3 } from "three";
-import { uniform } from "three/tsl";
-import type { UniformNode } from "three/webgpu";
+import { uniform, uniformArray } from "three/tsl";
+import type { UniformArrayNode, UniformNode } from "three/webgpu";
 
 import type { ResolvedOcean } from "@/presets/ocean";
 
 import { resolveWaterOptics } from "../underwater/optics";
+import { CLIPMAP_MAX_LEVELS } from "./constants";
 
 const LUMINANCE_GAIN_PER_EXPOSURE = 1 / 1.2;
 
 type FloatUniform = UniformNode<"float", number>;
+type Vec2Uniform = UniformNode<"vec2", Vector2>;
 type Vec3Uniform = UniformNode<"vec3", Vector3>;
 
+export interface ClipmapUniforms {
+  origin: Vec2Uniform;
+  viewer: Vec2Uniform;
+  levelOffsets: UniformArrayNode<"vec2">;
+  levelOffsetValues: readonly Vector2[];
+  baseSpacing: FloatUniform;
+  resolution: FloatUniform;
+}
+
 export interface SurfaceUniforms {
-  originXZ: UniformNode<"vec2", Vector2>;
+  clipmap: ClipmapUniforms;
   projection: UniformNode<"mat4", Matrix4>;
   previousProjection: UniformNode<"mat4", Matrix4>;
   previousView: UniformNode<"mat4", Matrix4>;
@@ -35,9 +46,24 @@ export interface SurfaceUniforms {
   caustics: FloatUniform;
 }
 
+function createClipmapUniforms(): ClipmapUniforms {
+  const levelOffsetValues = Array.from(
+    { length: CLIPMAP_MAX_LEVELS },
+    () => new Vector2()
+  );
+  return {
+    origin: uniform(new Vector2()),
+    viewer: uniform(new Vector2()),
+    levelOffsets: uniformArray(levelOffsetValues, "vec2"),
+    levelOffsetValues,
+    baseSpacing: uniform(1),
+    resolution: uniform(1),
+  };
+}
+
 export function createSurfaceUniforms(): SurfaceUniforms {
   return {
-    originXZ: uniform(new Vector2()),
+    clipmap: createClipmapUniforms(),
     projection: uniform(new Matrix4()),
     previousProjection: uniform(new Matrix4()),
     previousView: uniform(new Matrix4()),

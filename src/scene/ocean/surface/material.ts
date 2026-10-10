@@ -7,9 +7,7 @@ import {
   mix,
   mrt,
   normalize,
-  positionGeometry,
   positionWorld,
-  vec2,
   vec3,
 } from "three/tsl";
 import {
@@ -20,6 +18,7 @@ import {
 } from "three/webgpu";
 
 import type { OceanCascadeMaps } from "../simulation/ocean-simulation";
+import { clipmapVertex } from "./clipmap-vertex";
 import { SAT_BOOST } from "./constants";
 import { shadeFoam } from "./foam";
 import {
@@ -58,12 +57,14 @@ export function createSurfaceMaterial({
   material.fog = false;
   material.lights = false;
 
-  const worldXZ = vec2(positionGeometry.x, positionGeometry.y).add(
-    uniforms.originXZ
+  const vertex = clipmapVertex(uniforms.clipmap);
+  material.positionNode = displacedPosition(
+    { cascades, detail, worldXZ: vertex.worldXZ, spacing: vertex.spacing },
+    vertex.rest
   );
-  const waves: WaveInputs = { cascades, detail, worldXZ };
 
-  material.positionNode = displacedPosition(waves);
+  const worldXZ = vertex.worldXZ.toVertexStage();
+  const waves: WaveInputs = { cascades, detail, worldXZ };
   material.colorNode = Fn((builder) => {
     const light = createSkyLight(builder, uniforms.luminanceGain);
     const surface = sampleWaveSurface(waves, uniforms.time, uniforms.detail);

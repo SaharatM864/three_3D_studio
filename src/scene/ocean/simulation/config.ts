@@ -107,6 +107,11 @@ export function oceanBandCutoffs(index: number): [low: number, high: number] {
   ];
 }
 
+export function oceanBandLongestWavelength(index: number): number {
+  const [low] = oceanBandCutoffs(index);
+  return Math.min(OCEAN_LENGTH_SCALES[index], (2 * Math.PI) / low);
+}
+
 export function foamLifetimeScale(lengthScale: number): number {
   return Math.sqrt(lengthScale / FOAM_REFERENCE_LENGTH);
 }

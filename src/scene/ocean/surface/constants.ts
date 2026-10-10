@@ -10,6 +10,12 @@ export const N_WATER = 1.34;
 export const ETA_AIR_WATER = 1 / N_WATER;
 export const ETA_AIR_WATER_2 = ETA_AIR_WATER * ETA_AIR_WATER;
 
+export const CLIPMAP_MAX_LEVELS = 16;
+export const CLIPMAP_MORPH_START = 0.55;
+export const CLIPMAP_MORPH_END = 0.8;
+export const GEOMETRY_WAVE_SAMPLES_FULL = 8;
+export const GEOMETRY_WAVE_SAMPLES_MIN = 4;
+
 export const FEATURE_DIV = 45;
 export const ROUGH_FLOOR = 0.075;
 export const ROUGH_FROM_VAR = 0.6;

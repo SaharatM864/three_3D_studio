@@ -13,9 +13,15 @@ import {
   toSimulationParameters,
 } from "./simulation/config";
 import { createOceanSimulation } from "./simulation/ocean-simulation";
+import {
+  applyClipmapLayout,
+  createClipmapGeometry,
+  resolveClipmapLayout,
+  snapClipmap,
+  type ClipmapLayout,
+} from "./surface/clipmap";
 import { createDetailTexture } from "./surface/detail-texture";
 import { createSurfaceMaterial } from "./surface/material";
-import { createRadialGrid, type RadialGrid } from "./surface/radial-grid";
 import {
   applySurfaceExposure,
   applySurfaceOcean,
@@ -57,7 +63,8 @@ export function createOcean(
   const probe = createWaterProbe(
     simulation.cascades,
     detail,
-    uniforms.cameraPosition
+    uniforms.cameraPosition,
+    uniforms.clipmap.baseSpacing
   );
   const material = createSurfaceMaterial({
     cascades: simulation.cascades,
@@ -74,8 +81,7 @@ export function createOcean(
   const lastView = new Matrix4();
   const lastProjection = new Matrix4();
   const motion: OceanMotion = { timeScale: 0, prerollSeconds: 0 };
-  let grid: RadialGrid | null = null;
-  let gridSettings: OceanGridSettings | null = null;
+  let layout: ClipmapLayout | null = null;
   let simulationKey: string | null = null;
   let hasView = false;
   let disposed = false;
@@ -86,7 +92,7 @@ export function createOcean(
     uniforms.time.value = time;
   };
 
-  function updateView(camera: Camera, spacing: number): void {
+  function updateView(camera: Camera, grid: ClipmapLayout): void {
     camera.updateMatrixWorld();
     if (!hasView) {
       lastView.copy(camera.matrixWorldInverse);
@@ -99,10 +105,14 @@ export function createOcean(
     lastView.copy(camera.matrixWorldInverse);
     lastProjection.copy(camera.projectionMatrix);
 
-    const x = Math.round(camera.matrixWorld.elements[12] / spacing) * spacing;
-    const z = Math.round(camera.matrixWorld.elements[14] / spacing) * spacing;
-    mesh.position.set(x, 0, z);
-    uniforms.originXZ.value.set(x, z);
+    snapClipmap(
+      grid,
+      camera.matrixWorld.elements[12],
+      camera.matrixWorld.elements[14],
+      uniforms.clipmap
+    );
+    const origin = uniforms.clipmap.origin.value;
+    mesh.position.set(origin.x, 0, origin.y);
   }
 
   function updateProbe(camera: Camera): void {
@@ -132,13 +142,14 @@ export function createOcean(
       }
     },
 
-    setQuality({ grid: settings }) {
-      if (gridSettings !== null && sameGrid(gridSettings, settings)) return;
-      const previous = grid;
-      grid = createRadialGrid(settings);
-      gridSettings = settings;
-      mesh.geometry = grid.geometry;
-      previous?.geometry.dispose();
+    setQuality({ grid }) {
+      if (layout !== null && sameGrid(layout, grid)) return;
+      const next = resolveClipmapLayout(grid);
+      const previous = mesh.geometry;
+      mesh.geometry = createClipmapGeometry(next);
+      applyClipmapLayout(uniforms.clipmap, next);
+      layout = next;
+      previous.dispose();
     },
 
     setExposure(exposure) {
@@ -146,8 +157,8 @@ export function createOcean(
     },
 
     update(camera, timeSeconds) {
-      if (disposed || simulationKey === null || grid === null) return false;
-      updateView(camera, grid.innerSpacing);
+      if (disposed || simulationKey === null || layout === null) return false;
+      updateView(camera, layout);
       const stepped = stepper.advance(timeSeconds, motion, visitStep);
       if (stepped) mesh.visible = true;
       updateProbe(camera);
@@ -168,9 +179,8 @@ export function createOcean(
 
 function sameGrid(a: OceanGridSettings, b: OceanGridSettings): boolean {
   return (
-    a.rings === b.rings &&
-    a.sectors === b.sectors &&
-    a.spacing === b.spacing &&
-    a.soften === b.soften
+    a.baseSpacing === b.baseSpacing &&
+    a.resolution === b.resolution &&
+    a.levels === b.levels
   );
 }

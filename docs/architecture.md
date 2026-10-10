@@ -290,7 +290,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
 └─ Ocean (ocean/ocean.tsx)           useOceanHandle: useMemo(createOcean(renderer, clock)) + useDisposable, <Ocean>: layout effect setWaterLight/setQuality/setOcean/setExposure, useFrame (priority 0): update(camera, time)
    └─ createOcean (create-ocean.ts)  OceanHandle { mesh, underwater, waterLight, setOcean, setQuality, setExposure, update, dispose } + OceanStepper (timeline/ocean.ts)
       ├─ simulation/                 createOceanSimulation: spectrum (JONSWAP + swell), FFT 256² × 3 cascade, cascade maps + foam history
-      ├─ surface/                    createSurfaceMaterial: waves, reflection, water-body, foam, underwater (ผิวน้ำด้านล่าง), sky-light (takram), velocity (TAA), radial-grid, detail-texture
+      ├─ surface/                    createSurfaceMaterial: clipmap (geometry + snap), clipmap-vertex (morph), waves, reflection, water-body, foam, underwater (ผิวน้ำด้านล่าง), sky-light (takram), velocity (TAA), detail-texture
       └─ underwater/                 probe (ความสูงคลื่นที่กล้อง), radiance (สีน้ำ B∞), medium (post pass), caustics (light node), constants
 ```
 
@@ -346,8 +346,18 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - ไม่ส่ง `dt < 0` เด็ดขาด เพราะ foam จะกลายเป็น Infinity และขาวทั้งผืนถาวร
   - การเปลี่ยนค่าใดก็ตามของ simulation (ลม, swell, seed, choppiness, foam decay/spread) หรือ `timeScale` จะ reset foam history เพราะภาพแต่ละเฟรมต้องขึ้นกับเวลาและค่าปัจจุบันเท่านั้น ส่วนสีน้ำ, detail และค่าการแสดงผลของ foam เป็น uniform ที่เปลี่ยนได้ทันที
   - mesh ซ่อนไว้จนกว่า step แรกจะเสร็จ เพราะ texture ที่ยังเป็น 0 จะทำให้ทะเลขาวทั้งผืน
-- **Grid**: radial grid ที่ละเอียดใกล้กล้องและหยาบไกลออกไป รัศมีราว 19–20 กม. (< `CAMERA_DEFAULTS.far`) เลื่อนตามกล้องทีละ `innerSpacing` พร้อม uniform `originXZ` (ต้องเปลี่ยนคู่กัน) และ `frustumCulled = false`
-  - shader แปลง `positionGeometry.xy` เป็น world XZ เอง mesh จึงห้ามหมุน ห้าม scale และห้ามมี parent ระดับน้ำทะเลคือ world y = 0
+- **Grid** (`surface/clipmap.ts`, `surface/clipmap-vertex.ts`): geometry clipmap ตาม `OCEAN_GRIDS` (`baseSpacing`, `resolution` M, `levels`) ใน `render-config.ts` ระดับ l มี spacing s_l = `baseSpacing` · 2^l และครึ่งความกว้าง (Chebyshev) M · s_l ทั้งสอง tier ถึง 65,536 ม. ตามแกน (มุม 92.7 กม. < `CAMERA_DEFAULTS.far`) ระดับ 0 เป็นสี่เหลี่ยมเต็ม ระดับอื่นเป็นวงแหวนที่เจาะรู M/2 − 2 cell รวมเป็น geometry เดียว draw call เดียว และ `frustumCulled = false`
+  - attribute `position` คือ (i, j, level) เป็นจำนวนเต็ม ไม่ใช่ตำแหน่ง `clipmapVertex` คำนวณตำแหน่งจาก uniform `clipmap` (`origin`, `viewer`, `levelOffsets`, `baseSpacing`, `resolution`) ทุกค่าเป็น uniform `setQuality` จึงสร้างแค่ geometry ใหม่
+  - `snapClipmap` (CPU, f64) snap ระดับ l ไปที่ round(กล้อง / 2s_l) · 2s_l vertex จึงอยู่บน lattice ที่ยึดกับโลกเสมอ คลื่นไม่ไหลตามกล้องและไม่ถูก sample ใหม่เมื่อกล้องขยับ `mesh.position` = origin ของระดับ 0 (`clipmap.origin` ต้องเปลี่ยนคู่กัน) และ offset ของระดับอื่นเทียบกับ origin นี้ พิกัด local จึงเล็ก
+  - morph ตามระยะ Chebyshev จากกล้องในช่วง `CLIPMAP_MORPH_START`–`CLIPMAP_MORPH_END` (0.55–0.8 ของครึ่งความกว้าง) vertex คี่เลื่อนไปทับ vertex คู่ เมื่อ morph = 1 จึงเป็น lattice ของระดับถัดไปพอดี
+  - ระดับที่ติดกันซ้อนกัน 1–3 cell ในแถบซ้อนระดับละเอียด morph = 1 และระดับหยาบ morph = 0 ทั้งคู่จึงได้ triangle ตำแหน่งเดียวกันทุกบิต (quad ทุกช่องแบ่ง diagonal ทิศเดียวกัน) ไม่มีรอยแตก, T-junction หรือ z-fight ที่เห็น และไม่ต้องมี trim strip
+  - เงื่อนไขของแถบซ้อนคือ M หาร 4 ลงตัว, START ≥ 0.5 + 0.5/M และ END ≤ 1 − 6/M (M ≥ 32 เมื่อ END = 0.8) `resolveClipmapLayout` throw ถ้าไม่ผ่าน หรือถ้ามุมของระดับนอกสุดเลย far
+  - คลื่นใน geometry กรองตาม spacing ของ vertex (`sampleDisplacement` ใน `surface/waves.ts`, spacing = s_l · (1 + morph) จึงต่อเนื่องข้ามระดับ):
+    - cascade จางออกจาก geometry ระหว่าง spacing λmax/8 ถึง λmax/4 (`GEOMETRY_WAVE_SAMPLES_*`, λmax = 1024/24/4 ม. จาก `oceanBandLongestWavelength`) และ fetch อยู่ใน `If` จึงไม่อ่าน cascade ที่น้ำหนักเป็น 0
+    - อ่าน mip log2(spacing / texel) ของ cascade (mip สร้างเองหลัง compute) ไกลเกินราว 16 กม. ผิวจึงเรียบ
+    - normal, roughness และ foam ฝั่ง fragment อ่าน derivative ตาม footprint ของ pixel เหมือนเดิม รายละเอียดที่ geometry ตัดทิ้งจึงยังอยู่ในแสง
+    - probe ใช้ `sampleDisplacement` ตัวเดียวกันที่ spacing ของระดับ 0
+  - shader แปลงเป็น world XZ เอง mesh จึงห้ามหมุน ห้าม scale และห้ามมี parent ระดับน้ำทะเลคือ world y = 0
   - `renderOrder = 1` ให้ทะเล render หลัง opaque อื่น เพราะ origin ของ mesh อยู่ใต้กล้องจึงถูกเรียงไว้หน้าสุด shader ของน้ำหนักและไม่มี discard จึงได้ early-Z จากวัตถุที่บัง
 - **Compute**: `OceanHandle.update` เรียก `renderer.compute` ตรง ๆ ใน `useFrame` priority 0 ก่อน `pipeline.render()` (priority 1) ไม่ใช้ FRAME node เพราะ `NodeFrame` เดินครั้งเดียวต่อ tick ของ renderer
   - spectrum เริ่มต้น (initial + conjugate ของทั้ง 3 cascade) สร้างแบบ synchronous ด้วย `renderer.compute` ครั้งเดียวตอน `setOcean` เมื่อ `spectrumKey` เปลี่ยน renderer init แล้วตั้งแต่ `createRenderer` และ `computeAsync` เป็นแค่ `init()` + `compute()` จึงไม่มีเฟรมที่ spectrum ใหม่กับเก่าปนกัน
@@ -357,7 +367,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
 - **Dispose**: ComputeNode, StorageTexture, material, geometry และ detail texture คืนผ่าน `dispose()` ส่วน storage buffer ไม่มี public API ให้คืนใน three 0.184 จึงตัด reference ทิ้งให้ GC เก็บ (ไม่แตะ `renderer._attributes`)
 - **ใต้น้ำ** (`underwater/`): ทุกค่ามาจาก probe, uniform และกล้อง ไม่มี history จึง deterministic (seek และ export ได้ภาพเดียวกัน) project ทดสอบคือ `underwater`
   - **Probe** (`underwater/probe.ts`): compute 1 thread หาความสูงคลื่นและ slope ที่ XZ ของกล้องจริง แล้วเขียนลง storage buffer `vec4(h, ∂h/∂x, ∂h/∂z, 0)` ผู้อ่านใช้ node แบบ read-only ของ buffer เดียวกัน
-    - ทำ inverse displacement 1 รอบ ใช้ 3 cascade และ envelope แบบเดียวกับ `displacedPosition` แทน `cameraWaterHeight` เดิมที่คำนวณต่อ pixel
+    - ทำ inverse displacement 1 รอบด้วย `sampleDisplacement` ที่ spacing ของระดับ 0 ของ clipmap (ผิวเดียวกับที่วาดรอบกล้อง) แทน `cameraWaterHeight` เดิมที่คำนวณต่อ pixel
     - `OceanHandle.update` ตั้ง `cameraPosition` และ `underwaterActive` แล้ว dispatch probe ทุกเฟรมแม้ simulation ไม่ step (`timeScale` 0)
     - `underwaterActive` เป็น gate ฝั่ง CPU: กล้องต่ำกว่า `UNDERWATER_GATE_HEIGHT` (8 ม. เผื่อยอดคลื่น) และ simulation มีข้อมูลแล้ว ถ้าเป็น 0 จะไม่ dispatch probe และข้ามทุก branch ใต้น้ำ
   - **ผิวน้ำด้านล่าง** (`surface/underwater.ts`): branch อยู่ใน `If(underwaterActive && submerged > 0)` ซึ่งเป็นเงื่อนไขแบบ uniform (uniform + storage แบบ read-only) pixel เหนือน้ำจึงไม่จ่ายค่า branch นี้
@@ -386,7 +396,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
 - **License**: ข้อความ MIT ของ Poseidon และที่มาอยู่ใน `src/scene/ocean/LICENSE` ไม่ได้ใช้ asset ของ Poseidon
 - **ยังไม่ทำ**:
   - วัตถุและเมฆไม่สะท้อนบนน้ำ (Poseidon สะท้อนแค่ท้องฟ้า และเมฆ composite ใน post) เงาวัตถุและเงาเมฆยังไม่ลงบนน้ำ กลางคืนยังไม่มี glint ของดวงจันทร์
-  - ทะเลเป็นแผ่นเรียบ ไม่โค้งตามโลก ระดับสายตาต่ำไม่ต่างกัน แต่กล้องที่สูงหลายร้อยเมตรจะเห็นพื้นของ takram ระหว่างขอบทะเลกับขอบฟ้า
+  - ทะเลเป็นแผ่นเรียบ ไม่โค้งตามโลก ขอบที่ 65 กม. อยู่เหนือขอบฟ้าจริงของ takram (มีท้องฟ้าอยู่ข้างหลัง) ตราบที่กล้องสูงไม่เกิน 2R²/R_โลก ≈ 1.3 กม. กล้องที่สูงกว่านั้นจะเห็นพื้นของ takram ระหว่างขอบทะเลกับขอบฟ้า ไม่ทำผิวโค้งเพราะทะเลโค้งที่ระยะเท่ากันจะเห็นพื้นตั้งแต่ราว 330 ม. ถ้าต้องรองรับกล้องสูงกว่านั้นให้ขยาย clipmap ตามความสูงกล้อง
   - ไม่มีฟองรอบวัตถุ คลื่นซัดฝั่ง การลอยตัว หรือ `getHeightAt(x, z)` ฝั่ง CPU
   - ใต้น้ำยังไม่มี god rays, marine snow, foam ที่มองจากด้านล่าง และเมฆใน Snell's window (ดู "ใต้น้ำ")
   - ไม่มี FFT self-test ของ Poseidon (ต้องอ่านค่ากลับจาก GPU) ความถูกต้องมาจากการเทียบซอร์สทีละบรรทัด
@@ -397,11 +407,12 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
 
 - **Quality profile** (`RenderQuality` ใน `render-config.ts`) เป็นที่เดียวที่กำหนดค่าตามคุณภาพ ค่าที่ขึ้นกับคุณภาพอันใหม่ให้เพิ่มเป็น field ที่นี่ ห้ามกระจายไว้ใน component
 
-  | tier                         | dpr   | `maxPixels` | `sunShadowMapSize` | เมฆ                         | grid ของทะเล                           |
-  | ---------------------------- | ----- | ----------- | ------------------ | --------------------------- | -------------------------------------- |
-  | `high` (ค่าเริ่มต้น, Studio) | 0.5–2 | 1920×1080   | 2048               | `high` + temporal upscale   | 620 × 1280 (794k vertex, รัศมี 20 กม.) |
-  | `performance` (playground)   | 0.5–1 | 1280×720    | 1024               | `medium` + temporal upscale | 440 × 768 (338k vertex, รัศมี 19 กม.)  |
+  | tier                         | dpr   | `maxPixels` | `sunShadowMapSize` | เมฆ                         | grid ของทะเล (`OCEAN_GRIDS`)                                   |
+  | ---------------------------- | ----- | ----------- | ------------------ | --------------------------- | -------------------------------------------------------------- |
+  | `high` (ค่าเริ่มต้น, Studio) | 0.5–2 | 1920×1080   | 2048               | `high` + temporal upscale   | `fine`: 0.25 ม. × M 64 × 13 ระดับ (175k vertex, 340k triangle) |
+  | `performance`                | 0.5–1 | 1280×720    | 1024               | `medium` + temporal upscale | `coarse`: 0.5 ม. × M 32 × 13 ระดับ (46k vertex, 88k triangle)  |
   - ทะเลใช้ FFT 256² × 3 cascade ทุก tier (ลด N ไม่ได้เพราะข้อจำกัดเลขคู่ของ `fft.ts` และ cascade ผูกกับ shader) `setQuality` สร้างแค่ geometry ใหม่ ไม่ compile material ใหม่
+  - grid ทั้งสองถึง 65 กม. เท่ากัน ต่างกันแค่ความถี่ของ vertex (radial grid เดิมมี 794k vertex / 1.59M triangle ที่ `fine` และถึงแค่ 20 กม.)
 
 - **Pixel budget** (`canvas/pixel-ratio.ts`): `resolvePixelRatio` = `min(clamp(devicePixelRatio, dpr), √(maxPixels / พื้นที่ CSS))` แล้วไม่ต่ำกว่า `dpr[0]`
   - `SceneCanvas` คำนวณ dpr เองจากขนาดที่ R3F วัดได้แล้วส่งเป็นตัวเลขเข้า `<Canvas>` เพราะ R3F ตั้ง dpr จาก prop ทับทุกครั้งที่ Canvas render จึงตั้งจากข้างในไม่ได้
@@ -438,6 +449,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - เมฆ `high` ช้ากว่า WebGL ที่ light shafts: BSM ของ fork เป็น `Storage3DTexture` (อ่านแบบ 3D linear 8 texel) ส่วน WebGL เป็น 2D array และ shadow-length march อ่าน BSM ได้ถึงราว 300+ ครั้งต่อ pixel ของ march ถ้าตัวเลขยืนยัน ให้ลดตามข้อถัดไปหรือ patch ให้ BSM เป็น `StorageArrayTexture`
   - tier `performance` ใช้เมฆ `medium` ถ้ายังไม่ลื่นให้ลองเป็น `low`
   - ทะเล: `getSplitIlluminance` สองครั้งใน `sky-light.ts` ให้ค่าเดียวกันทั้งเฟรมแต่คำนวณต่อ pixel ถ้าตัวเลขชี้ว่า scene pass ของทะเลหนัก ให้ย้ายไป compute ครั้งเดียวต่อเฟรม (`cameraWaterHeight` ย้ายไป probe และ branch ใต้น้ำ gate ด้วย `If` แล้ว ดู "ใต้น้ำ")
+  - ทะเล: ถ้าตัวเลขชี้ว่า scene pass ของทะเลหนักตอนกล้องสูง (ระยะไกลกินจอมาก) ให้แยก far material ของระดับนอกของ clipmap เป็น graph ที่ไม่มี sample ของ foam, detail และ ripple จริง ๆ ไม่ใช่คูณด้วย 0 และ foam history ของ cascade 24 ม. ไม่มีใครอ่าน (`.w` ใช้แค่ cascade 1024 กับ 144 ม.) ตัด update ออกได้
   - ใต้น้ำ: วัด GPU ms ของ RTT input ของ lens flare (มี medium อยู่ข้างใน) และ scene pass ที่มี caustics ทั้งตอนกล้องอยู่เหนือและใต้น้ำ
   - light shafts ของเมฆ `high`: shadow-length march สูงสุด 500 ครั้งต่อ pixel ของ march (`maxShadowLengthIterationCount`) ลองลดจำนวนครั้งหรือเพิ่ม `minShadowLengthStepSize` ห้ามตัด `maxShadowLengthRayDistance` (ดู "คุณภาพ" ของ Clouds)
   - ปิด lens flare ใน tier `performance`

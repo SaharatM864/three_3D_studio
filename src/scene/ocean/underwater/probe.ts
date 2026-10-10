@@ -7,14 +7,13 @@ import {
   storage,
   texture,
   vec2,
-  vec3,
   vec4,
 } from "three/tsl";
 import type { ComputeNode, Node, Texture, UniformNode } from "three/webgpu";
 
 import type { Disposable } from "../../use-disposable";
 import type { OceanCascadeMaps } from "../simulation/ocean-simulation";
-import { amplitudeEnvelope } from "../surface/waves";
+import { amplitudeEnvelope, sampleDisplacement } from "../surface/waves";
 import { PROBE_JACOBIAN_MIN } from "./constants";
 
 export interface WaterProbe extends Disposable {
@@ -26,23 +25,13 @@ export interface WaterProbe extends Disposable {
 export function createWaterProbe(
   cascades: readonly OceanCascadeMaps[],
   detail: Texture,
-  cameraPosition: UniformNode<"vec3", Vector3>
+  cameraPosition: UniformNode<"vec3", Vector3>,
+  spacing: Node<"float">
 ): WaterProbe {
   const buffer = attributeArray(1, "vec4");
 
-  const displacementAt = (xz: Node<"vec2">): Node<"vec3"> => {
-    const envelope = amplitudeEnvelope(detail, xz).toVar();
-    const sum = vec3(0).toVar();
-    cascades.forEach((cascade, index) => {
-      const sample = texture(
-        cascade.displacement,
-        xz.div(cascade.lengthScale),
-        0
-      ).xyz;
-      sum.addAssign(index <= 1 ? sample.mul(envelope) : sample);
-    });
-    return sum;
-  };
+  const displacementAt = (xz: Node<"vec2">): Node<"vec3"> =>
+    sampleDisplacement({ cascades, detail, worldXZ: xz, spacing });
 
   const compute = Fn(() => {
     const cameraXZ = vec2(cameraPosition.x, cameraPosition.z).toVar();

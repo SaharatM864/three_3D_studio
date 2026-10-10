@@ -10,10 +10,9 @@ export interface CloudsRenderSettings {
 }
 
 export interface OceanGridSettings {
-  rings: number;
-  sectors: number;
-  spacing: number;
-  soften: number;
+  baseSpacing: number;
+  resolution: number;
+  levels: number;
 }
 
 export interface OceanRenderSettings {
@@ -38,8 +37,8 @@ export const PIXEL_BUDGETS = {
 export type PixelBudgetId = keyof typeof PIXEL_BUDGETS;
 
 export const OCEAN_GRIDS = {
-  fine: { rings: 620, sectors: 1280, spacing: 0.35, soften: 41 },
-  coarse: { rings: 440, sectors: 768, spacing: 0.5, soften: 30 },
+  fine: { baseSpacing: 0.25, resolution: 64, levels: 13 },
+  coarse: { baseSpacing: 0.5, resolution: 32, levels: 13 },
 } satisfies Record<string, OceanGridSettings>;
 
 export type OceanGridId = keyof typeof OCEAN_GRIDS;
