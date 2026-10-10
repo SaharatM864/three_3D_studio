@@ -120,11 +120,53 @@ export interface MaterialSpec {
 
 export type PrimitiveShape = "box" | "sphere" | "plane" | "cylinder" | "torus";
 
+export type HullShape = "box" | "boat" | "ellipsoid" | "cylinder";
+
+export interface BuoyancyDrag {
+  coefficients: Vec3;
+  linear: number;
+}
+
+export interface BuoyancyDamping {
+  heave: number;
+  roll: number;
+  pitch: number;
+}
+
+export interface PropulsionSpec {
+  thrust: number;
+  reverseThrust: number;
+  maxSteer: number;
+  rudder: number;
+  planing: number;
+  planingMax: number;
+  maxSpeed: number;
+  position: Vec3;
+}
+
+export interface BuoyancySpec {
+  presetId?: string;
+  shape?: HullShape;
+  size?: Vec3;
+  mass?: number;
+  density?: number;
+  centerOfMass?: Vec3;
+  grid?: Vec2;
+  drag?: Partial<BuoyancyDrag>;
+  damping?: Partial<BuoyancyDamping>;
+  addedInertia?: number;
+  waveFilter?: number;
+  propulsion?: Partial<PropulsionSpec> | null;
+  throttle?: number;
+  steer?: number;
+}
+
 interface SceneObjectBase {
   id: string;
   transform?: Transform;
   castShadow?: boolean;
   receiveShadow?: boolean;
+  buoyancy?: BuoyancySpec;
 }
 
 export type SceneObjectSpec =

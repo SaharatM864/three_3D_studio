@@ -117,6 +117,35 @@ const pureModulePatterns = {
   message: pureModuleMessage,
 };
 
+const physicsModuleMessage =
+  "src/physics may use three's math classes only: no React, GPU nodes or app layers (see docs/architecture.md).";
+
+const physicsModuleImports = [
+  { name: "react", message: physicsModuleMessage },
+  { name: "react-dom", message: physicsModuleMessage },
+  { name: "three/webgpu", message: physicsModuleMessage },
+  { name: "three/tsl", message: physicsModuleMessage },
+];
+
+const physicsModulePatterns = {
+  group: [
+    "react/**",
+    "react-dom/**",
+    "@react-three/**",
+    "@/app/**",
+    "@/audio/**",
+    "@/compositing/**",
+    "@/components/**",
+    "@/export/**",
+    "@/features/**",
+    "@/game/**",
+    "@/projects/**",
+    "@/scene/**",
+    "@/stores/**",
+  ],
+  message: physicsModuleMessage,
+};
+
 const projectCameraImports = {
   group: ["@/scene/camera/**"],
   message:
@@ -160,6 +189,16 @@ const eslintConfig = defineConfig([
     files: ["src/model/**", "src/timeline/**", "src/presets/**"],
     paths: pureModuleImports,
     patterns: [pureModulePatterns],
+  }),
+  restrictImports({
+    files: ["src/physics/**"],
+    paths: physicsModuleImports,
+    patterns: [
+      physicsModulePatterns,
+      takramImports,
+      cloudsForkImports,
+      cameraControlsImports,
+    ],
   }),
   restrictImports({
     files: ["src/projects/*/**"],

@@ -21,4 +21,8 @@ export const projectLoaders: Record<ProjectId, ProjectLoaders> = {
     clip: () => import("./underwater/clip"),
     playground: () => import("./underwater/playground"),
   },
+  "sea-trial": {
+    clip: () => import("./sea-trial/clip"),
+    playground: () => import("./sea-trial/playground"),
+  },
 };

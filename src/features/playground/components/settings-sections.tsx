@@ -227,6 +227,12 @@ export function DebugSection() {
         checked={debug.pauseWhenIdle}
         onChange={(pauseWhenIdle) => setDebug({ pauseWhenIdle })}
       />
+      <SwitchSetting
+        label="แสดงจุดลอยตัว"
+        description="จุดส้มคือ probe ที่จมน้ำ จุดฟ้าคือความสูงน้ำที่ฟิสิกส์อ่านได้ ต้องแตะผิวน้ำที่เห็น"
+        checked={debug.showBuoyancy}
+        onChange={(showBuoyancy) => setDebug({ showBuoyancy })}
+      />
     </PanelSection>
   );
 }

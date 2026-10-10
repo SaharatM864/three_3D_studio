@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo, type ReactNode } from "react";
 import {
   BoxGeometry,
   CylinderGeometry,
@@ -8,9 +8,16 @@ import {
   type BufferGeometry,
 } from "three";
 
-import type { PrimitiveShape, SceneObjectSpec, Vec3 } from "@/model/types";
-import type { EvaluatedObject } from "@/timeline/types";
+import type {
+  BuoyancySpec,
+  PrimitiveShape,
+  SceneObjectSpec,
+  Vec3,
+} from "@/model/types";
+import { primitiveHullShape, resolveBuoyancy } from "@/presets/buoyancy";
+import type { EvaluatedObject, EvaluatedTransform } from "@/timeline/types";
 
+import { FloatingObject } from "../buoyancy/floating-object";
 import type { SceneComponents } from "../custom-components";
 import { createMaterial } from "../materials/create-material";
 import { applyMaterialValues } from "../materials/material-parameters";
@@ -38,10 +45,65 @@ const unitGeometries: Record<PrimitiveShape, BufferGeometry> = {
 // TODO(M2): "custom" (components[componentKey]).
 export function SceneObject({ spec, values }: SceneObjectProps) {
   if (spec.kind !== "primitive") return null;
-  return <Primitive spec={spec} values={values} />;
+  const { position, rotation, scale } = values.transform;
+  const mesh = <PrimitiveMesh spec={spec} values={values} />;
+  if (spec.buoyancy === undefined) {
+    return (
+      <group position={position} rotation={rotation} scale={scale}>
+        {mesh}
+      </group>
+    );
+  }
+  return (
+    <FloatingPrimitive
+      spec={spec}
+      buoyancy={spec.buoyancy}
+      transform={values.transform}
+    >
+      {mesh}
+    </FloatingPrimitive>
+  );
 }
 
-function Primitive({
+function FloatingPrimitive({
+  spec,
+  buoyancy,
+  transform,
+  children,
+}: {
+  spec: PrimitiveSpec;
+  buoyancy: BuoyancySpec;
+  transform: EvaluatedTransform;
+  children: ReactNode;
+}) {
+  const [px, py, pz] = transform.position;
+  const [rx, ry, rz] = transform.rotation;
+  const [sx, sy, sz] = transform.scale;
+  const [width, height, depth] = spec.size ?? UNIT_SIZE;
+  const resolved = useMemo(
+    () =>
+      resolveBuoyancy(buoyancy, {
+        shape: primitiveHullShape(spec.shape),
+        size: [width * sx, height * sy, depth * sz],
+      }),
+    [buoyancy, spec.shape, width, height, depth, sx, sy, sz]
+  );
+  const position = useMemo<Vec3>(() => [px, py, pz], [px, py, pz]);
+  const rotation = useMemo<Vec3>(() => [rx, ry, rz], [rx, ry, rz]);
+
+  return (
+    <FloatingObject
+      id={spec.id}
+      buoyancy={resolved}
+      position={position}
+      rotation={rotation}
+    >
+      <group scale={transform.scale}>{children}</group>
+    </FloatingObject>
+  );
+}
+
+function PrimitiveMesh({
   spec,
   values,
 }: {
@@ -74,17 +136,13 @@ function Primitive({
     opacity,
   ]);
 
-  const { position, rotation, scale } = values.transform;
-
   return (
-    <group position={position} rotation={rotation} scale={scale}>
-      <mesh
-        geometry={unitGeometries[spec.shape]}
-        material={material}
-        scale={spec.size ?? UNIT_SIZE}
-        castShadow={spec.castShadow}
-        receiveShadow={spec.receiveShadow}
-      />
-    </group>
+    <mesh
+      geometry={unitGeometries[spec.shape]}
+      material={material}
+      scale={spec.size ?? UNIT_SIZE}
+      castShadow={spec.castShadow}
+      receiveShadow={spec.receiveShadow}
+    />
   );
 }

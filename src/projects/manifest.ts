@@ -29,6 +29,12 @@ export const projectManifest = [
     description:
       "ฉากทดสอบใต้ทะเล พื้นทราย หิน เสาท่า และลูกบอลแดงขาวไว้ดูการดูดกลืนแสง พร้อมคลิปกล้องลอยขึ้นทะลุผิวน้ำ",
   },
+  {
+    id: "sea-trial",
+    title: "Sea Trial",
+    description:
+      "ทะเลทดสอบการลอยตัว เรือวิ่งวนเป็นวง เรือยอชต์จอด ทุ่น และลังที่หนักไม่เท่ากัน",
+  },
 ] as const satisfies readonly ProjectMeta[];
 
 export type ProjectId = (typeof projectManifest)[number]["id"];

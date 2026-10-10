@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo, type ReactNode } from "react";
 
 import type { SceneSpec } from "@/model/types";
 import { environmentEpochMs, resolveEnvironment } from "@/presets/environments";
@@ -7,6 +7,7 @@ import type { EvaluatedSceneContent } from "@/timeline/types";
 import { Atmosphere } from "./atmosphere/atmosphere";
 import { CelestialLight } from "./atmosphere/celestial-light";
 import { SkyEnvironment } from "./atmosphere/sky-environment";
+import { BuoyancyProvider } from "./buoyancy/buoyancy";
 import { useRenderActivity } from "./canvas/render-activity";
 import type { SceneComponents } from "./custom-components";
 import { LightRig } from "./lights/light-rig";
@@ -19,6 +20,8 @@ export interface SceneContentProps {
   evaluated: EvaluatedSceneContent;
   components?: SceneComponents;
   exposureCompensation?: number;
+  simulateBuoyancy?: boolean;
+  children?: ReactNode;
 }
 
 // TODO(M1): register lights and objects with the render bridge so the clip
@@ -28,6 +31,8 @@ export function SceneContent({
   evaluated,
   components,
   exposureCompensation = 0,
+  simulateBuoyancy = false,
+  children,
 }: SceneContentProps) {
   const activity = useRenderActivity();
   const environment = useMemo(
@@ -58,15 +63,18 @@ export function SceneContent({
           <Ocean handle={ocean} ocean={environment.ocean} exposure={exposure} />
         )}
       </Atmosphere>
-      <LightRig lights={spec.lights} values={evaluated.lights} />
-      {spec.objects.map((object, index) => (
-        <SceneObject
-          key={object.id}
-          spec={object}
-          values={evaluated.objects[index]}
-          components={components}
-        />
-      ))}
+      <BuoyancyProvider ocean={ocean} enabled={simulateBuoyancy}>
+        <LightRig lights={spec.lights} values={evaluated.lights} />
+        {spec.objects.map((object, index) => (
+          <SceneObject
+            key={object.id}
+            spec={object}
+            values={evaluated.objects[index]}
+            components={components}
+          />
+        ))}
+        {children}
+      </BuoyancyProvider>
     </>
   );
 }

@@ -22,6 +22,11 @@ function animateObject(
   animation: ObjectAnimation,
   clipId: string
 ): SceneObjectSpec {
+  if (animation.transform && object.buoyancy) {
+    throw new Error(
+      `Clip "${clipId}": object "${object.id}" floats (buoyancy), so physics owns its transform`
+    );
+  }
   const transform = animation.transform
     ? { ...object.transform, ...animation.transform }
     : object.transform;

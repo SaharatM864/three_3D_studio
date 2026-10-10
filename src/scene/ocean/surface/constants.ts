@@ -196,3 +196,7 @@ export const APRON_COV_GAIN = 4.8;
 export const APRON_ALPHA = 0.4;
 export const APRON_FOOT = 3;
 export const SCUD_OCC_MIN = 0.45;
+
+export const HEIGHT_QUERY_CAPACITY = 4096;
+export const HEIGHT_QUERY_ITERATIONS = 4;
+export const HEIGHT_QUERY_SLOTS = 3;

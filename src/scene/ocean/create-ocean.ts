@@ -21,6 +21,7 @@ import {
   type ClipmapLayout,
 } from "./surface/clipmap";
 import { createDetailTexture } from "./surface/detail-texture";
+import { createHeightQuery, type HeightQuery } from "./surface/height-query";
 import { createSurfaceMaterial } from "./surface/material";
 import {
   applySurfaceExposure,
@@ -39,6 +40,9 @@ export type {
   UnderwaterMedium,
   UnderwaterMediumInput,
 } from "./underwater/medium";
+export type { HeightQueryCallback as OceanHeightsCallback } from "./surface/height-query";
+
+export type OceanHeights = Pick<HeightQuery, "capacity" | "input" | "submit">;
 
 const OCEAN_RENDER_ORDER = 1;
 
@@ -46,6 +50,10 @@ export interface OceanHandle extends Disposable {
   readonly mesh: Mesh;
   readonly underwater: UnderwaterMedium;
   readonly waterLight: WaterLightSource;
+  readonly heights: OceanHeights;
+  readonly waveTime: number;
+  readonly epoch: number;
+  readonly ready: boolean;
   setOcean(ocean: ResolvedOcean): void;
   setQuality(settings: OceanRenderSettings): void;
   setExposure(exposure: number): void;
@@ -66,6 +74,7 @@ export function createOcean(
     uniforms.cameraPosition,
     uniforms.clipmap.baseSpacing
   );
+  const heightQuery = createHeightQuery(renderer, simulation.cascades, detail);
   const material = createSurfaceMaterial({
     cascades: simulation.cascades,
     detail,
@@ -85,9 +94,13 @@ export function createOcean(
   let simulationKey: string | null = null;
   let hasView = false;
   let disposed = false;
+  let epoch = 0;
 
   const visitStep: OceanStepVisitor = (time, dt, reset) => {
-    if (reset) simulation.reset();
+    if (reset) {
+      simulation.reset();
+      epoch += 1;
+    }
     simulation.step(time, dt);
     uniforms.time.value = time;
   };
@@ -128,6 +141,24 @@ export function createOcean(
     mesh,
     underwater: createUnderwaterMedium(uniforms, probe),
     waterLight: createCausticsLight(simulation.cascades, detail, uniforms),
+    heights: {
+      capacity: heightQuery.capacity,
+      input: heightQuery.input,
+      submit: (count, token, onResult) =>
+        mesh.visible && heightQuery.submit(count, token, onResult),
+    },
+
+    get waveTime() {
+      return uniforms.time.value;
+    },
+
+    get epoch() {
+      return epoch;
+    },
+
+    get ready() {
+      return mesh.visible;
+    },
 
     setOcean(ocean) {
       applySurfaceOcean(uniforms, ocean);
@@ -170,6 +201,7 @@ export function createOcean(
       mesh.removeFromParent();
       simulation.dispose();
       probe.dispose();
+      heightQuery.dispose();
       material.dispose();
       detail.dispose();
       mesh.geometry.dispose();

@@ -20,6 +20,7 @@ Build the scene once, inspect it in the playground, then edit the video in the c
 - `src/projects/example-turntable/`: a data-only scene, plus a clip that animates a scene object with `animate`.
 - `src/projects/showroom/`: a scene generated from `materialPresets`, plus a camera-only clip.
 - `src/projects/underwater/`: a seabed scene below the ocean, with a playground spawn underwater and a clip that rises through the surface.
+- `src/projects/sea-trial/`: floating objects on the ocean: a runabout driving in a loop, an idle motor yacht, buoys and crates of different weights.
 
 ## Add a project
 
@@ -136,6 +137,16 @@ export default definePlayground(
       - `caustics` is 0–2.
       - Example: `ocean: { presetId: "calm", underwater: { presetId: "clear" } }`.
     - The waterline crosses the lens when the camera is within about 25 cm of the surface, so the frame splits into above and below. Underwater objects are hidden from a camera above the water, because the surface is opaque from above.
+- **Floating objects:** add `buoyancy` to a `primitive` (`box`, `sphere` or `cylinder`) and it floats on the ocean, or on flat water at y = 0 when the scene has no ocean.
+  - `buoyancy: { presetId: "buoy" }` picks a preset: `buoy`, `crate`, `runabout` or `motor-yacht`. Fields you set override the preset per group.
+  - The hull is the object itself: `size` × `scale` along its local axes, x = beam, y = height, z = length, **+Z is the bow**. Rotate the object to set the heading. Set `shape` (`box`, `boat`, `ellipsoid`, `cylinder`) and `size` only to use a hull that differs from the visible primitive.
+  - Weight: `mass` in kg, or `density` in kg/m³ (water is 1025). Lighter floats higher, heavier than water sinks. Presets use `density`, so they fit hulls of any size.
+  - `centerOfMass` is a fraction of `size` (−0.5 to 0.5). Keep it low for stability; a buoy or spar needs it well below the middle to stay upright.
+  - Boats drive from data: `throttle` (−1 to 1) and `steer` (−1 to 1, positive turns to starboard/right) are constant for now. `propulsion: null` removes the motor.
+  - `damping` (`heave`, `roll`, `pitch`) are damping ratios (0.1 lively, 0.3 calm). `drag.coefficients` are `[sway, heave, surge]`. `waveFilter` (meters) ignores waves shorter than about 4× its value; it defaults to 10% of the hull's longest side, between 0.25 and 2 m.
+  - Physics owns a floating object's transform: `position` and `rotation` are only the starting pose, and a clip may not `animate` its `transform` (it throws).
+  - Floating objects move only in the playground for now. In the studio they stay at their starting pose until clip physics replay lands (M2).
+  - Turn on "แสดงจุดลอยตัว" in the playground Debug settings to see the probes and the sampled water surface.
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.
   - Set `castShadow` on objects only when their shadow is visible in the shot.
@@ -154,6 +165,7 @@ These keep preview and export identical. Breaking them produces clips that diffe
 2. **Only the canvas is recorded.** DOM elements, CSS, Drei `<Html>` and React UI never reach the MP4. Text must be 3D text or a canvas overlay.
 3. **No React state per frame.** Do not `setState` on every frame. Mutate refs inside `useFrame`.
 4. **Physics/particles in the clip:**
+   - Floating objects (`buoyancy`) are simulated by the engine; don't write your own physics for them.
    - Use a fixed timestep.
    - The simulation must replay identically from frame 0. Prefer baking or closed-form motion.
 5. **Assets:**

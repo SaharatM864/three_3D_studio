@@ -23,6 +23,7 @@ export interface DebugSettings {
   showStats: boolean;
   showInspector: boolean;
   pauseWhenIdle: boolean;
+  showBuoyancy: boolean;
 }
 
 export interface PlaygroundSettings {
@@ -36,7 +37,12 @@ export const DEFAULT_PLAYGROUND_SETTINGS: PlaygroundSettings = {
   quality: RENDER_QUALITIES[DEFAULT_RENDER_QUALITY],
   view: { fov: CAMERA_DEFAULTS.fov, exposureCompensation: 0 },
   orbit: { rotateSpeed: 1, zoomSpeed: 1, panSpeed: 1, damping: true },
-  debug: { showStats: false, showInspector: false, pauseWhenIdle: true },
+  debug: {
+    showStats: false,
+    showInspector: false,
+    pauseWhenIdle: true,
+    showBuoyancy: false,
+  },
 };
 
 export interface SettingRange {

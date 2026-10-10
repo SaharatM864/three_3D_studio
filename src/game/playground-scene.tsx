@@ -10,6 +10,7 @@ import {
   type CameraPose,
   type CameraProfile,
 } from "@/scene/camera/camera-system";
+import { BuoyancyDebug } from "@/scene/buoyancy/buoyancy-debug";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
 import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
@@ -43,6 +44,7 @@ export function PlaygroundScene({
   );
   const view = usePlaygroundSettingsStore((s) => s.view);
   const orbit = usePlaygroundSettingsStore((s) => s.orbit);
+  const showBuoyancy = usePlaygroundSettingsStore((s) => s.debug.showBuoyancy);
 
   const environment = useMemo(() => {
     const preset = environmentPresetId
@@ -85,7 +87,10 @@ export function PlaygroundScene({
         evaluated={evaluated}
         components={components}
         exposureCompensation={view.exposureCompensation}
-      />
+        simulateBuoyancy
+      >
+        {showBuoyancy && <BuoyancyDebug />}
+      </SceneContent>
       <CameraRig home={home} profile={profile} fov={view.fov} />
     </>
   );
