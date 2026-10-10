@@ -39,6 +39,12 @@ const takramImports = {
     'Import @takram/* through "src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts" or "src/scene/clouds/three-clouds.ts" (see docs/architecture.md).',
 };
 
+const rapierImports = {
+  group: ["@dimforge/**", "@react-three/rapier", "@react-three/rapier/**"],
+  message:
+    'Import Rapier through "src/physics/rapier.ts" and keep bodies in PhysicsWorld (see docs/architecture.md).',
+};
+
 const cameraControlsImports = {
   regex: "^camera-controls(/.*)?$",
   message:
@@ -183,15 +189,31 @@ const eslintConfig = defineConfig([
   ...nextTs,
   prettier,
   restrictImports({
-    patterns: [takramImports, cloudsForkImports, cameraControlsImports],
+    patterns: [
+      takramImports,
+      cloudsForkImports,
+      cameraControlsImports,
+      rapierImports,
+    ],
   }),
   restrictImports({
     files: ["src/model/**", "src/timeline/**", "src/presets/**"],
     paths: pureModuleImports,
-    patterns: [pureModulePatterns],
+    patterns: [pureModulePatterns, rapierImports],
   }),
   restrictImports({
     files: ["src/physics/**"],
+    paths: physicsModuleImports,
+    patterns: [
+      physicsModulePatterns,
+      takramImports,
+      cloudsForkImports,
+      cameraControlsImports,
+      rapierImports,
+    ],
+  }),
+  restrictImports({
+    files: ["src/physics/rapier.ts"],
     paths: physicsModuleImports,
     patterns: [
       physicsModulePatterns,
@@ -208,19 +230,20 @@ const eslintConfig = defineConfig([
       takramImports,
       cloudsForkImports,
       cameraControlsImports,
+      rapierImports,
     ],
   }),
   restrictImports({
     files: ["src/scene/atmosphere/takram.ts", "src/scene/pipeline/takram.ts"],
-    patterns: [cloudsForkImports, cameraControlsImports],
+    patterns: [cloudsForkImports, cameraControlsImports, rapierImports],
   }),
   restrictImports({
     files: ["src/scene/clouds/three-clouds.ts"],
-    patterns: [cameraControlsImports],
+    patterns: [cameraControlsImports, rapierImports],
   }),
   restrictImports({
     files: ["src/scene/camera/camera-controls.ts"],
-    patterns: [takramImports, cloudsForkImports],
+    patterns: [takramImports, cloudsForkImports, rapierImports],
   }),
   {
     files: ["src/export/mediabunny.ts", "src/export/aac-fallback.ts"],

@@ -2,9 +2,10 @@ import { MathUtils, Quaternion, Vector3 } from "three";
 
 import type { PropulsionSpec } from "@/model/types";
 
-import { GRAVITY, WATER_DENSITY } from "./constants";
+import { GRAVITY } from "../constants";
+import { pointVelocity, type BodyState } from "./body-state";
+import { WATER_DENSITY } from "./constants";
 import type { Hull } from "./hull";
-import { pointVelocity, type RigidBodyState } from "./rigid-body";
 import { createWaterSample, type WaterSurface } from "./water";
 
 export interface HydroProperties {
@@ -77,7 +78,7 @@ export function clearForces({
 
 export function applyHydrostatics(
   body: HydroProperties,
-  state: RigidBodyState,
+  state: BodyState,
   water: WaterSurface,
   out: ForceAccumulator
 ): number {
@@ -140,10 +141,9 @@ export function applyHydrostatics(
   const immersion = Math.min(displaced / body.restVolume, 1);
   water.sample(state.position.x, state.position.z, sample);
   out.force.y -=
-    body.mass * GRAVITY +
     body.heaveDamping *
-      immersion *
-      (state.velocity.y - sample.verticalVelocity);
+    immersion *
+    (state.velocity.y - sample.verticalVelocity);
   out.bodyTorque.x -= body.pitchDamping * immersion * state.angularVelocity.x;
   out.bodyTorque.z -= body.rollDamping * immersion * state.angularVelocity.z;
   return immersion;
@@ -154,7 +154,7 @@ export function applyPropulsion(
   body: HydroProperties,
   controls: Controls,
   immersion: number,
-  state: RigidBodyState,
+  state: BodyState,
   water: WaterSurface,
   out: ForceAccumulator
 ): void {

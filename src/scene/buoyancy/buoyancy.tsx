@@ -1,4 +1,3 @@
-import { useFrame } from "@react-three/fiber";
 import {
   createContext,
   useContext,
@@ -7,9 +6,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { useRenderActivity } from "../canvas/render-activity";
 import type { OceanHandle } from "../ocean/create-ocean";
-import { BUOYANCY_PRIORITY } from "../render-config";
+import { usePhysics } from "../physics/physics";
 import { useDisposable } from "../use-disposable";
 import { createBuoyancy, type BuoyancyHandle } from "./create-buoyancy";
 
@@ -21,26 +19,20 @@ export function useBuoyancy(): BuoyancyHandle | null {
 
 export interface BuoyancyProviderProps {
   ocean: OceanHandle | null;
-  enabled: boolean;
   children?: ReactNode;
 }
 
-export function BuoyancyProvider({
-  ocean,
-  enabled,
-  children,
-}: BuoyancyProviderProps) {
-  const activity = useRenderActivity();
-  const handle = useMemo(() => (enabled ? createBuoyancy() : null), [enabled]);
+export function BuoyancyProvider({ ocean, children }: BuoyancyProviderProps) {
+  const physics = usePhysics();
+  const handle = useMemo(
+    () => (physics === null ? null : createBuoyancy(physics)),
+    [physics]
+  );
   useDisposable(handle);
 
   useLayoutEffect(() => {
     handle?.setOcean(ocean);
   }, [handle, ocean]);
-
-  useFrame((_, delta) => {
-    if (handle?.update(delta)) activity.wake();
-  }, BUOYANCY_PRIORITY);
 
   return (
     <BuoyancyContext.Provider value={handle}>

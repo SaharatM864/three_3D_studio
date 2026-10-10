@@ -2,15 +2,13 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { Group } from "three";
 
 import type { PrimitiveShape, Vec3 } from "@/model/types";
-import type { ResolvedBuoyancy } from "@/presets/buoyancy";
 import type { ResolvedPhysics } from "@/presets/physics";
 
 import { primitiveColliderGeometry } from "../objects/primitive-geometry";
-import { useBuoyancy } from "./buoyancy";
+import { usePhysics } from "./physics";
 
-export interface FloatingObjectProps {
+export interface PhysicsObjectProps {
   id: string;
-  buoyancy: ResolvedBuoyancy;
   physics: ResolvedPhysics;
   shape: PrimitiveShape;
   size: Vec3;
@@ -19,17 +17,16 @@ export interface FloatingObjectProps {
   children?: ReactNode;
 }
 
-export function FloatingObject({
+export function PhysicsObject({
   id,
-  buoyancy,
   physics,
   shape,
   size,
   position,
   rotation,
   children,
-}: FloatingObjectProps) {
-  const system = useBuoyancy();
+}: PhysicsObjectProps) {
+  const handle = usePhysics();
   const group = useRef<Group>(null);
 
   useLayoutEffect(() => {
@@ -37,18 +34,14 @@ export function FloatingObject({
     if (target === null) return;
     target.position.set(...position);
     target.rotation.set(...rotation);
-    if (system === null) return;
-    return system.add({
+    if (handle === null) return;
+    return handle.add({
       id,
-      buoyancy,
       physics,
-      geometry:
-        physics.collider === "auto"
-          ? null
-          : primitiveColliderGeometry(shape, physics, size),
+      geometry: primitiveColliderGeometry(shape, physics, size),
       target,
     });
-  }, [system, id, buoyancy, physics, shape, size, position, rotation]);
+  }, [handle, id, physics, shape, size, position, rotation]);
 
   return <group ref={group}>{children}</group>;
 }

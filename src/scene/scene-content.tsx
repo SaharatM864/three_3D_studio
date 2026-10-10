@@ -13,6 +13,7 @@ import type { SceneComponents } from "./custom-components";
 import { LightRig } from "./lights/light-rig";
 import { SceneObject } from "./objects/scene-object";
 import { Ocean, useOceanHandle } from "./ocean/ocean";
+import { PhysicsProvider } from "./physics/physics";
 import { ScenePipeline } from "./pipeline/scene-pipeline";
 
 export interface SceneContentProps {
@@ -20,7 +21,7 @@ export interface SceneContentProps {
   evaluated: EvaluatedSceneContent;
   components?: SceneComponents;
   exposureCompensation?: number;
-  simulateBuoyancy?: boolean;
+  simulatePhysics?: boolean;
   children?: ReactNode;
 }
 
@@ -31,7 +32,7 @@ export function SceneContent({
   evaluated,
   components,
   exposureCompensation = 0,
-  simulateBuoyancy = false,
+  simulatePhysics = false,
   children,
 }: SceneContentProps) {
   const activity = useRenderActivity();
@@ -63,18 +64,20 @@ export function SceneContent({
           <Ocean handle={ocean} ocean={environment.ocean} exposure={exposure} />
         )}
       </Atmosphere>
-      <BuoyancyProvider ocean={ocean} enabled={simulateBuoyancy}>
-        <LightRig lights={spec.lights} values={evaluated.lights} />
-        {spec.objects.map((object, index) => (
-          <SceneObject
-            key={object.id}
-            spec={object}
-            values={evaluated.objects[index]}
-            components={components}
-          />
-        ))}
-        {children}
-      </BuoyancyProvider>
+      <PhysicsProvider enabled={simulatePhysics}>
+        <BuoyancyProvider ocean={ocean}>
+          <LightRig lights={spec.lights} values={evaluated.lights} />
+          {spec.objects.map((object, index) => (
+            <SceneObject
+              key={object.id}
+              spec={object}
+              values={evaluated.objects[index]}
+              components={components}
+            />
+          ))}
+          {children}
+        </BuoyancyProvider>
+      </PhysicsProvider>
     </>
   );
 }

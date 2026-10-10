@@ -24,6 +24,7 @@ export interface DebugSettings {
   showInspector: boolean;
   pauseWhenIdle: boolean;
   showBuoyancy: boolean;
+  showPhysics: boolean;
 }
 
 export interface PlaygroundSettings {
@@ -42,6 +43,7 @@ export const DEFAULT_PLAYGROUND_SETTINGS: PlaygroundSettings = {
     showInspector: false,
     pauseWhenIdle: true,
     showBuoyancy: false,
+    showPhysics: false,
   },
 };
 

@@ -11,6 +11,7 @@ import {
   type CameraProfile,
 } from "@/scene/camera/camera-system";
 import { BuoyancyDebug } from "@/scene/buoyancy/buoyancy-debug";
+import { PhysicsDebug } from "@/scene/physics/physics-debug";
 import type { SceneComponents } from "@/scene/custom-components";
 import { SceneContent } from "@/scene/scene-content";
 import { usePlaygroundSettingsStore } from "@/stores/playground-settings-store";
@@ -25,11 +26,9 @@ export interface PlaygroundSceneProps {
   components?: SceneComponents;
 }
 
-// TODO(G1): <Physics timeStep={PHYSICS_TIME_STEP} gravity={GRAVITY}> around
-// <SceneContent/>, a fixed collider per object from playground.colliders
-// (default "cuboid" for primitive/model, "none" otherwise) and
-// <PlayerController spawn={playground.spawn}/> driving <CameraRig/> in first
-// person; provide ClipClockContext with a real-time clock.
+// TODO(G1): <PlayerController spawn={playground.spawn}/> as a PhysicsSystem on
+// usePhysics() driving <CameraRig/> in first person; provide ClipClockContext
+// with a real-time clock.
 export function PlaygroundScene({
   scene,
   playground,
@@ -45,6 +44,7 @@ export function PlaygroundScene({
   const view = usePlaygroundSettingsStore((s) => s.view);
   const orbit = usePlaygroundSettingsStore((s) => s.orbit);
   const showBuoyancy = usePlaygroundSettingsStore((s) => s.debug.showBuoyancy);
+  const showPhysics = usePlaygroundSettingsStore((s) => s.debug.showPhysics);
 
   const environment = useMemo(() => {
     const preset = environmentPresetId
@@ -87,9 +87,10 @@ export function PlaygroundScene({
         evaluated={evaluated}
         components={components}
         exposureCompensation={view.exposureCompensation}
-        simulateBuoyancy
+        simulatePhysics
       >
         {showBuoyancy && <BuoyancyDebug />}
+        {showPhysics && <PhysicsDebug />}
       </SceneContent>
       <CameraRig home={home} profile={profile} fov={view.fov} />
     </>

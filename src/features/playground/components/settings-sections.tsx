@@ -233,6 +233,12 @@ export function DebugSection() {
         checked={debug.showBuoyancy}
         onChange={(showBuoyancy) => setDebug({ showBuoyancy })}
       />
+      <SwitchSetting
+        label="แสดง collider"
+        description="เส้นรูปทรงที่ฟิสิกส์ใช้ชน (Rapier) ของทุก body รวมถึงตัวเรือ"
+        checked={debug.showPhysics}
+        onChange={(showPhysics) => setDebug({ showPhysics })}
+      />
     </PanelSection>
   );
 }

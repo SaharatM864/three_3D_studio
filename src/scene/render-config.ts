@@ -111,9 +111,9 @@ export const CAMERA_MAX_DELTA = 0.1;
 
 export const CAMERA_PRIORITY = -1;
 
-export const BUOYANCY_PRIORITY = 0.5;
+export const PHYSICS_PRIORITY = 0.5;
 
-export const BUOYANCY_DEBUG_PRIORITY = 0.75;
+export const PHYSICS_DEBUG_PRIORITY = 0.75;
 
 export const RENDER_PRIORITY = 1;
 

@@ -4,7 +4,7 @@ import { Color, InstancedMesh, Matrix4, SphereGeometry } from "three";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 
 import { useRenderActivity } from "../canvas/render-activity";
-import { BUOYANCY_DEBUG_PRIORITY } from "../render-config";
+import { PHYSICS_DEBUG_PRIORITY } from "../render-config";
 import { useDisposable } from "../use-disposable";
 import { useBuoyancy } from "./buoyancy";
 import type { BuoyancyDebugData } from "./create-buoyancy";
@@ -31,7 +31,7 @@ export function BuoyancyDebug() {
     system.readDebug(debug.data);
     debug.update();
     activity.wake();
-  }, BUOYANCY_DEBUG_PRIORITY);
+  }, PHYSICS_DEBUG_PRIORITY);
 
   return (
     <>

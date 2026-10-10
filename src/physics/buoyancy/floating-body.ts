@@ -1,8 +1,12 @@
-import { Quaternion, Vector3 } from "three";
+import { Vector3 } from "three";
 
+import type { HullShape, Vec3 } from "@/model/types";
 import type { ResolvedBuoyancy } from "@/presets/buoyancy";
 
-import { REST_SPEED, WATER_DENSITY } from "./constants";
+import type { ColliderGeometry } from "../shapes";
+import type { BodyMass } from "../world";
+import type { BodyState } from "./body-state";
+import { WATER_DENSITY } from "./constants";
 import {
   applyHydrostatics,
   applyPropulsion,
@@ -15,34 +19,33 @@ import {
 import {
   createHull,
   hullInertia,
+  hullPoints,
   hydrostaticStiffness,
   solveWaterline,
 } from "./hull";
-import {
-  createRigidBodyState,
-  integrateRigidBody,
-  type MassProperties,
-  type RigidBodyState,
-} from "./rigid-body";
 import type { WaterSurface } from "./water";
 
+export interface FloatingForces {
+  readonly force: Vector3;
+  readonly torque: Vector3;
+}
+
 export interface FloatingBody {
-  readonly state: RigidBodyState;
+  readonly mass: BodyMass;
+  readonly collider: ColliderGeometry;
   readonly controls: Controls;
   readonly radius: number;
   readonly waveFilter: number;
   readonly probes: Float32Array;
   readonly immersion: number;
-  readonly resting: boolean;
-  reset(position: Vector3, orientation: Quaternion): void;
-  step(h: number, water: WaterSurface): void;
-  readPose(position: Vector3, orientation: Quaternion): void;
+  computeForces(
+    state: BodyState,
+    water: WaterSurface,
+    out: FloatingForces
+  ): void;
 }
 
 const HALF_DENSITY = 0.5 * WATER_DENSITY;
-
-const offset = new Vector3();
-const inverse = new Quaternion();
 
 export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
   const { shape, size, damping, drag } = buoyancy;
@@ -65,10 +68,6 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
     [centerOfMass.x, centerOfMass.y, centerOfMass.z]
   );
 
-  const massProperties: MassProperties = {
-    mass,
-    inertia: new Vector3(inertia.pitch, inertia.yaw, inertia.roll),
-  };
   const hydro: HydroProperties = {
     hull,
     mass,
@@ -101,7 +100,6 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
           planingArea: beam * length,
         };
 
-  const state = createRigidBodyState();
   const controls: Controls = {
     throttle: buoyancy.throttle,
     steer: buoyancy.steer,
@@ -114,7 +112,12 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
   let immersion = 0;
 
   return {
-    state,
+    mass: {
+      mass,
+      centerOfMass,
+      inertia: new Vector3(inertia.pitch, inertia.yaw, inertia.roll),
+    },
+    collider: hullCollider(shape, size),
     controls,
     radius: 0.5 * Math.hypot(beam, height, length),
     waveFilter: buoyancy.waveFilter,
@@ -123,25 +126,7 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
       return immersion;
     },
 
-    get resting() {
-      return (
-        state.velocity.lengthSq() < REST_SPEED * REST_SPEED &&
-        state.angularVelocity.lengthSq() < REST_SPEED * REST_SPEED
-      );
-    },
-
-    reset(position, orientation) {
-      state.orientation.copy(orientation);
-      state.position
-        .copy(centerOfMass)
-        .applyQuaternion(orientation)
-        .add(position);
-      state.velocity.set(0, 0, 0);
-      state.angularVelocity.set(0, 0, 0);
-      immersion = 0;
-    },
-
-    step(h, water) {
+    computeForces(state, water, out) {
       clearForces(forces);
       immersion = applyHydrostatics(hydro, state, water, forces);
       if (propulsion !== null) {
@@ -155,24 +140,28 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
           forces
         );
       }
-      inverse.copy(state.orientation).invert();
-      forces.bodyTorque.add(forces.torque.applyQuaternion(inverse));
-      integrateRigidBody(
-        state,
-        massProperties,
-        forces.force,
-        forces.bodyTorque,
-        h
-      );
-    },
-
-    readPose(position, orientation) {
-      orientation.copy(state.orientation);
-      position
-        .copy(state.position)
-        .sub(offset.copy(centerOfMass).applyQuaternion(state.orientation));
+      out.force.copy(forces.force);
+      out.torque
+        .copy(forces.bodyTorque)
+        .applyQuaternion(state.orientation)
+        .add(forces.torque);
     },
   };
+}
+
+function hullCollider(shape: HullShape, size: Vec3): ColliderGeometry {
+  const [beam, height, length] = size;
+  if (shape === "box") {
+    return {
+      kind: "cuboid",
+      halfExtents: [beam / 2, height / 2, length / 2],
+      offset: [0, 0, 0],
+    };
+  }
+  if (shape === "cylinder" && beam === length) {
+    return { kind: "cylinder", halfHeight: height / 2, radius: beam / 2 };
+  }
+  return { kind: "hull", points: hullPoints(shape, size) };
 }
 
 function criticalDamping(

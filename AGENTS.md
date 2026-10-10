@@ -21,6 +21,7 @@ Rules:
 - R3F, three.js, Rapier, Web Audio and Mediabunny code is client-only. Pages in `src/app/` reach it only through the `*-loader.tsx` files in `src/features/` (`'use client'` + `next/dynamic` with `ssr: false`).
 - `src/model`, `src/timeline` and `src/presets` stay pure TypeScript (no React/three/mediabunny). Scene state at a frame comes only from `evaluateClip(clip, frame)` (playground: `evaluateScene`). No `Math.random`, `Date.now` or `useFrame` delta as a clock.
 - Import Mediabunny only via `@/export/mediabunny`, and load the AAC encoder only via `ensureAacEncoder()`.
+- Import Rapier only via `src/physics/rapier.ts` (`loadRapier()`); never use `@react-three/rapier`. Every body lives in `PhysicsWorld` (`src/physics/world.ts`) and reaches the scene through `src/scene/physics/` (see "ฟิสิกส์" in `docs/architecture.md`).
 - Anything that must appear in the exported video has to be drawn into the canvas. DOM/CSS/Drei `<Html>` is not recorded.
 - Use `bun`. Run `bun run check` (lint + typecheck) before finishing. New routes need `bun run build` or `next dev` once to generate `PageProps` types.
 - Respect the version pins listed in `README.md` (three 0.184.0 because of `@takram/*`, R3F 9, TypeScript 5, mediabunny = aac-encoder version).

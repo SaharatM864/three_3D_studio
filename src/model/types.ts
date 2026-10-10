@@ -161,12 +161,36 @@ export interface BuoyancySpec {
   steer?: number;
 }
 
+export type PhysicsBodyType = "fixed" | "kinematic" | "dynamic";
+
+export type ColliderShape =
+  "auto" | "cuboid" | "ball" | "cylinder" | "hull" | "trimesh" | "none";
+
+export type CollisionLayer = "environment" | "prop" | "player" | "trigger";
+
+export interface PhysicsSpec {
+  body?: PhysicsBodyType;
+  collider?: ColliderShape;
+  materialId?: string;
+  friction?: number;
+  restitution?: number;
+  density?: number;
+  mass?: number;
+  layer?: CollisionLayer;
+  sensor?: boolean;
+  ccd?: boolean;
+  linearDamping?: number;
+  angularDamping?: number;
+  gravityScale?: number;
+}
+
 interface SceneObjectBase {
   id: string;
   transform?: Transform;
   castShadow?: boolean;
   receiveShadow?: boolean;
   buoyancy?: BuoyancySpec;
+  physics?: PhysicsSpec | null;
 }
 
 export type SceneObjectSpec =
@@ -364,11 +388,8 @@ export interface ClipDefinition {
   extraObjects?: readonly SceneObjectSpec[];
 }
 
-export type ColliderShape = "cuboid" | "ball" | "trimesh" | "none";
-
 export interface PlaygroundSpec {
   spawn: Vec3;
-  colliders?: Readonly<Record<string, ColliderShape>>;
   extraObjects?: readonly SceneObjectSpec[];
 }
 

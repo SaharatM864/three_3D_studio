@@ -1,12 +1,21 @@
-import type { Object3D } from "three";
+import { Vector3, type Object3D } from "three";
 
-import { TILE_LATENCY, TILE_MARGIN } from "@/physics/constants";
-import { createFloatingBody } from "@/physics/floating-body";
+import { createBodyState, readBodyState } from "@/physics/buoyancy/body-state";
 import {
-  createFloatingStepper,
-  type FloatingEntry,
-} from "@/physics/floating-stepper";
-import { createFlatWater, createWaterSample } from "@/physics/water";
+  MAX_ANGULAR_SPEED,
+  TILE_LATENCY,
+  TILE_MARGIN,
+} from "@/physics/buoyancy/constants";
+import {
+  createFloatingBody,
+  type FloatingBody,
+  type FloatingForces,
+} from "@/physics/buoyancy/floating-body";
+import {
+  createFlatWater,
+  createWaterSample,
+  type WaterSource,
+} from "@/physics/buoyancy/water";
 import {
   createWaterTilePlan,
   createWaterTiles,
@@ -14,14 +23,19 @@ import {
   tilePointCount,
   writeTilePoints,
   type WaterTilePlan,
-} from "@/physics/water-tiles";
+} from "@/physics/buoyancy/water-tiles";
+import type { RigidBody } from "@/physics/rapier";
+import type { ColliderGeometry } from "@/physics/shapes";
+import type { PhysicsSystem, PhysicsWorld } from "@/physics/world";
 import type { ResolvedBuoyancy } from "@/presets/buoyancy";
+import type { ResolvedPhysics } from "@/presets/physics";
 
 import type {
   OceanHandle,
   OceanHeights,
   OceanHeightsCallback,
 } from "../ocean/create-ocean";
+import type { PhysicsHandle } from "../physics/create-physics";
 import type { Disposable } from "../use-disposable";
 
 export interface BuoyancyDebugData {
@@ -31,16 +45,25 @@ export interface BuoyancyDebugData {
   pointCount: number;
 }
 
+export interface FloatingObjectInit {
+  readonly id: string;
+  readonly buoyancy: ResolvedBuoyancy;
+  readonly physics: ResolvedPhysics;
+  readonly geometry: ColliderGeometry | null;
+  readonly target: Object3D;
+}
+
 export interface BuoyancyHandle extends Disposable {
   setOcean(ocean: OceanHandle | null): void;
-  add(id: string, buoyancy: ResolvedBuoyancy, target: Object3D): () => void;
-  update(delta: number): boolean;
+  add(init: FloatingObjectInit): () => void;
   readDebug(out: BuoyancyDebugData): void;
 }
 
-interface Registration extends FloatingEntry {
-  readonly target: Object3D;
+interface Registration {
+  readonly id: string;
+  readonly floating: FloatingBody;
   readonly plan: WaterTilePlan;
+  held: boolean;
 }
 
 interface PendingItem {
@@ -58,12 +81,10 @@ interface PendingBatch {
 }
 
 const PENDING_BATCHES = 8;
-const MAX_FLAT_DELTA = 0.1;
 
-export function createBuoyancy(): BuoyancyHandle {
+export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
   const flat = createFlatWater(0);
   const tiles = createWaterTiles();
-  const stepper = createFloatingStepper();
   const entries: Registration[] = [];
   const registered = new Map<string, Registration>();
   const pending: readonly PendingBatch[] = Array.from(
@@ -71,9 +92,21 @@ export function createBuoyancy(): BuoyancyHandle {
     () => ({ token: -1, time: 0, epoch: -1, count: 0, items: [] })
   );
   const sample = createWaterSample();
+  const state = createBodyState();
+  const forces: FloatingForces = {
+    force: new Vector3(),
+    torque: new Vector3(),
+  };
+  const position = new Vector3();
+  const velocity = new Vector3();
+  const spin = new Vector3();
   let ocean: OceanHandle | null = null;
+  let water: WaterSource = flat;
+  let available = true;
   let epoch = -1;
   let lastTime: number | null = null;
+  let frameTime = 0;
+  let waveRate = 0;
   let nextToken = 0;
   let cursor = 0;
 
@@ -91,37 +124,41 @@ export function createBuoyancy(): BuoyancyHandle {
     epoch = -1;
     lastTime = null;
     tiles.clear();
-    stepper.reset();
   }
 
-  function advanceOcean(handle: OceanHandle): boolean {
-    if (!handle.ready) return false;
-    if (handle.epoch !== epoch) {
-      resetWater();
-      epoch = handle.epoch;
-    }
-    const time = handle.waveTime;
-    const dt = lastTime === null ? 0 : time - lastTime;
-    lastTime = time;
-    const stepped = stepper.advance(entries, dt, time, tiles);
-    submitTiles(handle.heights, time);
-    return stepped;
+  function hold(entry: Registration, body: RigidBody): void {
+    if (entry.held) return;
+    entry.held = true;
+    body.setEnabled(false);
   }
 
-  function submitTiles(heights: OceanHeights, time: number): void {
+  function release(entry: Registration, body: RigidBody): void {
+    if (!entry.held) return;
+    entry.held = false;
+    body.setEnabled(true);
+  }
+
+  function submitTiles(
+    world: PhysicsWorld,
+    heights: OceanHeights,
+    time: number
+  ): void {
     const token = nextToken;
     const batch = pending[token % PENDING_BATCHES];
     let points = 0;
     let count = 0;
     for (let visited = 0; visited < entries.length; visited++) {
       const entry = entries[(cursor + visited) % entries.length];
-      const { position, velocity } = entry.body.state;
+      const body = world.body(entry.id);
+      if (body === null) continue;
+      body.worldCom(position);
+      body.linvel(velocity);
       const plan = planWaterTile(
         entry.plan,
         position.x + velocity.x * TILE_LATENCY,
         position.z + velocity.z * TILE_LATENCY,
-        entry.body.radius + TILE_MARGIN,
-        entry.body.waveFilter
+        entry.floating.radius + TILE_MARGIN,
+        entry.floating.waveFilter
       );
       const size = tilePointCount(plan);
       if (points + size > heights.capacity) break;
@@ -146,6 +183,65 @@ export function createBuoyancy(): BuoyancyHandle {
     else batch.token = -1;
   }
 
+  const system: PhysicsSystem = {
+    beforeFrame(frame) {
+      if (ocean === null) {
+        water = flat;
+        available = true;
+        return;
+      }
+      water = tiles;
+      available = ocean.ready;
+      if (!available) return;
+      if (ocean.epoch !== epoch) {
+        resetWater();
+        epoch = ocean.epoch;
+      }
+      const time = ocean.waveTime;
+      const start = lastTime ?? time;
+      lastTime = time;
+      frameTime = time;
+      waveRate = frame.delta > 0 ? (time - start) / frame.delta : 0;
+    },
+
+    beforeStep(step) {
+      water.setTime(frameTime - step.lag * waveRate);
+      for (const entry of entries) {
+        const body = step.world.body(entry.id);
+        if (body === null) continue;
+        const surface = available ? water.surface(entry.id) : null;
+        if (surface === null) {
+          hold(entry, body);
+          continue;
+        }
+        release(entry, body);
+        readBodyState(body, state);
+        entry.floating.computeForces(state, surface, forces);
+        body.resetForces(false);
+        body.resetTorques(false);
+        body.addForce(forces.force, true);
+        body.addTorque(forces.torque, true);
+      }
+    },
+
+    afterStep(step) {
+      for (const entry of entries) {
+        if (entry.held) continue;
+        const body = step.world.body(entry.id);
+        if (body === null) continue;
+        body.angvel(spin);
+        if (spin.lengthSq() <= MAX_ANGULAR_SPEED * MAX_ANGULAR_SPEED) continue;
+        body.setAngvel(spin.setLength(MAX_ANGULAR_SPEED), false);
+      }
+    },
+
+    afterFrame(frame) {
+      if (ocean === null || !available || frame.steps === 0) return;
+      submitTiles(frame.world, ocean.heights, frameTime);
+    },
+  };
+  const removeSystem = physics.world.addSystem(system);
+
   return {
     setOcean(next) {
       if (next === ocean) return;
@@ -153,50 +249,44 @@ export function createBuoyancy(): BuoyancyHandle {
       resetWater();
     },
 
-    add(id, buoyancy, target) {
-      const body = createFloatingBody(buoyancy);
-      body.reset(target.position, target.quaternion);
+    add({ id, buoyancy, physics: resolved, geometry, target }) {
+      const floating = createFloatingBody(buoyancy);
+      const remove = physics.add({
+        id,
+        physics: resolved,
+        geometry: geometry ?? floating.collider,
+        target,
+        mass: floating.mass,
+        canSleep: false,
+      });
       const entry: Registration = {
         id,
-        body,
-        target,
+        floating,
         plan: createWaterTilePlan(),
+        held: false,
       };
-      entries.push(entry);
+      const index = entries.findIndex((other) => other.id > id);
+      entries.splice(index < 0 ? entries.length : index, 0, entry);
       registered.set(id, entry);
       return () => {
-        const index = entries.indexOf(entry);
-        if (index >= 0) entries.splice(index, 1);
+        remove();
+        const slot = entries.indexOf(entry);
+        if (slot >= 0) entries.splice(slot, 1);
         if (registered.get(id) !== entry) return;
         registered.delete(id);
         tiles.remove(id);
       };
     },
 
-    update(delta) {
-      if (entries.length === 0) return false;
-      const stepped =
-        ocean === null
-          ? stepper.advance(entries, Math.min(delta, MAX_FLAT_DELTA), 0, flat)
-          : advanceOcean(ocean);
-      if (!stepped) return false;
-      let moving = false;
-      for (const { body, target } of entries) {
-        body.readPose(target.position, target.quaternion);
-        if (!body.resting) moving = true;
-      }
-      return moving;
-    },
-
     readDebug(out) {
       let probes = 0;
       let points = 0;
-      for (const { id, body } of entries) {
+      for (const { id, floating } of entries) {
         const length = Math.min(
-          body.probes.length,
+          floating.probes.length,
           out.probes.length - probes * 4
         );
-        out.probes.set(body.probes.subarray(0, length), probes * 4);
+        out.probes.set(floating.probes.subarray(0, length), probes * 4);
         probes += length / 4;
 
         const frame = tiles.frame(id);
@@ -221,6 +311,7 @@ export function createBuoyancy(): BuoyancyHandle {
     },
 
     dispose() {
+      removeSystem();
       entries.length = 0;
       registered.clear();
       ocean = null;

@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@dimforge/rapier3d-compat": "0.21.0",
     "@mediabunny/aac-encoder": "1.61.3",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
-    "@react-three/rapier": "2.2.0",
     "@takram/three-atmosphere": "0.19.1",
     "@takram/three-geospatial": "0.9.1",
     "@yong_three/three-clouds": "0.1.3",

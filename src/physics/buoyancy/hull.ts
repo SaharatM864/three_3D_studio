@@ -1,6 +1,7 @@
 import type { HullShape, Vec2, Vec3 } from "@/model/types";
 
-import { GRAVITY, WATER_DENSITY } from "./constants";
+import { GRAVITY } from "../constants";
+import { WATER_DENSITY } from "./constants";
 
 export interface HullColumn {
   readonly x: number;
@@ -37,6 +38,7 @@ interface ColumnSection {
 
 const SUBSAMPLES = 4;
 const WATERLINE_ITERATIONS = 48;
+const OUTLINE_SAMPLES = 32;
 
 const BOAT_WATERPLANE: readonly Vec2[] = [
   [-1, 0.82],
@@ -97,6 +99,22 @@ export function createHull(
   }
 
   return { shape, size, columns, volume };
+}
+
+export function hullPoints(shape: HullShape, size: Vec3): Float32Array {
+  const [beam, height, length] = size;
+  const points: number[] = [];
+  for (let j = 0; j < OUTLINE_SAMPLES; j++) {
+    for (let i = 0; i < OUTLINE_SAMPLES; i++) {
+      const u = -1 + (2 * i) / (OUTLINE_SAMPLES - 1);
+      const w = -1 + (2 * j) / (OUTLINE_SAMPLES - 1);
+      if (!sectionAt(shape, u, w, section)) continue;
+      const x = (u * beam) / 2;
+      const z = (w * length) / 2;
+      points.push(x, section.bottom * height, z, x, section.top * height, z);
+    }
+  }
+  return new Float32Array(points);
 }
 
 function sectionAt(

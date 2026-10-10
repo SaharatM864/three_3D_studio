@@ -7,7 +7,7 @@ A **project** is one folder, `src/projects/<project-id>/`, with three modules:
 | File             | What it is                                                                               | Where it shows                           |
 | ---------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `scene.tsx`      | The world: environment, lights, objects and custom components                            | Both modes                               |
-| `playground.tsx` | Walking around the scene: spawn point, colliders and playground-only objects             | `/projects/<id>/play`                    |
+| `playground.tsx` | Walking around the scene: spawn point and playground-only objects                        | `/projects/<id>/play`                    |
 | `clip.tsx`       | The video: format, camera, keyframes, audio and clip-only objects (one clip per project) | `/projects/<id>/studio`, exported to MP4 |
 
 Build the scene once, inspect it in the playground, then edit the video in the clip. The playground and the clip always show the same scene.
@@ -92,7 +92,6 @@ export default definePlayground(
   scene,
   {
     spawn: [0, 1, 6],
-    colliders: { "<object id>": "cuboid" | "ball" | "trimesh" | "none" }, // optional
     extraObjects, // optional: walls, props, anything only for walking around
   },
   { components }
@@ -100,7 +99,7 @@ export default definePlayground(
 ```
 
 - The camera starts at `spawn` and looks at `[0, spawn.y, 0]`, so `spawn` must not sit on the Y axis.
-- Colliders default to a fixed `"cuboid"` for `primitive` and `model` objects and `"none"` for the rest.
+- Every `primitive` gets a fixed collider that matches its shape unless its `physics` says otherwise (see "Physics" below). `model`, `text` and `custom` objects have no collider yet.
 - Nothing in the playground is recorded. Playground-only components may use real time (`useFrame` delta, input), but scene components may not.
 
 ## Scene data in brief
@@ -137,6 +136,14 @@ export default definePlayground(
       - `caustics` is 0–2.
       - Example: `ocean: { presetId: "calm", underwater: { presetId: "clear" } }`.
     - The waterline crosses the lens when the camera is within about 25 cm of the surface, so the frame splits into above and below. Underwater objects are hidden from a camera above the water, because the surface is opaque from above.
+- **Physics:** set `physics` on an object to control its Rapier body. Physics runs in the playground; in the studio objects stay at their pose until clip physics replay lands (M2).
+  - `body`: `"fixed"` (default, does not move), `"kinematic"` (follows its `transform`, pushes dynamic bodies) or `"dynamic"` (falls and collides; physics owns its transform and a clip may not `animate` it).
+  - `collider`: `"auto"` (default: box → cuboid, sphere → ball or hull when scaled unevenly, cylinder, plane → thin slab under the surface, torus → triangle mesh) or `"cuboid"`, `"ball"`, `"cylinder"`, `"hull"`, `"trimesh"` (fixed/kinematic only), `"none"`. `physics: null` also removes the body.
+  - `materialId`: `default`, `wood`, `metal`, `rubber`, `ice` or `concrete` (friction, restitution, density). `friction`, `restitution`, `density` (kg/m³) or `mass` (kg) override it.
+  - `layer`: `"environment"` (default for fixed/kinematic), `"prop"` (default for dynamic), `"player"` or `"trigger"`. `sensor: true` detects overlaps without blocking (layer `"trigger"`).
+  - `ccd: true` for small fast bodies that would tunnel through walls; `linearDamping`, `angularDamping` and `gravityScale` tune the motion.
+  - Example: `physics: { body: "dynamic", materialId: "wood" }` makes a crate fall onto the deck.
+  - Turn on "แสดง collider" in the playground Debug settings to see every collider.
 - **Floating objects:** add `buoyancy` to a `primitive` (`box`, `sphere` or `cylinder`) and it floats on the ocean, or on flat water at y = 0 when the scene has no ocean.
   - `buoyancy: { presetId: "buoy" }` picks a preset: `buoy`, `crate`, `runabout` or `motor-yacht`. Fields you set override the preset per group.
   - The hull is the object itself: `size` × `scale` along its local axes, x = beam, y = height, z = length, **+Z is the bow**. Rotate the object to set the heading. Set `shape` (`box`, `boat`, `ellipsoid`, `cylinder`) and `size` only to use a hull that differs from the visible primitive.
@@ -144,6 +151,7 @@ export default definePlayground(
   - `centerOfMass` is a fraction of `size` (−0.5 to 0.5). Keep it low for stability; a buoy or spar needs it well below the middle to stay upright.
   - Boats drive from data: `throttle` (−1 to 1) and `steer` (−1 to 1, positive turns to starboard/right) are constant for now. `propulsion: null` removes the motor.
   - `damping` (`heave`, `roll`, `pitch`) are damping ratios (0.1 lively, 0.3 calm). `drag.coefficients` are `[sway, heave, surge]`. `waveFilter` (meters) ignores waves shorter than about 4× its value; it defaults to 10% of the hull's longest side, between 0.25 and 2 m.
+  - A floating object is a dynamic physics body: it collides with other bodies and colliders. `physics` may set `friction`, `restitution`, `layer`, `collider` or `ccd`, but not `mass`/`density` (set those in `buoyancy`) and not another `body` type.
   - Physics owns a floating object's transform: `position` and `rotation` are only the starting pose, and a clip may not `animate` its `transform` (it throws).
   - Floating objects move only in the playground for now. In the studio they stay at their starting pose until clip physics replay lands (M2).
   - Turn on "แสดงจุดลอยตัว" in the playground Debug settings to see the probes and the sampled water surface.
@@ -165,7 +173,7 @@ These keep preview and export identical. Breaking them produces clips that diffe
 2. **Only the canvas is recorded.** DOM elements, CSS, Drei `<Html>` and React UI never reach the MP4. Text must be 3D text or a canvas overlay.
 3. **No React state per frame.** Do not `setState` on every frame. Mutate refs inside `useFrame`.
 4. **Physics/particles in the clip:**
-   - Floating objects (`buoyancy`) are simulated by the engine; don't write your own physics for them.
+   - Floating objects (`buoyancy`) and `physics` bodies are simulated by the engine; don't write your own physics or import Rapier.
    - Use a fixed timestep.
    - The simulation must replay identically from frame 0. Prefer baking or closed-form motion.
 5. **Assets:**
