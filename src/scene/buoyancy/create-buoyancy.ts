@@ -1,6 +1,5 @@
 import { Vector3, type Object3D } from "three";
 
-import { createBodyState, readBodyState } from "@/physics/buoyancy/body-state";
 import {
   MAX_ANGULAR_SPEED,
   TILE_LATENCY,
@@ -9,7 +8,6 @@ import {
 import {
   createFloatingBody,
   type FloatingBody,
-  type FloatingForces,
 } from "@/physics/buoyancy/floating-body";
 import {
   createFlatWater,
@@ -92,14 +90,8 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
     () => ({ token: -1, time: 0, epoch: -1, count: 0, items: [] })
   );
   const sample = createWaterSample();
-  const state = createBodyState();
-  const forces: FloatingForces = {
-    force: new Vector3(),
-    torque: new Vector3(),
-  };
   const position = new Vector3();
   const velocity = new Vector3();
-  const spin = new Vector3();
   let ocean: OceanHandle | null = null;
   let water: WaterSource = flat;
   let available = true;
@@ -208,30 +200,15 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
       water.setTime(frameTime - step.lag * waveRate);
       for (const entry of entries) {
         const body = step.world.body(entry.id);
-        if (body === null) continue;
+        const dynamic = step.world.dynamicBody(entry.id);
+        if (body === null || dynamic === null) continue;
         const surface = available ? water.surface(entry.id) : null;
         if (surface === null) {
           hold(entry, body);
           continue;
         }
         release(entry, body);
-        readBodyState(body, state);
-        entry.floating.computeForces(state, surface, forces);
-        body.resetForces(false);
-        body.resetTorques(false);
-        body.addForce(forces.force, true);
-        body.addTorque(forces.torque, true);
-      }
-    },
-
-    afterStep(step) {
-      for (const entry of entries) {
-        if (entry.held) continue;
-        const body = step.world.body(entry.id);
-        if (body === null) continue;
-        body.angvel(spin);
-        if (spin.lengthSq() <= MAX_ANGULAR_SPEED * MAX_ANGULAR_SPEED) continue;
-        body.setAngvel(spin.setLength(MAX_ANGULAR_SPEED), false);
+        entry.floating.applyForces(dynamic, surface);
       }
     },
 
@@ -258,6 +235,7 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
         target,
         mass: floating.mass,
         canSleep: false,
+        maxAngularSpeed: MAX_ANGULAR_SPEED,
       });
       const entry: Registration = {
         id,

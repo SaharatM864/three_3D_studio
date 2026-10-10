@@ -1,13 +1,10 @@
 import type { Object3D } from "three";
 
 import { createFixedStepClock } from "@/physics/clock";
+import type { BodyMass } from "@/physics/dynamics/mass";
 import type { Rapier } from "@/physics/rapier";
 import type { ColliderGeometry } from "@/physics/shapes";
-import {
-  createPhysicsWorld,
-  type BodyMass,
-  type PhysicsWorld,
-} from "@/physics/world";
+import { createPhysicsWorld, type PhysicsWorld } from "@/physics/world";
 import type { ResolvedPhysics } from "@/presets/physics";
 
 import type { Disposable } from "../use-disposable";
@@ -19,6 +16,7 @@ export interface PhysicsObjectInit {
   readonly target: Object3D;
   readonly mass?: BodyMass;
   readonly canSleep?: boolean;
+  readonly maxAngularSpeed?: number;
 }
 
 export interface PhysicsHandle extends Disposable {
@@ -35,14 +33,14 @@ interface Binding {
 
 export function createPhysics(rapier: Rapier): PhysicsHandle {
   const world = createPhysicsWorld(rapier);
-  const clock = createFixedStepClock();
+  const clock = createFixedStepClock(world.timestep);
   const bindings: Binding[] = [];
   const timing = { delta: 0, residual: 0 };
 
   return {
     world,
 
-    add({ id, physics, geometry, target, mass, canSleep }) {
+    add({ id, physics, geometry, target, mass, canSleep, maxAngularSpeed }) {
       const remove = world.add({
         id,
         physics,
@@ -51,6 +49,7 @@ export function createPhysics(rapier: Rapier): PhysicsHandle {
         quaternion: target.quaternion,
         mass,
         canSleep,
+        maxAngularSpeed,
       });
       const binding: Binding = {
         id,

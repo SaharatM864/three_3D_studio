@@ -3,16 +3,14 @@ import { Vector3 } from "three";
 import type { HullShape, Vec3 } from "@/model/types";
 import type { ResolvedBuoyancy } from "@/presets/buoyancy";
 
+import type { DynamicBody } from "../dynamics/dynamic-body";
+import type { BodyMass } from "../dynamics/mass";
 import type { ColliderGeometry } from "../shapes";
-import type { BodyMass } from "../world";
-import type { BodyState } from "./body-state";
 import { WATER_DENSITY } from "./constants";
 import {
   applyHydrostatics,
   applyPropulsion,
-  clearForces,
   type Controls,
-  type ForceAccumulator,
   type HydroProperties,
   type PropulsionProperties,
 } from "./forces";
@@ -25,11 +23,6 @@ import {
 } from "./hull";
 import type { WaterSurface } from "./water";
 
-export interface FloatingForces {
-  readonly force: Vector3;
-  readonly torque: Vector3;
-}
-
 export interface FloatingBody {
   readonly mass: BodyMass;
   readonly collider: ColliderGeometry;
@@ -38,11 +31,7 @@ export interface FloatingBody {
   readonly waveFilter: number;
   readonly probes: Float32Array;
   readonly immersion: number;
-  computeForces(
-    state: BodyState,
-    water: WaterSurface,
-    out: FloatingForces
-  ): void;
+  applyForces(body: DynamicBody, water: WaterSurface): void;
 }
 
 const HALF_DENSITY = 0.5 * WATER_DENSITY;
@@ -78,12 +67,8 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
     surgeDrag: HALF_DENSITY * drag.coefficients[2] * beam * height,
     linearDrag: drag.linear * mass,
     heaveDamping: criticalDamping(damping.heave, stiffness.heave, mass),
-    rollDamping: criticalDamping(damping.roll, stiffness.roll, inertia.roll),
-    pitchDamping: criticalDamping(
-      damping.pitch,
-      stiffness.pitch,
-      inertia.pitch
-    ),
+    rollDamping: criticalDamping(damping.roll, stiffness.roll, inertia.z),
+    pitchDamping: criticalDamping(damping.pitch, stiffness.pitch, inertia.x),
     probes: new Float32Array(hull.columns.length * 4),
   };
   const propulsion: PropulsionProperties | null =
@@ -104,19 +89,10 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
     throttle: buoyancy.throttle,
     steer: buoyancy.steer,
   };
-  const forces: ForceAccumulator = {
-    force: new Vector3(),
-    torque: new Vector3(),
-    bodyTorque: new Vector3(),
-  };
   let immersion = 0;
 
   return {
-    mass: {
-      mass,
-      centerOfMass,
-      inertia: new Vector3(inertia.pitch, inertia.yaw, inertia.roll),
-    },
+    mass: { mass, centerOfMass, inertia },
     collider: hullCollider(shape, size),
     controls,
     radius: 0.5 * Math.hypot(beam, height, length),
@@ -126,25 +102,11 @@ export function createFloatingBody(buoyancy: ResolvedBuoyancy): FloatingBody {
       return immersion;
     },
 
-    computeForces(state, water, out) {
-      clearForces(forces);
-      immersion = applyHydrostatics(hydro, state, water, forces);
+    applyForces(body, water) {
+      immersion = applyHydrostatics(hydro, body, water);
       if (propulsion !== null) {
-        applyPropulsion(
-          propulsion,
-          hydro,
-          controls,
-          immersion,
-          state,
-          water,
-          forces
-        );
+        applyPropulsion(propulsion, hydro, controls, immersion, body, water);
       }
-      out.force.copy(forces.force);
-      out.torque
-        .copy(forces.bodyTorque)
-        .applyQuaternion(state.orientation)
-        .add(forces.torque);
     },
   };
 }

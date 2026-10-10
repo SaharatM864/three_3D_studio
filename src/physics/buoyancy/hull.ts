@@ -1,6 +1,9 @@
+import type { Vector3 } from "three";
+
 import type { HullShape, Vec2, Vec3 } from "@/model/types";
 
 import { GRAVITY } from "../constants";
+import { solidInertia } from "../dynamics/mass";
 import { WATER_DENSITY } from "./constants";
 
 export interface HullColumn {
@@ -17,12 +20,6 @@ export interface Hull {
   readonly size: Vec3;
   readonly columns: readonly HullColumn[];
   readonly volume: number;
-}
-
-export interface HullInertia {
-  pitch: number;
-  yaw: number;
-  roll: number;
 }
 
 export interface HullStiffness {
@@ -166,28 +163,14 @@ function boatHalfBeam(w: number): number {
 
 export function hullInertia(
   shape: HullShape,
-  [beam, height, length]: Vec3,
+  size: Vec3,
   mass: number,
   addedInertia: number
-): HullInertia {
-  const b2 = beam * beam;
-  const h2 = height * height;
-  const l2 = length * length;
-  const inertia =
-    shape === "ellipsoid"
-      ? { pitch: (h2 + l2) / 20, yaw: (b2 + l2) / 20, roll: (b2 + h2) / 20 }
-      : shape === "cylinder"
-        ? {
-            pitch: l2 / 16 + h2 / 12,
-            yaw: (b2 + l2) / 16,
-            roll: b2 / 16 + h2 / 12,
-          }
-        : { pitch: (h2 + l2) / 12, yaw: (b2 + l2) / 12, roll: (b2 + h2) / 12 };
-  return {
-    pitch: mass * inertia.pitch * addedInertia,
-    yaw: mass * inertia.yaw,
-    roll: mass * inertia.roll * addedInertia,
-  };
+): Vector3 {
+  const inertia = solidInertia(shape === "boat" ? "box" : shape, size, mass);
+  inertia.x *= addedInertia;
+  inertia.z *= addedInertia;
+  return inertia;
 }
 
 export function submergedVolume(hull: Hull, level: number): number {

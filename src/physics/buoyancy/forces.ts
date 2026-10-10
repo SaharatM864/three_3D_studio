@@ -3,7 +3,8 @@ import { MathUtils, Quaternion, Vector3 } from "three";
 import type { PropulsionSpec } from "@/model/types";
 
 import { GRAVITY } from "../constants";
-import { pointVelocity, type BodyState } from "./body-state";
+import { pointVelocity } from "../dynamics/body-state";
+import type { DynamicBody } from "../dynamics/dynamic-body";
 import { WATER_DENSITY } from "./constants";
 import type { Hull } from "./hull";
 import { createWaterSample, type WaterSurface } from "./water";
@@ -35,12 +36,6 @@ export interface Controls {
   steer: number;
 }
 
-export interface ForceAccumulator {
-  readonly force: Vector3;
-  readonly torque: Vector3;
-  readonly bodyTorque: Vector3;
-}
-
 const HALF_DENSITY = 0.5 * WATER_DENSITY;
 const COLUMN_EPSILON = 1e-4;
 const PROP_IMMERSION = 0.25;
@@ -64,25 +59,15 @@ const force = new Vector3();
 const forward = new Vector3();
 const side = new Vector3();
 const up = new Vector3();
-const moment = new Vector3();
-
-export function clearForces({
-  force,
-  torque,
-  bodyTorque,
-}: ForceAccumulator): void {
-  force.set(0, 0, 0);
-  torque.set(0, 0, 0);
-  bodyTorque.set(0, 0, 0);
-}
+const damping = new Vector3();
 
 export function applyHydrostatics(
-  body: HydroProperties,
-  state: BodyState,
-  water: WaterSurface,
-  out: ForceAccumulator
+  hydro: HydroProperties,
+  body: DynamicBody,
+  water: WaterSurface
 ): number {
-  const { hull, centerOfMass: com, probes } = body;
+  const { hull, centerOfMass: com, probes } = hydro;
+  const state = body.state;
   const orientation = state.orientation;
   inverse.copy(orientation).invert();
   let displaced = 0;
@@ -126,39 +111,51 @@ export function applyHydrostatics(
     pointVelocity(state, offset, velocity);
     velocity.y -= sample.verticalVelocity;
     velocity.applyQuaternion(inverse);
-    const linear = (body.linearDrag * volume) / body.restVolume;
+    const linear = (hydro.linearDrag * volume) / hydro.restVolume;
     drag
       .set(
-        -(body.sideDrag * share * Math.abs(velocity.x) + linear) * velocity.x,
-        -body.heaveDrag * column.area * Math.abs(velocity.y) * velocity.y,
-        -(body.surgeDrag * share * Math.abs(velocity.z) + linear) * velocity.z
+        -(hydro.sideDrag * share * Math.abs(velocity.x) + linear) * velocity.x,
+        -hydro.heaveDrag * column.area * Math.abs(velocity.y) * velocity.y,
+        -(hydro.surgeDrag * share * Math.abs(velocity.z) + linear) * velocity.z
       )
       .applyQuaternion(orientation);
     drag.y += WATER_DENSITY * GRAVITY * volume;
-    addForceAt(out, drag, offset);
+    body.addForceAtPoint(drag, point);
   }
 
-  const immersion = Math.min(displaced / body.restVolume, 1);
+  const immersion = Math.min(displaced / hydro.restVolume, 1);
   water.sample(state.position.x, state.position.z, sample);
-  out.force.y -=
-    body.heaveDamping *
-    immersion *
-    (state.velocity.y - sample.verticalVelocity);
-  out.bodyTorque.x -= body.pitchDamping * immersion * state.angularVelocity.x;
-  out.bodyTorque.z -= body.rollDamping * immersion * state.angularVelocity.z;
+  body.addForce(
+    damping.set(
+      0,
+      -(
+        hydro.heaveDamping *
+        immersion *
+        (state.velocity.y - sample.verticalVelocity)
+      ),
+      0
+    )
+  );
+  body.addLocalTorque(
+    damping.set(
+      -(hydro.pitchDamping * immersion * state.localAngularVelocity.x),
+      0,
+      -(hydro.rollDamping * immersion * state.localAngularVelocity.z)
+    )
+  );
   return immersion;
 }
 
 export function applyPropulsion(
   propulsion: PropulsionProperties,
-  body: HydroProperties,
+  hydro: HydroProperties,
   controls: Controls,
   immersion: number,
-  state: BodyState,
-  water: WaterSurface,
-  out: ForceAccumulator
+  body: DynamicBody,
+  water: WaterSurface
 ): void {
   const { spec } = propulsion;
+  const state = body.state;
   const orientation = state.orientation;
   forward.set(0, 0, 1).applyQuaternion(orientation);
   side.set(1, 0, 0).applyQuaternion(orientation);
@@ -171,7 +168,7 @@ export function applyPropulsion(
 
   offset
     .copy(propulsion.position)
-    .sub(body.centerOfMass)
+    .sub(hydro.centerOfMass)
     .applyQuaternion(orientation);
   point.addVectors(state.position, offset);
   water.sample(point.x, point.z, sample);
@@ -189,7 +186,7 @@ export function applyPropulsion(
   const ratio = controls.throttle >= 0 ? spec.thrust : spec.reverseThrust;
   const thrust =
     ratio *
-    body.mass *
+    hydro.mass *
     GRAVITY *
     controls.throttle *
     propWet *
@@ -211,15 +208,15 @@ export function applyPropulsion(
         Math.max(propWet, immersion)
     );
   }
-  addForceAt(out, force, offset);
+  body.addForceAtPoint(force, point);
 
   if (surge <= PLANING_MIN_SPEED || immersion <= 0) return;
   const lift =
     Math.min(
       spec.planing * HALF_DENSITY * propulsion.planingArea * surge * surge,
-      spec.planingMax * body.mass * GRAVITY
+      spec.planingMax * hydro.mass * GRAVITY
     ) * immersion;
-  const { hull, probes } = body;
+  const { hull, probes } = hydro;
   let wetted = 0;
   for (let index = 0; index < hull.columns.length; index++) {
     if (probes[index * 4 + 3] > 0) wetted += hull.columns[index].area;
@@ -227,19 +224,8 @@ export function applyPropulsion(
   if (wetted === 0) return;
   for (let index = 0; index < hull.columns.length; index++) {
     if (probes[index * 4 + 3] === 0) continue;
-    offset
-      .set(probes[index * 4], probes[index * 4 + 1], probes[index * 4 + 2])
-      .sub(state.position);
+    point.set(probes[index * 4], probes[index * 4 + 1], probes[index * 4 + 2]);
     force.set(0, (lift * hull.columns[index].area) / wetted, 0);
-    addForceAt(out, force, offset);
+    body.addForceAtPoint(force, point);
   }
-}
-
-function addForceAt(
-  out: ForceAccumulator,
-  applied: Vector3,
-  arm: Vector3
-): void {
-  out.force.add(applied);
-  out.torque.add(moment.crossVectors(arm, applied));
 }

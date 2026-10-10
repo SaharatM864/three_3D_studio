@@ -4,6 +4,12 @@ import type { CollisionLayer, PhysicsBodyType } from "@/model/types";
 import type { ResolvedPhysics } from "@/presets/physics";
 
 import { GRAVITY, PHYSICS_STEP, REST_SPEED } from "./constants";
+import {
+  createDynamicBody,
+  type DynamicBody,
+  type ManagedDynamicBody,
+} from "./dynamics/dynamic-body";
+import type { BodyMass } from "./dynamics/mass";
 import { collisionGroups } from "./layers";
 import type {
   Collider,
@@ -19,12 +25,6 @@ import {
   type ColliderGeometry,
 } from "./shapes";
 
-export interface BodyMass {
-  readonly mass: number;
-  readonly centerOfMass: Vector3;
-  readonly inertia: Vector3;
-}
-
 export interface PhysicsBodyInit {
   readonly id: string;
   readonly physics: ResolvedPhysics;
@@ -33,6 +33,7 @@ export interface PhysicsBodyInit {
   readonly quaternion: Quaternion;
   readonly mass?: BodyMass;
   readonly canSleep?: boolean;
+  readonly maxAngularSpeed?: number;
 }
 
 export interface FrameContext {
@@ -86,9 +87,11 @@ export interface RayHit {
 export interface PhysicsWorld {
   readonly rapier: Rapier;
   readonly raw: World;
+  readonly timestep: number;
   readonly stepCount: number;
   add(init: PhysicsBodyInit): () => void;
   body(id: string): RigidBody | null;
+  dynamicBody(id: string): DynamicBody | null;
   idOf(collider: Collider): string | null;
   setTarget(id: string, position: Vector3, quaternion: Quaternion): void;
   addSystem(system: PhysicsSystem): () => void;
@@ -117,6 +120,7 @@ interface Entry {
   readonly init: PhysicsBodyInit;
   readonly type: PhysicsBodyType;
   body: RigidBody | null;
+  dynamic: ManagedDynamicBody | null;
   readonly previousPosition: Vector3;
   readonly previousQuaternion: Quaternion;
   readonly currentPosition: Vector3;
@@ -135,9 +139,12 @@ const spin = new Vector3();
 const blendPosition = new Vector3();
 const blendQuaternion = new Quaternion();
 
-export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
+export function createPhysicsWorld(
+  rapier: Rapier,
+  timestep = PHYSICS_STEP
+): PhysicsWorld {
   const raw = new rapier.World({ x: 0, y: -GRAVITY, z: 0 });
-  raw.timestep = PHYSICS_STEP;
+  raw.timestep = timestep;
   const queue: EventQueue = new rapier.EventQueue(true);
   const ray = new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
   const entries = new Map<string, Entry>();
@@ -163,6 +170,7 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
       init,
       type: init.physics.body,
       body: null,
+      dynamic: null,
       previousPosition: init.position.clone(),
       previousQuaternion: init.quaternion.clone(),
       currentPosition: init.position.clone(),
@@ -203,6 +211,8 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
     }
     colliderIds.set(collider.handle, entry.id);
     entry.body = body;
+    entry.dynamic =
+      entry.type === "dynamic" ? createDynamicBody(entry.id, body) : null;
     entry.previousPosition.copy(entry.currentPosition);
     entry.previousQuaternion.copy(entry.currentQuaternion);
   }
@@ -215,6 +225,7 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
     }
     raw.removeRigidBody(body);
     entry.body = null;
+    entry.dynamic = null;
   }
 
   function flush(): void {
@@ -259,6 +270,25 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
     }
   }
 
+  function beginForces(): void {
+    for (const entry of active) entry.dynamic?.beginStep();
+  }
+
+  function commitForces(): void {
+    for (const entry of active) entry.dynamic?.commit();
+  }
+
+  function limitSpin(): void {
+    for (const entry of active) {
+      const limit = entry.init.maxAngularSpeed;
+      const body = entry.body;
+      if (limit === undefined || body === null || !body.isEnabled()) continue;
+      body.angvel(spin);
+      if (spin.lengthSq() <= limit * limit) continue;
+      body.setAngvel(spin.setLength(limit), false);
+    }
+  }
+
   function capture(): void {
     for (const entry of active) {
       if (entry.type !== "dynamic" || entry.body === null) continue;
@@ -287,6 +317,7 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
   const world: PhysicsWorld = {
     rapier,
     raw,
+    timestep,
 
     get stepCount() {
       return stepCount;
@@ -312,6 +343,10 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
 
     body(id) {
       return entries.get(id)?.body ?? null;
+    },
+
+    dynamicBody(id) {
+      return entries.get(id)?.dynamic ?? null;
     },
 
     idOf(collider) {
@@ -392,10 +427,13 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
       for (let index = 0; index < steps; index++) {
         flush();
         step.index = index;
-        step.lag = timing.residual + (steps - 1 - index) * PHYSICS_STEP;
+        step.lag = timing.residual + (steps - 1 - index) * timestep;
+        beginForces();
         for (const system of systems) system.beforeStep?.(step);
+        commitForces();
         driveKinematic(index, steps);
         raw.step(queue);
+        limitSpin();
         capture();
         for (const system of systems) system.afterStep?.(step);
         drainContacts();
@@ -455,7 +493,7 @@ export function createPhysicsWorld(rapier: Rapier): PhysicsWorld {
   const frame: Mutable<FrameContext> = { world, delta: 0, steps: 0 };
   const step: Mutable<StepContext> = {
     world,
-    dt: PHYSICS_STEP,
+    dt: timestep,
     index: 0,
     count: 0,
     lag: 0,

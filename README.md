@@ -81,6 +81,7 @@ bun install          # ติดตั้ง dependencies
 bun dev              # dev server ที่ http://localhost:3000
 bun run build        # production build
 bun run check        # lint + typecheck
+bun run test         # test แบบ headless (node:test ผ่าน bun test)
 bun run lint:fix     # แก้ปัญหา lint ที่แก้อัตโนมัติได้
 bun run format       # จัดรูปแบบโค้ดด้วย Prettier
 bunx --bun shadcn@latest add <component>   # เพิ่ม shadcn component
