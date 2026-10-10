@@ -118,6 +118,9 @@ features (playground-app / viewport)
   - `renderOutput()` ที่ไม่ส่งอาร์กิวเมนต์อ่าน tone mapping และ color space ของ renderer จาก context ของ `RenderPipeline` จึงยังต้องตั้ง `flat`
 - **Velocity สำหรับ TAA** ใช้ `highpVelocity` ของ takram ห้ามใช้ `velocity` ของ three
   - TAA ของ takram ยกเลิก jitter ผ่าน `highpVelocity.setProjectionMatrix()` เท่านั้น และใช้ค่า `.z` ตรวจ depth แต่ `velocity` ของ three เป็น `vec2`
+  - jitter ของ TAA มีผลเฉพาะ scene pass: `ScenePassNode` (`pipeline/create-scene-pipeline.ts`) เรียก `clearViewOffset()` หลัง render ฉาก ท้องฟ้า aerial perspective เมฆ underwater medium และ lens flare จึงได้ projection ที่ไม่มี jitter
+    - resolve ของ TAA ข้าม pixel ที่ 3×3 รอบตัวเป็น depth = far ทั้งหมด (ท้องฟ้าและเมฆที่ไม่เขียน depth) ถ้า jitter ค้างไปถึง pass เหล่านี้ ท้องฟ้าและเมฆจะขึ้นจอแบบมี jitter ดิบและสั่นตอนกล้องนิ่ง
+    - ลำดับนี้ใช้ได้เพราะ `PassNode` ถูก build ก่อน (ผ่าน texture ของ depth/color) `updateBefore` ของมันจึงรันก่อน `CloudsNode` และ quad ที่ประเมิน aerial perspective ส่วน `clearViewOffset()` ตอนท้าย TAA เรียกซ้ำได้โดยไม่มีผล
   - `highpVelocity` ใช้กับ `SkinnedMesh`/`InstancedMesh` ได้ เพราะ MRT มี key `velocity` และ three จะคำนวณ `positionPrevious` ให้
   - ยกเว้นทะเลที่ตั้ง `mrtNode` เอง (ดู "Ocean") ห้ามอ่าน field ภายในของ `highpVelocity` เพราะ `update()` ของมันรันเฉพาะเฟรมที่มี mesh อื่นใช้ node นี้
 - **กล้อง**: canvas หนึ่งตัวมีกล้อง perspective ตัวเดียวตลอดอายุ และห้าม `makeDefault` กล้องใหม่
@@ -211,6 +214,7 @@ ScenePipeline (pipeline/)            createScenePipeline(renderer, scene, camera
   - composite คือ `color × (1 − clouds.a) + clouds.rgb` เพราะ output ของ `CloudsNode` เป็น premultiplied (rgb เป็น radiance, a เป็น coverage)
   - composite ต้องอยู่หลัง aerial perspective เพราะเมฆใส่ aerial perspective ระหว่างกล้องกับเมฆมาแล้ว และ aerial perspective เขียนทับ pixel ท้องฟ้าทั้งหมด ถ้าสลับลำดับเมฆบนท้องฟ้าจะหาย
   - `CloudsNode` อ่าน `matrixWorldToECEF`, `sunDirectionECEF`, LUT และกล้องจาก `AtmosphereContext` ผ่าน `renderer.contextNode` ตัวเดียวกับท้องฟ้า จึงไม่ต้องส่ง atmosphere เข้าไปเอง
+  - `CloudsNode.updateBefore` รันหลัง scene pass จึงได้ projection ที่ไม่มี jitter ของ TAA (ดู "Velocity สำหรับ TAA") reprojection ของเมฆจึงได้ velocity เป็นศูนย์จริงตอนกล้องนิ่ง
   - เปิดหรือปิดเมฆ (null ↔ ไม่ null) คือ rebuild pipeline ทั้งชุด ส่วนการเปลี่ยนค่าของเมฆใช้ node ตัวเดิม
   - `render()` ไม่ทำงานจนกว่า `ready` (texture + STBN) จะ resolve ถ้าโหลดไม่สำเร็จ `ScenePipeline` จะ throw ไปที่ `error.tsx`
   - light shafts: `CloudsHandle.shadowLength` (`getShadowLengthNode()`) ต่อเข้า `aerialPerspective` เสมอ และ `lightShafts` เปิดตาม preset (high/ultra เปิด, low/medium ปิด) เมื่อปิด resolve เขียน shadow length เป็น 0 จึงเปลี่ยนคุณภาพได้โดยไม่ rebuild pipeline
@@ -333,7 +337,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
   - material เป็น `MeshBasicNodeMaterial` (`lights = false`, `fog = false`, `DoubleSide` เพราะ winding ของ grid กลับด้าน) ไม่ทำ tone mapping เอง
 - **Velocity สำหรับ TAA** (`surface/velocity.ts`): `positionPrevious` ของ three เป็นตำแหน่งก่อน displace และ mesh เลื่อนตามกล้อง material จึงตั้ง `mrtNode = mrt({ velocity })` เอง
   - velocity = NDC ปัจจุบัน − NDC ก่อนหน้า ของตำแหน่ง world ที่ displace แล้ว ใช้ projection และ view ของเฟรมนี้กับเฟรมก่อน ซึ่ง `OceanHandle.update` copy ไว้ใน uniform ของทะเลเอง
-  - copy `camera.projectionMatrix` ที่ priority 0 ได้เพราะยังไม่มี jitter (TAA ตั้ง jitter ใน `onBeforeRenderPipeline` และล้างใน `updateBefore`) ห้ามอ่าน field ภายในของ `highpVelocity` เพราะอัปเดตเฉพาะเฟรมที่มี mesh อื่นใช้ node นั้น
+  - copy `camera.projectionMatrix` ที่ priority 0 ได้เพราะยังไม่มี jitter (TAA ตั้ง jitter ใน `onBeforeRenderPipeline` และ `ScenePassNode` ล้างหลัง scene pass) ห้ามอ่าน field ภายในของ `highpVelocity` เพราะอัปเดตเฉพาะเฟรมที่มี mesh อื่นใช้ node นั้น
   - ไม่นับการขยับของคลื่นระหว่างเฟรม (ไม่กี่ ซม.) ให้ neighborhood clamp ของ TAA จัดการ
   - material ที่มี `mrtNode` ห้าม render ใน pass ที่ไม่มี MRT (three จะใช้ MRT ของ material แทน output) ตอนนี้มีแค่ scene pass ที่ render ทะเล (ไม่ cast shadow และ sky environment ใช้ฉากของตัวเอง)
 - **การเดินเวลา** (`createOceanStepper` ใน `timeline/ocean.ts`, pure): คลื่นเป็นฟังก์ชันของเวลาสัมบูรณ์ แต่ foam สะสมใน history texture ด้วย `dt` จึงแยกเป็นสองโหมดตาม `OceanClock`
@@ -376,7 +380,7 @@ SceneContent                         useOceanHandle(environment.ocean !== null) 
     - ไม่มี extinction ใน material แล้ว เพราะ medium ทำแทน (ไม่งั้นดูดกลืนซ้ำ) `FAR_SINK` ยังมีผลเฉพาะเหนือน้ำ
   - **Medium** (`underwater/medium.ts`): `UnderwaterMedium.apply({ above, scene, depth, camera, reversedDepth })` ต่อหลังเมฆและ aerial perspective ก่อน `lensFlare` จึงอยู่ใน RTT input ของ lens flare ไม่มี pass เต็มจอเพิ่ม
     - ทำงานใน `If(underwaterActive && probe.h + LENS_DISTANCE > กล้อง)` ถ้าไม่เข้าเงื่อนไขจะคืน `above` ตรง ๆ
-    - reconstruct ตำแหน่งด้วย `getViewPosition` กับ `reference("projectionMatrixInverse")` ของกล้องฉาก (jitter ของ TAA ตรงกับ depth) ส่วน pixel ท้องฟ้า (`depth <= 0` เมื่อ reversed) ใช้ระยะ `SKY_DISTANCE`
+    - reconstruct ตำแหน่งด้วย `getViewPosition` กับ `reference("projectionMatrixInverse")` ของกล้องฉาก (projection ไม่มี jitter แต่ depth มี จึงคลาดไม่เกิน 0.5 px ซึ่งไม่เห็นใน fog) ส่วน pixel ท้องฟ้า (`depth <= 0` เมื่อ reversed) ใช้ระยะ `SKY_DISTANCE`
     - สี = `scene · e^(−Kd·max(0, −y)) · e^(−c·d) + B∞(dir) · (1 − e^(−c·d))` เทอมแรกคือแสงที่ลดตามความลึกของ pixel (ระดับน้ำเฉลี่ย y = 0) ครอบคลุมแดด, IBL และ LightRig ในที่เดียว เทอมที่สองใช้ c ตัวเดียวกันเพราะเป็นคำตอบ single-scattering ของน้ำเนื้อเดียวกัน
     - ฝั่งใต้น้ำใช้ `scene` (output ของ scene pass ก่อน aerial และเมฆ) haze ของอากาศ ท้องฟ้า และพื้นของ takram จึงไม่โผล่ใต้น้ำ
     - **เส้นน้ำบนเลนส์**: เทียบจุด `กล้อง + dir · LENS_DISTANCE` (0.25 ม.) กับระนาบ `probe.h + slope · Δxz` ได้ mask ต่อ pixel กล้องที่ผิวน้ำจึงเห็นภาพแบ่งบน/ล่างที่เลื่อนตามคลื่น ไม่ใช้ temporal smoothing หรือ hysteresis เพราะเป็น history

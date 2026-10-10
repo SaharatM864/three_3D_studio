@@ -1,17 +1,21 @@
-import { Vector2, type Camera, type Scene } from "three";
+import { PerspectiveCamera, Vector2, type Camera, type Scene } from "three";
 import {
   clamp,
   convertToTexture,
   mrt,
   output,
-  pass,
   renderOutput,
   saturate,
   toneMapping,
   uniform,
   vec4,
 } from "three/tsl";
-import { RenderPipeline, type WebGPURenderer } from "three/webgpu";
+import {
+  PassNode,
+  RenderPipeline,
+  type NodeFrame,
+  type WebGPURenderer,
+} from "three/webgpu";
 
 import { createAerialPerspective } from "../atmosphere/create-aerial-perspective";
 import type { NightSky } from "../atmosphere/night";
@@ -27,6 +31,17 @@ import {
 } from "./takram";
 
 const HDR_LIMIT = 65000;
+
+class ScenePassNode extends PassNode {
+  override updateBefore(frame: NodeFrame): boolean | undefined {
+    const result = super.updateBefore(frame);
+    const { camera } = this;
+    if (camera instanceof PerspectiveCamera && camera.view?.enabled === true) {
+      camera.clearViewOffset();
+    }
+    return result;
+  }
+}
 
 export interface ScenePipelineOptions {
   clouds: boolean;
@@ -48,9 +63,9 @@ export function createScenePipeline(
   options: ScenePipelineOptions
 ): ScenePipelineHandle {
   const exposureNode = uniform(1);
-  const passNode = pass(scene, camera, { samples: 0 }).setMRT(
-    mrt({ output, velocity: highpVelocity })
-  );
+  const passNode = new ScenePassNode(PassNode.COLOR, scene, camera, {
+    samples: 0,
+  }).setMRT(mrt({ output, velocity: highpVelocity }));
   const colorNode = passNode.getTextureNode("output");
   const depthNode = passNode.getTextureNode("depth");
   const clouds = options.clouds
