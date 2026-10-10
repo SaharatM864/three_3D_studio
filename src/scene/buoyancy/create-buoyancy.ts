@@ -8,7 +8,9 @@ import {
 import {
   createFloatingBody,
   type FloatingBody,
+  type FloatingBodyDebug,
 } from "@/physics/buoyancy/floating-body";
+import { submergedCentroid } from "@/physics/buoyancy/forces/pressure";
 import {
   createFlatWater,
   createWaterSample,
@@ -36,9 +38,25 @@ import type {
 import type { PhysicsHandle } from "../physics/create-physics";
 import type { Disposable } from "../use-disposable";
 
+export const DebugLine = {
+  wetted: 0,
+  waterline: 1,
+  buoyancy: 2,
+  hydrodynamic: 3,
+} as const;
+
+export const DebugMarker = {
+  mass: 0,
+  buoyancy: 1,
+} as const;
+
 export interface BuoyancyDebugData {
-  readonly probes: Float32Array;
-  probeCount: number;
+  readonly lines: Float32Array;
+  readonly lineKinds: Uint8Array;
+  lineCount: number;
+  readonly markers: Float32Array;
+  readonly markerKinds: Uint8Array;
+  markerCount: number;
   readonly points: Float32Array;
   pointCount: number;
 }
@@ -79,6 +97,9 @@ interface PendingBatch {
 }
 
 const PENDING_BATCHES = 8;
+const FORCE_LENGTH = 1.5;
+
+const buoyancyCenter = new Vector3();
 
 export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
   const flat = createFlatWater(0);
@@ -116,11 +137,13 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
     epoch = -1;
     lastTime = null;
     tiles.clear();
+    for (const entry of entries) entry.floating.reset();
   }
 
   function hold(entry: Registration, body: RigidBody): void {
     if (entry.held) return;
     entry.held = true;
+    entry.floating.reset();
     body.setEnabled(false);
   }
 
@@ -208,7 +231,7 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
           continue;
         }
         release(entry, body);
-        entry.floating.applyForces(dynamic, surface);
+        entry.floating.applyForces(dynamic, surface, step.dt);
       }
     },
 
@@ -257,35 +280,29 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
     },
 
     readDebug(out) {
-      let probes = 0;
-      let points = 0;
+      out.lineCount = 0;
+      out.markerCount = 0;
+      out.pointCount = 0;
       for (const { id, floating } of entries) {
-        const length = Math.min(
-          floating.probes.length,
-          out.probes.length - probes * 4
-        );
-        out.probes.set(floating.probes.subarray(0, length), probes * 4);
-        probes += length / 4;
-
+        if (floating.debug.ready) writeHull(out, floating.debug);
         const frame = tiles.frame(id);
-        const surface = tiles.surface(id);
-        if (frame === null || surface === null) continue;
+        const water = tiles.surface(id);
+        if (frame === null || water === null) continue;
         const { originX, originZ, spacing, size } = frame.plan;
         for (let j = 0; j < size; j++) {
           for (let i = 0; i < size; i++) {
-            if (points * 3 >= out.points.length) break;
+            if (out.pointCount * 3 >= out.points.length) break;
             const x = originX + i * spacing;
             const z = originZ + j * spacing;
-            surface.sample(x, z, sample);
-            out.points[points * 3] = x;
-            out.points[points * 3 + 1] = sample.height;
-            out.points[points * 3 + 2] = z;
-            points += 1;
+            water.sample(x, z, sample);
+            const offset = out.pointCount * 3;
+            out.points[offset] = x;
+            out.points[offset + 1] = sample.height;
+            out.points[offset + 2] = z;
+            out.pointCount += 1;
           }
         }
       }
-      out.probeCount = probes;
-      out.pointCount = points;
     },
 
     dispose() {
@@ -296,4 +313,108 @@ export function createBuoyancy(physics: PhysicsHandle): BuoyancyHandle {
       resetWater();
     },
   };
+}
+
+function writeHull(out: BuoyancyDebugData, debug: FloatingBodyDebug): void {
+  const { surface, hydrostatic, hydrodynamic, centerOfMass, weight } = debug;
+  const { vertices, waterline } = surface;
+  for (let index = 0; index < surface.count; index++) {
+    for (let edge = 0; edge < 3; edge++) {
+      const from = index * 9 + edge * 3;
+      const to = index * 9 + ((edge + 1) % 3) * 3;
+      writeLine(
+        out,
+        DebugLine.wetted,
+        vertices[from],
+        vertices[from + 1],
+        vertices[from + 2],
+        vertices[to],
+        vertices[to + 1],
+        vertices[to + 2]
+      );
+    }
+  }
+  for (let index = 0; index < surface.waterlineCount; index++) {
+    const offset = index * 6;
+    writeLine(
+      out,
+      DebugLine.waterline,
+      waterline[offset],
+      waterline[offset + 1],
+      waterline[offset + 2],
+      waterline[offset + 3],
+      waterline[offset + 4],
+      waterline[offset + 5]
+    );
+  }
+  writeMarker(out, DebugMarker.mass, centerOfMass);
+  writeForce(
+    out,
+    DebugLine.hydrodynamic,
+    centerOfMass,
+    hydrodynamic.force,
+    weight
+  );
+  if (submergedCentroid(surface, buoyancyCenter) <= 0) return;
+  writeMarker(out, DebugMarker.buoyancy, buoyancyCenter);
+  writeForce(
+    out,
+    DebugLine.buoyancy,
+    buoyancyCenter,
+    hydrostatic.force,
+    weight
+  );
+}
+
+function writeLine(
+  out: BuoyancyDebugData,
+  kind: number,
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number
+): void {
+  if ((out.lineCount + 1) * 6 > out.lines.length) return;
+  const offset = out.lineCount * 6;
+  out.lines[offset] = ax;
+  out.lines[offset + 1] = ay;
+  out.lines[offset + 2] = az;
+  out.lines[offset + 3] = bx;
+  out.lines[offset + 4] = by;
+  out.lines[offset + 5] = bz;
+  out.lineKinds[out.lineCount] = kind;
+  out.lineCount += 1;
+}
+
+function writeMarker(
+  out: BuoyancyDebugData,
+  kind: number,
+  point: Vector3
+): void {
+  if ((out.markerCount + 1) * 3 > out.markers.length) return;
+  point.toArray(out.markers, out.markerCount * 3);
+  out.markerKinds[out.markerCount] = kind;
+  out.markerCount += 1;
+}
+
+function writeForce(
+  out: BuoyancyDebugData,
+  kind: number,
+  origin: Vector3,
+  force: Vector3,
+  weight: number
+): void {
+  const scale = FORCE_LENGTH / weight;
+  writeLine(
+    out,
+    kind,
+    origin.x,
+    origin.y,
+    origin.z,
+    origin.x + force.x * scale,
+    origin.y + force.y * scale,
+    origin.z + force.z * scale
+  );
 }

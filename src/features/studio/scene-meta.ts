@@ -10,6 +10,7 @@ import {
   Music,
   Package,
   Puzzle,
+  Sailboat,
   Square,
   Sun,
   SunDim,
@@ -46,6 +47,7 @@ const shapeIcons: Record<PrimitiveShape, LucideIcon> = {
   plane: Square,
   cylinder: Cylinder,
   torus: Torus,
+  boat: Sailboat,
 };
 
 export function objectIcon(object: SceneObjectSpec): LucideIcon {

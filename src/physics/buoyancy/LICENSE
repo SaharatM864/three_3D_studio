@@ -1,14 +1,15 @@
-The propulsion model in src/physics/buoyancy/forces.ts (vectored thrust with prop
-ventilation, heel and advance-ratio losses, speed-dependent steering, rudder
-lift and planing lift) and the boat values in src/presets/buoyancy.ts
+The propulsion model in src/physics/buoyancy/forces/propulsion.ts (vectored
+thrust with prop ventilation, heel and advance-ratio losses, speed-dependent
+steering and rudder lift) and the boat proportions in src/presets/buoyancy.ts
 (runabout from "zefiro", motor-yacht from "motoryacht") are adapted from
 open-water (https://github.com/bob6664569/open-water, commit
 285b6ce32057c70191a7fe16c31d979fa383ac64, site/js/simulation/boat.js and
-vessels.js). Buoyancy, drag and damping are rewritten for 3D Clip Studio as
-Archimedes probe columns applied to Rapier rigid bodies; the column method
-follows the bounded probe model described for FusionWater-style floaters and
-J. Kerner, "Water interaction model for boats in video games" (2015). No
-open-water models (CC BY-NC) are included.
+vessels.js). Buoyancy, drag, slamming and damping are written for 3D Clip
+Studio after J. Kerner, "Water interaction model for boats in video games"
+(Game Developer, 2015, parts 1 and 2): a closed hull mesh is cut at the water
+surface every step and the hydrostatic pressure and hydrodynamic forces of the
+submerged triangles are applied to Rapier rigid bodies. No open-water models
+(CC BY-NC) are included.
 
 MIT License
 

@@ -144,22 +144,24 @@ export default definePlayground(
   - `ccd: true` for small fast bodies that would tunnel through walls; `linearDamping`, `angularDamping` and `gravityScale` tune the motion.
   - Example: `physics: { body: "dynamic", materialId: "wood" }` makes a crate fall onto the deck.
   - Turn on "แสดง collider" in the playground Debug settings to see every collider.
-- **Floating objects:** add `buoyancy` to a `primitive` (`box`, `sphere` or `cylinder`) and it floats on the ocean, or on flat water at y = 0 when the scene has no ocean.
+- **Floating objects:** add `buoyancy` to a `primitive` (`box`, `sphere`, `cylinder` or `boat`) and it floats on the ocean, or on flat water at y = 0 when the scene has no ocean.
   - `buoyancy: { presetId: "buoy" }` picks a preset: `buoy`, `crate`, `runabout` or `motor-yacht`. Fields you set override the preset per group.
-  - The hull is the object itself: `size` × `scale` along its local axes, x = beam, y = height, z = length, **+Z is the bow**. Rotate the object to set the heading. Set `shape` (`box`, `boat`, `ellipsoid`, `cylinder`) and `size` only to use a hull that differs from the visible primitive.
-  - Weight: `mass` in kg, or `density` in kg/m³ (water is 1025). Lighter floats higher, heavier than water sinks. Presets use `density`, so they fit hulls of any size.
-  - `centerOfMass` is a fraction of `size` (−0.5 to 0.5). Keep it low for stability; a buoy or spar needs it well below the middle to stay upright.
-  - Boats drive from data: `throttle` (−1 to 1) and `steer` (−1 to 1, positive turns to starboard/right) are constant for now. `propulsion: null` removes the motor.
-  - `damping` (`heave`, `roll`, `pitch`) are damping ratios (0.1 lively, 0.3 calm). `drag.coefficients` are `[sway, heave, surge]`. `waveFilter` (meters) ignores waves shorter than about 4× its value; it defaults to 10% of the hull's longest side, between 0.25 and 2 m.
-  - A floating object is a dynamic physics body: it collides with other bodies and colliders. `physics` may set `friction`, `restitution`, `layer`, `collider` or `ccd`, but not `mass`/`density` (set those in `buoyancy`) and not another `body` type.
+  - The hull is the object itself: `size` × `scale` along its local axes, x = beam, y = height, z = length, **+Z is the bow**. Rotate the object to set the heading. Use the `boat` primitive for boats so the hull you see is the hull that floats. Set `shape` (`box`, `boat`, `ellipsoid`, `cylinder`) and `size` only to use a hull that differs from the visible primitive.
+  - Weight: `mass` in kg, or `density` in kg/m³ (sea water is 1025). Lighter floats higher, heavier than water sinks. Presets use `density`, so they fit hulls of any size.
+  - `centerOfMass` is a fraction of `size` (−0.5 to 0.5). Keep it low for stability; a buoy or spar needs it well below the middle to stay upright. A cube about half as dense as water is unstable upright and floats tilted; that is correct.
+  - `gyration` sets how the mass is spread: radii of gyration as fractions of `[length, length, beam]` for pitch, yaw and roll (boat presets use `[0.25, 0.25, 0.38]`). Leave it out to treat the hull as solid. `addedInertia` (1–4) adds the water carried along in pitch and roll.
+  - Water forces: `drag.friction` is the skin-friction form factor (1 = flat plate), `drag.pressure` and `drag.suction` are dimensionless coefficients for faces pushing into or pulling away from the water (pressure under the hull is what makes a fast boat plane), and `drag.falloff` holds their angle exponents. `slamming: { power, threshold }` stiffens the hull when it hits the water hard (`null` turns it off). `damping` (`heave`, `roll`, `pitch`) are damping ratios (0.05 lively, 0.3 calm).
+  - `waveFilter` (meters) ignores waves shorter than about 4× its value and is also the size of the hull's triangles; it defaults to 10% of the hull's longest side, between 0.25 and 2 m.
+  - Boats drive from data: `throttle` (−1 to 1) and `steer` (−1 to 1, positive turns to starboard/right) are constant for now. `propulsion: null` removes the motor. `propulsion.thrust` is thrust per weight at full throttle; with the hull's drag it sets the top speed (presets reach about `maxSpeed`).
+  - A floating object is a dynamic physics body: it collides with other bodies and colliders. `physics` may set `friction`, `restitution`, `layer`, `collider` or `ccd`, but not `mass`/`density` (set those in `buoyancy`), `gravityScale` or another `body` type.
   - Physics owns a floating object's transform: `position` and `rotation` are only the starting pose, and a clip may not `animate` its `transform` (it throws).
   - Floating objects move only in the playground for now. In the studio they stay at their starting pose until clip physics replay lands (M2).
-  - Turn on "แสดงจุดลอยตัว" in the playground Debug settings to see the probes and the sampled water surface.
+  - Turn on "แสดงจุดลอยตัว" in the playground Debug settings to see the wetted hull (orange), the waterline (white), the center of mass (red), the center of buoyancy and buoyant force (green), the water drag (magenta) and the sampled water surface (cyan).
 - **Lights:** the sun comes from the environment. `lights` are extra lights only; use `lights: []` unless the scene needs them (e.g. `lightingPresets["night-neon"].lights`).
   - The sun is the only shadow caster. Don't set `castShadow` on extra lights: each one renders the whole scene again into its own shadow map.
   - Set `castShadow` on objects only when their shadow is visible in the shot.
 - **Presets** (`src/presets/`): fields you set override the preset, e.g. `material: { presetId: "brushed-metal", color: "#..." }`.
-- **Objects:** `kind` is one of `primitive` (`box`, `sphere`, `plane`, `cylinder`, `torus`), `model` (GLB `src`, optional `animation`), `text`, or `custom`.
+- **Objects:** `kind` is one of `primitive` (`box`, `sphere`, `plane`, `cylinder`, `torus`, `boat`), `model` (GLB `src`, optional `animation`), `text`, or `custom`.
 - **Randomness:** `seed` feeds `createSeededRandom()` (`src/timeline/random.ts`).
 
 ## Rules

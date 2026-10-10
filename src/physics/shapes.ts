@@ -73,6 +73,8 @@ function autoCollider(
       return planeCuboid(width, height);
     case "torus":
       return dynamic ? hull(mesh, size) : trimesh(mesh, size);
+    case "boat":
+      return hull(mesh, size);
   }
 }
 

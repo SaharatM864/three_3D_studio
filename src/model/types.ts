@@ -118,13 +118,21 @@ export interface MaterialSpec {
   maps?: MaterialMaps;
 }
 
-export type PrimitiveShape = "box" | "sphere" | "plane" | "cylinder" | "torus";
+export type PrimitiveShape =
+  "box" | "sphere" | "plane" | "cylinder" | "torus" | "boat";
 
 export type HullShape = "box" | "boat" | "ellipsoid" | "cylinder";
 
 export interface BuoyancyDrag {
-  coefficients: Vec3;
-  linear: number;
+  friction: number;
+  pressure: number;
+  suction: number;
+  falloff: Vec2;
+}
+
+export interface BuoyancySlamming {
+  power: number;
+  threshold: number;
 }
 
 export interface BuoyancyDamping {
@@ -138,8 +146,6 @@ export interface PropulsionSpec {
   reverseThrust: number;
   maxSteer: number;
   rudder: number;
-  planing: number;
-  planingMax: number;
   maxSpeed: number;
   position: Vec3;
 }
@@ -151,8 +157,9 @@ export interface BuoyancySpec {
   mass?: number;
   density?: number;
   centerOfMass?: Vec3;
-  grid?: Vec2;
+  gyration?: Vec3;
   drag?: Partial<BuoyancyDrag>;
+  slamming?: Partial<BuoyancySlamming> | null;
   damping?: Partial<BuoyancyDamping>;
   addedInertia?: number;
   waveFilter?: number;

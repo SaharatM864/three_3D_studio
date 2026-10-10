@@ -156,6 +156,11 @@ function assertFloating(spec: PhysicsSpec): void {
       "Invalid physics: set mass or density in buoyancy for a floating object"
     );
   }
+  if (spec.gravityScale !== undefined && spec.gravityScale !== 1) {
+    throw new Error(
+      `Invalid physics.gravityScale ${spec.gravityScale}: a floating object's weight and buoyancy share one gravity`
+    );
+  }
 }
 
 function defaultLayer(body: PhysicsBodyType, sensor: boolean): CollisionLayer {

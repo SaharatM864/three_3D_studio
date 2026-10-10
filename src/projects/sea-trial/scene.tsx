@@ -18,7 +18,7 @@ export default defineScene({
       {
         id: "runabout",
         kind: "primitive",
-        shape: "box",
+        shape: "boat",
         size: RUNABOUT_SIZE,
         transform: { position: [LOOP_RADIUS, 0.5, 0] },
         material: { presetId: "glossy-paint", color: "#f4f4f4" },
@@ -28,7 +28,7 @@ export default defineScene({
       {
         id: "motor-yacht",
         kind: "primitive",
-        shape: "box",
+        shape: "boat",
         size: YACHT_SIZE,
         transform: { position: [-8, 0.75, -10], rotation: [0, 0.6, 0] },
         material: { presetId: "glossy-paint", color: "#1f3a5f" },

@@ -1,11 +1,11 @@
 import type {
   BuoyancyDamping,
   BuoyancyDrag,
+  BuoyancySlamming,
   BuoyancySpec,
   HullShape,
   PrimitiveShape,
   PropulsionSpec,
-  Vec2,
   Vec3,
 } from "@/model/types";
 
@@ -23,8 +23,9 @@ export interface ResolvedBuoyancy {
   mass: number | null;
   density: number;
   centerOfMass: Vec3;
-  grid: Vec2;
+  gyration: Vec3 | null;
   drag: BuoyancyDrag;
+  slamming: BuoyancySlamming | null;
   damping: BuoyancyDamping;
   addedInertia: number;
   waveFilter: number;
@@ -50,6 +51,8 @@ export const HULL_SHAPES: readonly HullShape[] = [
   "cylinder",
 ];
 
+const DEFAULT_SLAMMING: BuoyancySlamming = { power: 2, threshold: 60 };
+
 export const DEFAULT_BUOYANCY: Omit<
   ResolvedBuoyancy,
   "shape" | "size" | "waveFilter"
@@ -57,8 +60,9 @@ export const DEFAULT_BUOYANCY: Omit<
   mass: null,
   density: 500,
   centerOfMass: [0, 0, 0],
-  grid: [4, 4],
-  drag: { coefficients: [1, 1, 1], linear: 0.1 },
+  gyration: null,
+  drag: { friction: 1, pressure: 0.6, suction: 0.3, falloff: [1, 1] },
+  slamming: DEFAULT_SLAMMING,
   damping: { heave: 0.3, roll: 0.15, pitch: 0.15 },
   addedInertia: 1.5,
   propulsion: null,
@@ -67,12 +71,10 @@ export const DEFAULT_BUOYANCY: Omit<
 };
 
 export const DEFAULT_PROPULSION: PropulsionSpec = {
-  thrust: 1,
-  reverseThrust: 0.25,
+  thrust: 0.4,
+  reverseThrust: 0.1,
   maxSteer: 27,
   rudder: 0.06,
-  planing: 0.0022,
-  planingMax: 0.58,
   maxSpeed: 21,
   position: [0, -0.55, -0.47],
 };
@@ -80,9 +82,9 @@ export const DEFAULT_PROPULSION: PropulsionSpec = {
 const BOAT_HULL: Omit<BuoyancySpec, "presetId"> = {
   shape: "boat",
   centerOfMass: [0, -0.15, -0.13],
-  grid: [4, 10],
-  drag: { coefficients: [2.5, 1, 0.17], linear: 0.05 },
-  damping: { heave: 0.25, roll: 0.3, pitch: 0.25 },
+  gyration: [0.25, 0.25, 0.38],
+  drag: { friction: 1.2, pressure: 0.5, suction: 0.2 },
+  damping: { heave: 0.15, roll: 0.08, pitch: 0.15 },
 };
 
 export const buoyancyPresets = {
@@ -91,16 +93,14 @@ export const buoyancyPresets = {
     buoyancy: {
       density: 350,
       centerOfMass: [0, -0.3, 0],
-      grid: [3, 3],
-      drag: { coefficients: [0.5, 0.8, 0.5] },
+      drag: { pressure: 0.5, suction: 0.25 },
     },
   },
   crate: {
     label: "Crate",
     buoyancy: {
       density: 650,
-      grid: [3, 3],
-      drag: { coefficients: [1.05, 1.05, 1.05] },
+      drag: { pressure: 0.7, suction: 0.35 },
     },
   },
   runabout: {
@@ -117,12 +117,10 @@ export const buoyancyPresets = {
       ...BOAT_HULL,
       density: 110,
       propulsion: {
-        thrust: 0.53,
-        reverseThrust: 0.16,
+        thrust: 0.23,
+        reverseThrust: 0.07,
         maxSteer: 22,
         rudder: 0.05,
-        planing: 0.0026,
-        planingMax: 0.44,
         maxSpeed: 16.5,
         position: [0, -0.55, -0.45],
       },
@@ -142,6 +140,7 @@ const PRIMITIVE_HULLS: Readonly<Record<PrimitiveShape, HullShape | null>> = {
   cylinder: "cylinder",
   plane: null,
   torus: null,
+  boat: "boat",
 };
 
 export function primitiveHullShape(shape: PrimitiveShape): HullShape | null {
@@ -174,8 +173,9 @@ export function resolveBuoyancy(
     ...weight,
     centerOfMass:
       spec.centerOfMass ?? preset.centerOfMass ?? DEFAULT_BUOYANCY.centerOfMass,
-    grid: spec.grid ?? preset.grid ?? DEFAULT_BUOYANCY.grid,
+    gyration: spec.gyration ?? preset.gyration ?? DEFAULT_BUOYANCY.gyration,
     drag: { ...DEFAULT_BUOYANCY.drag, ...preset.drag, ...spec.drag },
+    slamming: resolveSlamming(preset.slamming, spec.slamming),
     damping: {
       ...DEFAULT_BUOYANCY.damping,
       ...preset.damping,
@@ -207,6 +207,15 @@ function massSource(
   return undefined;
 }
 
+function resolveSlamming(
+  preset: Partial<BuoyancySlamming> | null | undefined,
+  spec: Partial<BuoyancySlamming> | null | undefined
+): BuoyancySlamming | null {
+  if (spec === null) return null;
+  if (spec === undefined && preset === null) return null;
+  return { ...DEFAULT_SLAMMING, ...preset, ...spec };
+}
+
 function resolvePropulsion(
   preset: Partial<PropulsionSpec> | null | undefined,
   spec: Partial<PropulsionSpec> | null | undefined
@@ -233,8 +242,19 @@ const SIZE_BOUNDS: Bounds = [0, 1000, false];
 const MASS_BOUNDS: Bounds = [0, 1e8, false];
 const DENSITY_BOUNDS: Bounds = [1, 20_000];
 const CENTER_OF_MASS_BOUNDS: Bounds = [-0.5, 0.5];
-const GRID_BOUNDS: Bounds = [1, 16];
-const DRAG_COEFFICIENT_BOUNDS: Bounds = [0, 10];
+const GYRATION_BOUNDS: Bounds = [0.05, 1];
+const FALLOFF_BOUNDS: Bounds = [0, 4];
+
+const DRAG_BOUNDS: Record<Exclude<keyof BuoyancyDrag, "falloff">, Bounds> = {
+  friction: [0, 10],
+  pressure: [0, 10],
+  suction: [0, 10],
+};
+
+const SLAMMING_BOUNDS: Record<keyof BuoyancySlamming, Bounds> = {
+  power: [0.5, 8],
+  threshold: [0, 10_000, false],
+};
 
 const BODY_BOUNDS = {
   addedInertia: [1, 4],
@@ -257,8 +277,6 @@ const PROPULSION_BOUNDS: Record<
   reverseThrust: [0, 10],
   maxSteer: [0, 60],
   rudder: [0, 1],
-  planing: [0, 0.1],
-  planingMax: [0, 1],
   maxSpeed: [0, 100, false],
 };
 
@@ -280,21 +298,19 @@ function validateBuoyancy(buoyancy: ResolvedBuoyancy): void {
     3,
     CENTER_OF_MASS_BOUNDS
   );
-  assertVector(`${name}.grid`, buoyancy.grid, 2, GRID_BOUNDS);
-  if (!buoyancy.grid.every(Number.isInteger)) {
-    throw new Error(`Invalid ${name}.grid: expected integers`);
+  if (buoyancy.gyration !== null) {
+    assertVector(`${name}.gyration`, buoyancy.gyration, 3, GYRATION_BOUNDS);
   }
+  assertFields(`${name}.drag`, buoyancy.drag, DRAG_BOUNDS);
   assertVector(
-    `${name}.drag.coefficients`,
-    buoyancy.drag.coefficients,
-    3,
-    DRAG_COEFFICIENT_BOUNDS
+    `${name}.drag.falloff`,
+    buoyancy.drag.falloff,
+    2,
+    FALLOFF_BOUNDS
   );
-  assertInRange(
-    `${name}.drag.linear`,
-    buoyancy.drag.linear,
-    DRAG_COEFFICIENT_BOUNDS
-  );
+  if (buoyancy.slamming !== null) {
+    assertFields(`${name}.slamming`, buoyancy.slamming, SLAMMING_BOUNDS);
+  }
   assertFields(`${name}.damping`, buoyancy.damping, DAMPING_BOUNDS);
   assertFields(name, buoyancy, BODY_BOUNDS);
   if (buoyancy.propulsion !== null) {
